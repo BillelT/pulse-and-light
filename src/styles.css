@@ -580,43 +580,6 @@ input[type='search']:focus {
   text-overflow: ellipsis;
 }
 
-/* ---------- Ecran d'accueil ---------- */
-
-.splash {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  display: grid;
-  place-items: center;
-  background: radial-gradient(ellipse at 50% 60%, rgba(6, 12, 18, 0.6), rgba(3, 5, 8, 0.96));
-  backdrop-filter: blur(3px);
-}
-
-.splash-inner {
-  text-align: center;
-  max-width: 460px;
-  padding: 26px;
-}
-
-.splash h1 {
-  font-size: 24px;
-  letter-spacing: 0.32em;
-  margin: 0 0 6px;
-  font-weight: 700;
-}
-
-.splash p {
-  color: var(--ink-dim);
-  font-size: 11px;
-  line-height: 1.7;
-  margin: 0 0 20px;
-}
-
-.splash .btn {
-  max-width: 260px;
-  margin: 0 auto;
-}
-
 @media (max-width: 860px) {
   .panel {
     top: auto;

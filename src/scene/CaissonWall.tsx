@@ -10,15 +10,22 @@ import {
   PointLight,
 } from 'three'
 import { engine } from '../audio/engine'
-import { BAND_COUNT } from '../audio/bands'
+import { columnCenterHz } from '../audio/columns'
 import { COLUMN_COUNT } from '../audio/types'
 import { readState, useStore } from '../state/store'
-import { keyTint, paletteById, sampleRamp, sampleRampStepped, toColors } from './palettes'
+import {
+  frequencyColor,
+  keyTint,
+  mixHueShortest,
+  paletteById,
+  sampleRamp,
+  sampleRampStepped,
+  toColors,
+} from './palettes'
 import {
   FRAME,
   MAX_LED_INSTANCES,
   TOWERS,
-  TOWER_MAX_HEIGHT,
   cellPitch,
   segmentsFor,
 } from './layout'
@@ -27,12 +34,16 @@ import {
 const _dummy = new Object3D()
 const _color = new Color()
 const _ramp = new Color()
-const _band = new Color()
 const _key = new Color()
 const _light = new Color()
 const _acc = new Color()
-/** Teinte des cellules eteintes : le mur au repos doit rester froid et sourd. */
-const _off = new Color(0x121820)
+const _freq = new Color()
+/**
+ * Cellule eteinte : gris fonce neutre, jamais teintee. Un caisson au repos est
+ * une grille de plastique gris sur fond noir — la couleur n'apparait que quand
+ * la cellule s'allume, et elle vient alors de la frequence mesuree.
+ */
+const OFF_COLOR = new Color(0x2a2f36)
 
 /** Nombre de projecteurs qui reprennent la lumiere du mur pour la jeter au sol. */
 const SPILL_LIGHTS = 5
@@ -47,8 +58,6 @@ interface TowerRuntime {
   count: number
   /** Hauteur du bas de la premiere cellule. */
   baseY: number
-  /** Bande de frequence dominante de la colonne (pour la teinte). */
-  band: number
 }
 
 /**
@@ -67,9 +76,24 @@ export function CaissonWall() {
   const segments = useStore((s) => s.visual.segments)
   const paletteId = useStore((s) => s.visual.paletteId)
 
+  const quantize = useStore((s) => s.visual.quantize)
+
   const palette = useMemo(() => paletteById(paletteId), [paletteId])
   const rampColors = useMemo(() => toColors(palette.ramp), [palette])
   const bandColors = useMemo(() => toColors(palette.bands), [palette])
+
+  /**
+   * Une couleur par colonne, deduite une fois pour toutes de la frequence
+   * centrale que cette colonne analyse. Deterministe : la colonne 0 mesure les
+   * graves, elle sera rouge ; la derniere mesure l'air, elle sera bleue.
+   */
+  const columnColors = useMemo(
+    () =>
+      Array.from({ length: COLUMN_COUNT }, (_, i) =>
+        frequencyColor(bandColors, columnCenterHz(i), quantize, new Color()),
+      ),
+    [bandColors, quantize],
+  )
 
   /** Materiaux : recrees jamais, seules les couleurs d'instance changent. */
   const ledMaterial = useMemo(
@@ -101,13 +125,7 @@ export function CaissonWall() {
       let offset = 0
       for (const t of TOWERS) {
         const count = segmentsFor(t.height, pitch)
-        // Bande dominante : la colonne i couvre une octave, on la rattache a la
-        // bande du brief la plus proche pour la teinte.
-        const band = Math.min(
-          BAND_COUNT - 1,
-          Math.floor((t.index / COLUMN_COUNT) * BAND_COUNT),
-        )
-        towers.push({ offset, count, baseY: FRAME + pitch * 0.5, band })
+        towers.push({ offset, count, baseY: FRAME + pitch * 0.5 })
         offset += count
       }
       return { towers, total: offset, pitch, cell }
@@ -220,7 +238,7 @@ export function CaissonWall() {
     }
     flashRef.current = Math.max(0, flashRef.current - dt / 0.09)
 
-    const { towers, pitch } = runtime
+    const { towers } = runtime
 
     for (let i = 0; i < TOWERS.length; i++) {
       const rt = towers[i]
@@ -237,47 +255,45 @@ export function CaissonWall() {
       const fullCells = Math.floor(lit)
       const partial = lit - fullCells
 
-      _band.copy(bandColors[rt.band])
+      _freq.copy(columnColors[i])
 
       for (let s = 0; s < rt.count; s++) {
-        // La rampe est indexee sur la hauteur ABSOLUE, pas sur la hauteur
-        // relative de la colonne : sur la reference, toutes les colonnes sont
-        // vertes en bas, seules les plus hautes atteignent le magenta.
-        const absolute = (rt.baseY + s * pitch) / TOWER_MAX_HEIGHT
-        // Brouillage deterministe : la reference n'a pas un degrade parfait,
-        // les teintes s'entrelacent d'une cellule a l'autre.
-        const scramble = (((i * 31 + s * 17) % 11) / 11 - 0.5) * 0.2
-        // La colonne "chauffe" : plus elle monte, plus elle glisse vers le haut
-        // de la rampe (rouge/magenta).
-        const heat = level * 0.14
-        const rampPos = absolute + scramble + heat
-        if (visual.quantize) sampleRampStepped(rampColors, rampPos, _ramp)
-        else sampleRamp(rampColors, rampPos, _ramp)
+        // Position de la cellule dans SA colonne : c'est l'axe du VU-metre.
+        // Les dernieres cellules virent au chaud, comme sur un vrai bargraphe.
+        const vuPos = rt.count > 1 ? s / (rt.count - 1) : 0
+        if (visual.quantize) sampleRampStepped(rampColors, vuPos, _ramp)
+        else sampleRamp(rampColors, vuPos, _ramp)
 
-        _color.copy(_ramp).lerp(_band, visual.bandTint)
+        // Couleur finale = teinte de la frequence mesuree, temperee par la
+        // rampe de niveau. Aucun terme aleatoire : deux ecoutes du meme passage
+        // donnent exactement la meme image.
+        //
+        // Melange en HSL par le plus court chemin : un lerp RGB entre deux
+        // teintes saturees passe par le gris et delave le haut des colonnes,
+        // et un lerp lineaire de teinte traverse la roue a l'envers.
+        mixHueShortest(_ramp, _freq, visual.bandTint, _color)
         if (state.snapshot.key >= 0) _color.lerp(_key, visual.keyTint * 0.5)
 
         // Le gain reste modere : au dela de ~2, le tone mapping desature les
         // teintes vers le blanc et on perd le neon sature de la reference.
         // C'est le bloom, pas l'intensite brute, qui doit produire le halo.
-        const litGain = 1.75 + level * 0.75
+        const litGain = 1.3 + level * 0.55
         let intensity: number
         if (s < fullCells) {
           intensity = litGain
         } else if (s === fullCells) {
           intensity = 0.07 + partial * litGain
         } else {
-          // Cellule eteinte : jamais totalement noire, on doit voir la grille.
-          // On la desature aussi, sinon le mur eteint reste colore.
-          _color.lerp(_off, 0.55)
-          intensity = 0.07
+          // Cellule eteinte : gris fonce pur, sans aucune teinte residuelle.
+          _color.copy(OFF_COLOR)
+          intensity = 1
         }
 
         if (s === peakSeg && level > 0.03) intensity = Math.max(intensity, litGain * 1.35)
 
         // Strobe sur transitoire : uniquement le haut des colonnes, comme un
         // vrai rack de strobes place en hauteur.
-        if (flashRef.current > 0 && absolute > 0.55) {
+        if (flashRef.current > 0 && s >= fullCells - 3 && s < fullCells) {
           const strobe = flashRef.current * frame.bandsRaw[5] * 4
           _color.lerp(_light.set(palette.flash), Math.min(0.8, strobe))
           intensity += strobe * 0.8
@@ -302,15 +318,16 @@ export function CaissonWall() {
       for (let c = from; c < to; c++) {
         const lv = frame.columns[c]
         sum += lv
-        const bandIndex = Math.min(BAND_COUNT - 1, Math.floor((c / COLUMN_COUNT) * BAND_COUNT))
-        _light.add(_acc.copy(bandColors[bandIndex]).multiplyScalar(lv))
+        // Meme couleur de frequence que les cellules : la retombee au sol est
+        // coherente avec ce qu'on voit sur le mur.
+        _light.add(_acc.copy(columnColors[c]).multiplyScalar(lv))
       }
       const n = Math.max(1, to - from)
       const avg = sum / n
       if (sum > 1e-4) _light.multiplyScalar(1 / sum)
       else _light.set(palette.ambient)
       light.color.copy(_light)
-      light.intensity = 5 + avg * 55 + flashRef.current * 18
+      light.intensity = 4 + avg * 34 + flashRef.current * 12
     }
   })
 

@@ -34,10 +34,10 @@ export interface VisualSettings {
 
 export const DEFAULT_VISUAL: VisualSettings = {
   paletteId: 'arcade',
-  bloom: 1.35,
-  bandTint: 0.16,
+  bloom: 1.1,
+  bandTint: 0.7,
   keyTint: 0.1,
-  fog: 0.045,
+  fog: 0.013,
   shake: 0.4,
   autoCamera: true,
   segments: 22,

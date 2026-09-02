@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Color, DoubleSide, Mesh, MeshBasicMaterial } from 'three'
+import { Color, Group, MeshBasicMaterial } from 'three'
 import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
 import { useStore } from '../state/store'
@@ -29,7 +29,7 @@ export function SubCabinets() {
   const paletteId = useStore((s) => s.visual.paletteId)
   const palette = useMemo(() => paletteById(paletteId), [paletteId])
 
-  const conesRef = useRef<Mesh[]>([])
+  const conesRef = useRef<Group[]>([])
   const badgeMaterial = useMemo(
     () => new MeshBasicMaterial({ toneMapped: false, color: new Color(palette.bands[0]) }),
     [palette],
@@ -48,10 +48,11 @@ export function SubCabinets() {
       const phase = CABINETS[(i / 2) | 0]?.phase ?? 0
       // Le leger dephasage entre caissons evite l'effet "un seul gros objet".
       const wobble = 1 + 0.12 * Math.sin(t * 9 + phase * 4)
-      cone.position.z = 0.36 + push * 0.2 * wobble
-      cone.scale.setScalar(1 + push * 0.05)
+      // La membrane avance depuis sa position de repos ; le groupe parent porte
+      // deja le decalage vers la face avant du caisson.
+      cone.position.z = push * 0.17 * wobble
     }
-    badgeMaterial.color.set(palette.bands[0]).multiplyScalar(0.15 + push * 0.9)
+    badgeMaterial.color.set(palette.bands[0]).multiplyScalar(0.1 + push * 0.6)
   })
 
   return (
@@ -76,29 +77,38 @@ export function SubCabinets() {
           ))}
           {/* Deux haut-parleurs par caisson. */}
           {[-0.6, 0.6].map((x, sub) => (
-            <group key={x} position={[x, 0.62, 0]}>
-              <mesh position={[0, 0, 0.34]}>
-                <torusGeometry args={[0.46, 0.05, 8, 24]} />
-                <meshStandardMaterial color="#464e56" roughness={0.5} metalness={0.25} />
+            <group key={x} position={[x, 0.62, 0.36]}>
+              {/* Saladier. */}
+              <mesh rotation-x={Math.PI / 2} castShadow>
+                <cylinderGeometry args={[0.5, 0.5, 0.06, 28]} />
+                <meshStandardMaterial color="#3c434b" roughness={0.5} metalness={0.25} />
               </mesh>
-              <mesh
+              {/* Suspension. */}
+              <mesh position={[0, 0, 0.03]} rotation-x={Math.PI / 2} castShadow>
+                <torusGeometry args={[0.42, 0.05, 10, 28]} />
+                <meshStandardMaterial color="#20242a" roughness={0.75} metalness={0.1} />
+              </mesh>
+              {/* Membrane : troncs de cone FERMES. La version precedente
+                  utilisait un cone ouvert en DoubleSide, dont l'interieur
+                  apparaissait en creux a travers la suspension. */}
+              <group
                 ref={(node) => {
                   if (node) conesRef.current[index * 2 + sub] = node
                 }}
-                position={[0, 0, 0.36]}
-                rotation-x={-Math.PI / 2}
-                castShadow
               >
-                <coneGeometry args={[0.44, 0.2, 24, 1, true]} />
-                <meshStandardMaterial
-                  color="#0a0c0e"
-                  roughness={0.55}
-                  metalness={0.3}
-                  side={DoubleSide}
-                />
-              </mesh>
+                <mesh rotation-x={-Math.PI / 2} castShadow>
+                  <cylinderGeometry args={[0.14, 0.4, 0.16, 28]} />
+                  <meshStandardMaterial color="#0e1013" roughness={0.62} metalness={0.12} />
+                </mesh>
+                {/* Cache-noyau. */}
+                <mesh position={[0, 0, 0.08]} rotation-x={Math.PI / 2} castShadow>
+                  <sphereGeometry args={[0.14, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+                  <meshStandardMaterial color="#171a1f" roughness={0.5} metalness={0.2} />
+                </mesh>
+              </group>
             </group>
           ))}
+
           {/* Temoin de niveau du caisson. */}
           <mesh position={[0, 0.06, 0.4]} material={badgeMaterial}>
             <boxGeometry args={[0.7, 0.02, 0.02]} />

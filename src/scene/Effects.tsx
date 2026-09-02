@@ -45,7 +45,7 @@ export function Effects() {
     if (bloomRef.current) {
       // Le bloom respire avec le morceau, sinon la scene parait figee sur les
       // passages calmes et saturee sur les drops.
-      bloomRef.current.intensity = visual.bloom * (0.85 + frame.level * 0.7 + frame.beat * 0.3)
+      bloomRef.current.intensity = visual.bloom * (0.7 + frame.level * 0.5 + frame.beat * 0.25)
     }
     if (chromaRef.current) {
       // Aberration chromatique pilotee par les basses (recommandation du brief).
@@ -67,11 +67,11 @@ export function Effects() {
         ref={bloomRef}
         intensity={bloom}
         // Seuil eleve : seules les LED (valeurs > 1) declenchent le halo.
-        luminanceThreshold={0.34}
+        luminanceThreshold={0.62}
         luminanceSmoothing={0.14}
-        kernelSize={KernelSize.LARGE}
+        kernelSize={KernelSize.MEDIUM}
         mipmapBlur
-        radius={0.82}
+        radius={0.58}
       />
       <ChromaticAberration
         ref={chromaRef}

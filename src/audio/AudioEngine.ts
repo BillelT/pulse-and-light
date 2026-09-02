@@ -1,4 +1,5 @@
 import { BANDS, BAND_COUNT } from './bands'
+import { columnEdges } from './columns'
 import { COLUMN_COUNT, type AudioFrame, type SpectrumProvider } from './types'
 
 /**
@@ -148,18 +149,12 @@ export class AudioEngine {
       this.bandBins[i * 2 + 1] = hi
     }
 
-    // Colonnes : repartition logarithmique de 30 Hz a 14 kHz, comme un VU-metre
-    // a bandes d'octave. Une repartition lineaire ecraserait tout le contenu
-    // musical dans les deux premieres colonnes.
-    const fLo = 30
-    const fHi = Math.min(14000, nyquist * 0.95)
-    const logLo = Math.log2(fLo)
-    const logHi = Math.log2(fHi)
+    // Colonnes : meme decoupage que celui dont la scene tire les couleurs
+    // (cf. audio/columns.ts), borne au Nyquist de la source.
     for (let i = 0; i < COLUMN_COUNT; i++) {
-      const a = 2 ** (logLo + ((logHi - logLo) * i) / COLUMN_COUNT)
-      const b = 2 ** (logLo + ((logHi - logLo) * (i + 1)) / COLUMN_COUNT)
-      const lo = hzToBin(a)
-      const hi = Math.max(lo + 1, hzToBin(b))
+      const [a, b] = columnEdges(i)
+      const lo = hzToBin(Math.min(a, nyquist * 0.95))
+      const hi = Math.max(lo + 1, hzToBin(Math.min(b, nyquist * 0.95)))
       this.columnBins[i * 2] = lo
       this.columnBins[i * 2 + 1] = hi
     }

@@ -111,14 +111,14 @@ export function LightingTab() {
         </div>
         <div style={{ marginTop: 12 }}>
           <Slider
-            label="Teinte de bande"
+            label="Couleur par frequence"
             value={visual.bandTint}
             min={0}
             max={1}
             step={0.01}
             format={pct}
             onChange={(bandTint) => setVisual({ bandTint })}
-            hint="Poids de la couleur de bande du brief sur la rampe verticale."
+            hint="100% = la colonne prend la couleur de la bande qu'elle mesure (tableau du brief). 0% = seule la rampe de niveau du VU-metre colore les cellules."
           />
           <Slider
             label="Teinte tonale (Scriabine)"
@@ -165,10 +165,11 @@ export function LightingTab() {
           label="Brume"
           value={visual.fog}
           min={0}
-          max={0.12}
-          step={0.001}
-          format={(v) => v.toFixed(3)}
+          max={0.05}
+          step={0.0005}
+          format={(v) => v.toFixed(4)}
           onChange={(fog) => setVisual({ fog })}
+          hint="Au dela de ~0.03 les caissons du fond disparaissent des qu'on recule."
         />
         <Slider
           label="Camera shake"

@@ -9,7 +9,9 @@ import { CameraRig, Rig } from './Rig'
 import { Stage } from './Stage'
 import { SubCabinets } from './SubCabinets'
 
-const BACKGROUND = '#05070a'
+/** Fond et brume partagent la meme famille : un violet tres sombre. */
+const BACKGROUND = '#0a0714'
+const FOG_COLOR = '#191131'
 
 export function Scene() {
   const fog = useStore((s) => s.visual.fog)
@@ -25,9 +27,11 @@ export function Scene() {
       gl={{ antialias: false, powerPreference: 'high-performance', alpha: false }}
     >
       <color attach="background" args={[BACKGROUND]} />
-      {/* Brume volumetrique : elle materialise les faisceaux et evite que le
-          fond ne soit un noir plat. */}
-      <fogExp2 attach="fog" args={[BACKGROUND, fog]} />
+      {/* Brume volumetrique. Violette et non noire : une brume noire ne
+          materialise rien, elle se contente d'effacer la scene des qu'on
+          recule. Une brume teintee et peu dense laisse lire la profondeur tout
+          en donnant un volume aux faisceaux. */}
+      <fogExp2 attach="fog" args={[FOG_COLOR, fog]} />
 
       <AudioDriver />
       <CameraRig />
