@@ -2,32 +2,12 @@ import { useStore } from '../state/store'
 import type { SpotifyController } from '../spotify/useSpotify'
 import { Analyzer } from './Analyzer'
 
-const VERSION = 'v1.0'
-
 export function Hud({ spotify }: { spotify: SpotifyController }) {
-  const sourceKind = useStore((s) => s.sourceKind)
-  const sourceLabel = useStore((s) => s.sourceLabel)
-  const playing = useStore((s) => s.snapshot.playing)
   const panelOpen = useStore((s) => s.panelOpen)
   const togglePanel = useStore((s) => s.togglePanel)
 
-  const status =
-    sourceKind === 'none'
-      ? { text: 'NO SOURCE', cls: 'status-idle' }
-      : sourceKind === 'spotify' && !playing
-        ? { text: 'STANDBY', cls: 'status-warn' }
-        : { text: 'PLAYING', cls: 'status-playing' }
-
   return (
     <div className="hud">
-      <div className="hud-tl">
-        <div className="hud-title">AUDIO-REACTIVE CAISSONS {VERSION}</div>
-        <div className={`hud-status ${status.cls}`}>
-          STATUS: <b>{status.text}</b>
-        </div>
-        <div className="hud-source">{sourceLabel}</div>
-      </div>
-
       <div className="hud-tr">
         <button
           className="icon-btn"
