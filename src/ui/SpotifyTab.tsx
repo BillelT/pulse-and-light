@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useStore } from '../state/store'
 import { clientId, redirectUri } from '../spotify/auth'
 import type { SpotifyController } from '../spotify/useSpotify'
@@ -94,10 +94,6 @@ export function SpotifyTab({ spotify }: { spotify: SpotifyController }) {
 
       {error && <div className="note note-error" style={{ marginBottom: 16 }}>{error}</div>}
 
-      <Section title="Lecture">
-        <PlaybackControls spotify={spotify} deviceId={deviceId} />
-      </Section>
-
       <Section title="Piste en cours">
         {snapshot.track ? (
           <>
@@ -175,108 +171,3 @@ function keyName(key: number, mode: number): string {
   return `${NOTES[key]} ${mode === 0 ? 'min' : 'maj'}`
 }
 
-function formatTime(sec: number): string {
-  if (!Number.isFinite(sec) || sec < 0) sec = 0
-  const total = Math.floor(sec)
-  const m = Math.floor(total / 60)
-  const s = total % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-/** Transport (lecture/pause, precedent/suivant), timeline seekable et volume. */
-function PlaybackControls({
-  spotify,
-  deviceId,
-}: {
-  spotify: SpotifyController
-  deviceId: string | null
-}) {
-  const snapshot = useStore((s) => s.snapshot)
-  const track = snapshot.track
-
-  // Position affichee : celle du store, sauf pendant un drag de la timeline.
-  const [seekDrag, setSeekDrag] = useState<number | null>(null)
-  const [volume, setVolume] = useState(0.7)
-  const [volumeDrag, setVolumeDrag] = useState<number | null>(null)
-
-  useEffect(() => {
-    if (seekDrag !== null && !track) setSeekDrag(null)
-  }, [seekDrag, track])
-
-  if (!track) {
-    return <div className="field-hint">Rien en lecture sur ce device.</div>
-  }
-
-  const duration = snapshot.durationSec
-  const position = seekDrag ?? Math.min(snapshot.positionSec, duration || snapshot.positionSec)
-  const displayVolume = volumeDrag ?? volume
-
-  return (
-    <div className="playback-controls">
-      <div className="np-controls" style={{ marginBottom: 10 }}>
-        <button onClick={() => void spotify.previous()} disabled={!deviceId} title="Precedent">
-          {'⏮'}
-        </button>
-        <button
-          onClick={() => void spotify.togglePlay()}
-          disabled={!deviceId}
-          title="Lecture / pause"
-        >
-          {snapshot.playing ? '⏸' : '▶'}
-        </button>
-        <button onClick={() => void spotify.next()} disabled={!deviceId} title="Suivant">
-          {'⏭'}
-        </button>
-      </div>
-
-      <div className="field">
-        <input
-          type="range"
-          min={0}
-          max={duration > 0 ? duration : 1}
-          step={1}
-          value={position}
-          disabled={!deviceId || duration <= 0}
-          onChange={(e) => setSeekDrag(Number(e.target.value))}
-          onMouseUp={(e) => {
-            const v = Number((e.target as HTMLInputElement).value)
-            setSeekDrag(null)
-            void spotify.seek(v)
-          }}
-          onTouchEnd={(e) => {
-            const v = Number((e.target as HTMLInputElement).value)
-            setSeekDrag(null)
-            void spotify.seek(v)
-          }}
-        />
-        <div className="field-head">
-          <span>{formatTime(position)}</span>
-          <span>{formatTime(duration)}</span>
-        </div>
-      </div>
-
-      <div className="field">
-        <div className="field-head">
-          <span>Volume</span>
-          <b>{Math.round(displayVolume * 100)}%</b>
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={1}
-          step={0.01}
-          value={displayVolume}
-          disabled={!deviceId}
-          onChange={(e) => {
-            const v = Number(e.target.value)
-            setVolumeDrag(v)
-            setVolume(v)
-            void spotify.setVolume(v)
-          }}
-          onMouseUp={() => setVolumeDrag(null)}
-          onTouchEnd={() => setVolumeDrag(null)}
-        />
-      </div>
-    </div>
-  )
-}

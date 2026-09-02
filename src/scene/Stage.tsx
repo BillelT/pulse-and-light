@@ -71,16 +71,29 @@ export function Stage() {
         />
       </mesh>
 
-      {/* Murs : rarement eclaires, mais ils recuperent le halo et empechent la
-          scene de fuir dans le noir absolu. */}
+      {/* Murs : rarement eclaires directement, donc dotes d'un leger emissif
+          vert pour ne jamais tomber au noir absolu (ca se lisait comme un bug
+          de rendu quand la camera orbite devant la scene). */}
       <mesh position={[0, 12, -16]} receiveShadow>
         <boxGeometry args={[70, 30, 1]} />
-        <meshStandardMaterial color="#171226" roughness={0.95} metalness={0.05} />
+        <meshStandardMaterial
+          color="#123322"
+          emissive="#0e2c1c"
+          emissiveIntensity={0.5}
+          roughness={0.95}
+          metalness={0.05}
+        />
       </mesh>
       {[-24, 24].map((x) => (
         <mesh key={x} position={[x, 12, 2]} rotation-y={(x < 0 ? 1 : -1) * (Math.PI / 2)} receiveShadow>
           <boxGeometry args={[40, 30, 1]} />
-          <meshStandardMaterial color="#150f22" roughness={0.95} metalness={0.05} />
+          <meshStandardMaterial
+            color="#0f2b1c"
+            emissive="#0a2316"
+            emissiveIntensity={0.5}
+            roughness={0.95}
+            metalness={0.05}
+          />
         </mesh>
       ))}
 

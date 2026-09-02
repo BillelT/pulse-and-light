@@ -191,14 +191,20 @@ select {
   transform: translateX(-50%);
   bottom: 20px;
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 14px 8px 8px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px 10px 8px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 4px;
   backdrop-filter: blur(10px);
-  max-width: min(460px, 46vw);
+  width: min(400px, 46vw);
+}
+
+.np-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .now-playing img {
@@ -259,21 +265,40 @@ select {
   cursor: not-allowed;
 }
 
-.np-progress {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 3px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
-  overflow: hidden;
+.np-seekrow,
+.np-volrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.np-progress i {
-  display: block;
-  height: 100%;
-  background: var(--accent);
+.np-time {
+  font-size: 9px;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+  width: 26px;
+}
+
+.np-seekrow .np-time:last-child {
+  text-align: right;
+}
+
+.np-seek,
+.np-vol {
+  height: 3px;
+}
+
+.np-vol-icon {
+  font-size: 10px;
+  flex: none;
+  width: 14px;
+  text-align: center;
+  filter: grayscale(1) brightness(1.6);
+}
+
+.np-vol {
+  max-width: 90px;
 }
 
 /* ---------- Panneau lateral ---------- */
