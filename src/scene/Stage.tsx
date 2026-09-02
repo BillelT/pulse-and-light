@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { MeshReflectorMaterial } from '@react-three/drei'
-import { Color, MeshBasicMaterial } from 'three'
+import { Color, DoubleSide, MeshBasicMaterial } from 'three'
 import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
 import { useStore } from '../state/store'
@@ -71,28 +71,38 @@ export function Stage() {
         />
       </mesh>
 
-      {/* Murs : rarement eclaires directement, donc dotes d'un leger emissif
-          vert pour ne jamais tomber au noir absolu (ca se lisait comme un bug
-          de rendu quand la camera orbite devant la scene). */}
-      <mesh position={[0, 12, -16]} receiveShadow>
+      {/* Murs en verre : la transmission laisse voir le fond/la brume au
+          travers (plus de noir absolu quand la camera orbite devant la
+          scene) tout en gardant un effet de vitre, avec reflets et fresnel. */}
+      <mesh position={[0, 12, -16]}>
         <boxGeometry args={[70, 30, 1]} />
-        <meshStandardMaterial
-          color="#123322"
-          emissive="#0e2c1c"
-          emissiveIntensity={0.5}
-          roughness={0.95}
-          metalness={0.05}
+        <meshPhysicalMaterial
+          color="#dff5ea"
+          transmission={1}
+          thickness={0.6}
+          roughness={0.06}
+          ior={1.45}
+          metalness={0}
+          clearcoat={1}
+          clearcoatRoughness={0.12}
+          transparent
+          side={DoubleSide}
         />
       </mesh>
       {[-24, 24].map((x) => (
-        <mesh key={x} position={[x, 12, 2]} rotation-y={(x < 0 ? 1 : -1) * (Math.PI / 2)} receiveShadow>
+        <mesh key={x} position={[x, 12, 2]} rotation-y={(x < 0 ? 1 : -1) * (Math.PI / 2)}>
           <boxGeometry args={[40, 30, 1]} />
-          <meshStandardMaterial
-            color="#0f2b1c"
-            emissive="#0a2316"
-            emissiveIntensity={0.5}
-            roughness={0.95}
-            metalness={0.05}
+          <meshPhysicalMaterial
+            color="#dff5ea"
+            transmission={1}
+            thickness={0.6}
+            roughness={0.06}
+            ior={1.45}
+            metalness={0}
+            clearcoat={1}
+            clearcoatRoughness={0.12}
+            transparent
+            side={DoubleSide}
           />
         </mesh>
       ))}
