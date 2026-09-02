@@ -1,14 +1,17 @@
 :root {
   --bg: #05070a;
-  --ink: #d7e3ec;
-  --ink-dim: #6d7f8e;
-  --ink-faint: #3d4b57;
-  --accent: #35f0b0;
-  --accent-2: #00d9ff;
-  --warn: #ffb545;
-  --danger: #ff4d5e;
-  --line: rgba(120, 160, 180, 0.16);
-  --panel: rgba(8, 12, 16, 0.82);
+  --ink: #f2f6fa;
+  /* Contraste releve : les anciennes valeurs (#6d7f8e / #3d4b57) tombaient
+     sous 3:1 sur le panneau, illisibles pour un texte de 9-11px. */
+  --ink-dim: #a7b6c4;
+  --ink-faint: #7c8fa0;
+  --accent: #4dffc0;
+  --accent-2: #2be3ff;
+  --warn: #ffc266;
+  --danger: #ff6b7a;
+  --line: rgba(160, 190, 210, 0.28);
+  --panel: rgba(6, 9, 13, 0.94);
+  --panel-solid: #0a0d13;
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
@@ -56,10 +59,14 @@ select {
 
 .hud-tl {
   position: absolute;
-  top: 18px;
-  left: 20px;
+  top: 14px;
+  left: 16px;
   text-transform: uppercase;
-  text-shadow: 0 0 18px rgba(0, 0, 0, 0.9);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 8px 12px;
+  backdrop-filter: blur(8px);
 }
 
 .hud-title {
@@ -68,8 +75,8 @@ select {
 }
 
 .hud-status {
-  color: var(--ink-dim);
-  margin-top: 3px;
+  color: var(--ink);
+  margin-top: 4px;
 }
 
 .hud-status b {
@@ -87,8 +94,8 @@ select {
 }
 
 .hud-source {
-  color: var(--ink-faint);
-  margin-top: 2px;
+  color: var(--ink-dim);
+  margin-top: 3px;
   text-transform: none;
   letter-spacing: 0.04em;
 }
@@ -104,20 +111,25 @@ select {
 
 .icon-btn {
   width: 34px;
-  height: 26px;
+  height: 28px;
   border: 1px solid var(--line);
   background: var(--panel);
   border-radius: 3px;
   cursor: pointer;
-  color: var(--ink-dim);
+  color: var(--ink);
+  font-size: 13px;
   letter-spacing: 0.12em;
   line-height: 1;
-  transition: color 0.15s, border-color 0.15s;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.icon-btn:hover {
+  background: rgba(20, 26, 34, 0.96);
 }
 
 .icon-btn:hover {
   color: var(--accent);
-  border-color: rgba(53, 240, 176, 0.45);
+  border-color: rgba(77, 255, 192, 0.55);
 }
 
 /* ---------- Analyseur (bas gauche) ---------- */
@@ -134,7 +146,7 @@ select {
   height: 62px;
   border: 1px solid var(--line);
   border-radius: 3px;
-  background: rgba(4, 7, 10, 0.72);
+  background: rgba(4, 7, 10, 0.88);
 }
 
 .analyzer-bands {
@@ -145,10 +157,11 @@ select {
 }
 
 .analyzer-band {
-  font-size: 8.5px;
-  color: var(--ink-faint);
+  font-size: 9px;
+  color: var(--ink-dim);
   text-align: center;
   letter-spacing: 0.02em;
+  font-weight: 600;
 }
 
 .analyzer-band span {
@@ -164,9 +177,10 @@ select {
 .analyzer-meta {
   display: flex;
   justify-content: space-between;
-  color: var(--ink-faint);
-  font-size: 9px;
+  color: var(--ink);
+  font-size: 9.5px;
   margin-top: 6px;
+  font-weight: 600;
 }
 
 /* ---------- Piste en cours (bas centre) ---------- */
@@ -212,6 +226,7 @@ select {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-top: 1px;
 }
 
 .np-controls {
@@ -286,15 +301,21 @@ select {
 
 .panel-tabs button {
   flex: 1;
-  padding: 9px 4px;
+  padding: 10px 4px;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--ink-faint);
+  color: var(--ink-dim);
   cursor: pointer;
   font-size: 9.5px;
+  font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  transition: color 0.15s;
+}
+
+.panel-tabs button:hover {
+  color: var(--ink);
 }
 
 .panel-tabs button[data-active='true'] {
@@ -338,8 +359,8 @@ select {
 .field-head {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
-  color: var(--ink-dim);
+  font-size: 10.5px;
+  color: var(--ink);
   margin-bottom: 4px;
 }
 
@@ -349,17 +370,17 @@ select {
 }
 
 .field-hint {
-  font-size: 9px;
-  color: var(--ink-faint);
-  line-height: 1.45;
+  font-size: 9.5px;
+  color: var(--ink-dim);
+  line-height: 1.5;
   margin-top: 3px;
 }
 
 input[type='range'] {
   width: 100%;
-  height: 3px;
+  height: 4px;
   appearance: none;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.16);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -387,11 +408,17 @@ input[type='text'],
 input[type='search'] {
   width: 100%;
   padding: 7px 9px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.07);
   border: 1px solid var(--line);
   border-radius: 3px;
   font-size: 11px;
+  color: var(--ink);
   outline: none;
+}
+
+input[type='text']::placeholder,
+input[type='search']::placeholder {
+  color: var(--ink-faint);
 }
 
 input[type='text']:focus,
@@ -402,12 +429,13 @@ input[type='search']:focus {
 .btn {
   width: 100%;
   padding: 9px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(255, 255, 255, 0.07);
   border: 1px solid var(--line);
   border-radius: 3px;
   color: var(--ink);
   cursor: pointer;
   font-size: 10px;
+  font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   transition: border-color 0.15s, color 0.15s, background 0.15s;
@@ -416,6 +444,7 @@ input[type='search']:focus {
 .btn:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
+  background: rgba(77, 255, 192, 0.08);
 }
 
 .btn:disabled {
@@ -451,8 +480,8 @@ input[type='search']:focus {
   align-items: center;
   justify-content: space-between;
   padding: 7px 0;
-  font-size: 10px;
-  color: var(--ink-dim);
+  font-size: 10.5px;
+  color: var(--ink);
   cursor: pointer;
 }
 
@@ -492,10 +521,10 @@ input[type='search']:focus {
 .note {
   font-size: 9.5px;
   line-height: 1.55;
-  color: var(--ink-dim);
+  color: var(--ink);
   padding: 9px 10px;
-  border-left: 2px solid var(--line);
-  background: rgba(255, 255, 255, 0.02);
+  border-left: 2px solid var(--ink-faint);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 0 3px 3px 0;
 }
 
@@ -518,7 +547,7 @@ input[type='search']:focus {
 .kv {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 10.5px;
   padding: 3px 0;
   color: var(--ink-dim);
 }
@@ -574,7 +603,7 @@ input[type='search']:focus {
 
 .result-artist {
   font-size: 9px;
-  color: var(--ink-faint);
+  color: var(--ink-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

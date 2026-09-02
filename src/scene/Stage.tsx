@@ -58,15 +58,15 @@ export function Stage() {
         <MeshReflectorMaterial
           resolution={1024}
           mixBlur={1.6}
-          mixStrength={22}
+          mixStrength={18}
           blur={[300, 90]}
           depthScale={1.1}
           minDepthThreshold={0.35}
           maxDepthThreshold={1.35}
-          mirror={0.32}
+          mirror={0.24}
           roughness={1}
           metalness={0}
-          color="#14111d"
+          color="#211c33"
           roughnessMap={tiles}
         />
       </mesh>

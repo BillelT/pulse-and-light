@@ -129,12 +129,12 @@ export function CameraRig() {
 export function Rig() {
   return (
     <>
-      <ambientLight intensity={0.42} color="#7b76a4" />
-      <hemisphereLight args={['#5c5a8a', '#120c1f', 0.8]} />
+      <ambientLight intensity={0.68} color="#8783ae" />
+      <hemisphereLight args={['#6e6a9e', '#1c1530', 1.05]} />
       <directionalLight
         position={[6, 16, 10]}
-        intensity={1.0}
-        color="#9fa1c8"
+        intensity={1.35}
+        color="#a8aad0"
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-26}
@@ -144,12 +144,12 @@ export function Rig() {
         shadow-camera-far={60}
         shadow-bias={-0.0008}
       />
-      <pointLight position={[0, 7.5, 11]} intensity={38} distance={22} decay={2} color="#8580b4" />
+      <pointLight position={[0, 7.5, 11]} intensity={52} distance={26} decay={1.8} color="#918cc0" />
       <spotLight
         position={[-11, 17, 16]}
         angle={0.62}
         penumbra={1}
-        intensity={9}
+        intensity={13}
         distance={58}
         decay={1.2}
         color="#7d84ad"
