@@ -123,9 +123,9 @@ export const DEFAULT_DEBUG: DebugSettings = {
   spotDistance: 58,
   spotDecay: 1.2,
 
-  floorMarginX: -0.3,
-  floorMarginBack: -0.3,
-  floorFrontZ: 45,
+  floorMarginX: -16.15,
+  floorMarginBack: -14.5,
+  floorFrontZ: 47,
   floorShowOutline: false,
   floorShowWallOutline: false,
 }
