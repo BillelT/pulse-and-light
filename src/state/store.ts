@@ -141,6 +141,10 @@ interface AppState {
   sdkStatus: SdkStatus
   spotifyError: string | null
   snapshot: PlaybackSnapshot
+  /** Volume choisi par l'utilisateur (0..1) — lu par le moteur audio pour moduler
+   *  l'intensite du mur sur ce qu'il entend vraiment, pas juste sur le contenu spectral. */
+  spotifyVolume: number
+  setSpotifyVolume: (v: number) => void
   /** true si l'endpoint Audio Analysis a repondu pour la piste courante. */
   analysisAvailable: boolean | null
   /** true si l'endpoint Audio Features a repondu pour la piste courante. */
@@ -180,6 +184,8 @@ export const useStore = create<AppState>((set) => ({
   sdkStatus: 'idle',
   spotifyError: null,
   snapshot: EMPTY_SNAPSHOT,
+  spotifyVolume: 0.7,
+  setSpotifyVolume: (spotifyVolume) => set({ spotifyVolume }),
   analysisAvailable: null,
   featuresAvailable: null,
   setToken: (token) => set({ token }),

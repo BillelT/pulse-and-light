@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { useStore, type SourceKind } from '../state/store'
+import { useStore, readState, type SourceKind } from '../state/store'
 import type { PlaybackSnapshot } from '../spotify/types'
 import { engine } from './engine'
 import { createMicSource, createTabAudioSource } from './sources/captureSource'
 import { createFileSource, type FileAudioProvider } from './sources/fileSource'
 import { SpotifyTimelineProvider } from './sources/spotifyTimelineSource'
 import { createItunesPreviewSource } from './sources/itunesPreviewProvider'
+import { BlendedSpotifyProvider } from './sources/blendedSpotifyProvider'
 import { getItunesPreview } from '../spotify/itunesPreview'
 import { EMPTY_SNAPSHOT } from '../spotify/types'
 
@@ -89,22 +90,28 @@ export function useAudioSource(readSnapshot: () => PlaybackSnapshot): AudioSourc
     [apply, setAudioError],
   )
 
-  // --- Pivot iTunes preview : vraie FFT quand un extrait est trouve --------
+  // --- Pivot iTunes preview : FFT reelle melangee a la procedurale ---------
   //
   // A chaque changement de piste (tant que la source active est 'spotify'),
-  // on retombe d'abord sur la resynthese procedurale (zero latence, jamais
-  // d'ecran noir), puis on tente en arriere-plan un extrait iTunes reel pour
-  // la remplacer par une vraie analyse FFT des qu'il est pret. Si rien n'est
-  // trouve, le fallback procedural reste actif — silencieusement.
+  // on demarre sur un provider qui melange resynthese procedurale (rythme
+  // toujours cale sur le vrai tempo/la vraie position Spotify, zero latence)
+  // et — des qu'un extrait iTunes est trouve — la vraie FFT de cet extrait,
+  // plafonnee par l'energie du morceau et modulee par le volume choisi par
+  // l'utilisateur (cf. LIMITE_SYNCHRONISATION_ITUNES.md pour le pourquoi du
+  // melange plutot qu'un remplacement pur). Si rien n'est trouve, le
+  // melange reste 100% procedural — silencieusement.
   const sourceKind = useStore((s) => s.sourceKind)
   const trackId = useStore((s) => s.snapshot.track?.id ?? null)
   useEffect(() => {
     if (sourceKind !== 'spotify' || !trackId) return
     let cancelled = false
 
-    const fallback = new SpotifyTimelineProvider(() => snapshotRef.current())
-    engine.setProvider(fallback)
-    setSource('spotify', fallback.label)
+    const blended = new BlendedSpotifyProvider(
+      () => snapshotRef.current(),
+      () => readState().spotifyVolume,
+    )
+    engine.setProvider(blended)
+    setSource('spotify', blended.label)
 
     const track = snapshotRef.current().track
     if (track) {
@@ -120,17 +127,17 @@ export function useAudioSource(readSnapshot: () => PlaybackSnapshot): AudioSourc
         try {
           const p = await createItunesPreviewSource(
             preview.previewUrl,
-            `iTunes (FFT reelle) — ${track.name}`,
+            `iTunes — ${track.name}`,
             () => snapshotRef.current(),
           )
           if (cancelled) {
             p.dispose()
             return
           }
-          engine.setProvider(p)
-          setSource('spotify', p.label)
+          blended.attachReal(p)
+          setSource('spotify', blended.label)
         } catch {
-          // Extrait trouve mais illisible (reseau, format) : on reste sur le fallback procedural.
+          // Extrait trouve mais illisible (reseau, format) : on reste 100% procedural.
         }
       })()
     }

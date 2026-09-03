@@ -82,6 +82,7 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
   const snapshot = useStore((s) => s.snapshot)
   const deviceId = useStore((s) => s.deviceId)
   const spotifyError = useStore((s) => s.spotifyError)
+  const setSpotifyVolume = useStore((s) => s.setSpotifyVolume)
   const track = snapshot.track
 
   const [seekDrag, setSeekDrag] = useState<number | null>(null)
@@ -244,6 +245,7 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
                 const v = Number(e.target.value)
                 setVolumeDrag(v)
                 setVolume(v)
+                setSpotifyVolume(v)
                 void spotify.setVolume(v)
               }}
               onMouseUp={() => setVolumeDrag(null)}
