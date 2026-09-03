@@ -6,6 +6,7 @@ import {
   DoubleSide,
   LinearFilter,
   MeshBasicMaterial,
+  PlaneGeometry,
   SRGBColorSpace,
   Texture,
   TextureLoader,
@@ -36,25 +37,13 @@ const PODIUM_TOP = 0.54
 const PODIUM_Z = 4.6
 
 /**
- * Sol reflechissant : cale sur l'empreinte reelle de la piece plutot qu'un
- * carre arbitraire. Un sol plus grand que les murs debordait derriere le mur
- * du fond et au-dela des murs lateraux ; le miroir y reflechissait quand meme
- * le lisere neon du plafond (tres lumineux), qui apparaissait alors comme un
- * trait flottant sans aucun mur pour l'expliquer des que la camera cadrait
- * cette zone hors piece — visible sur les cotes en orbitant. A l'inverse, une
- * marge positive laisse un liseré sans sol NI mur entre le bord du miroir et
- * les murs (visibles a angle rasant) : la marge est donc legerement negative,
- * le sol mord un peu sous les murs pour coller dessus sans laisser de joint.
+ * Empreinte reelle des murs au sol (marge 0) : sert de reference fixe pour
+ * comparer visuellement au sol reglable (contour "murs" du debuggeur).
+ * Les murs lateraux vont plus loin vers le fond (SIDE_Z - SIDE_LEN / 2) que
+ * le mur du fond lui-meme (BACK_Z), d'ou le min().
  */
-const FLOOR_MARGIN = -0.3
-const FLOOR_FRONT_Z = 45
-// Les murs lateraux vont plus loin vers le fond (SIDE_Z - SIDE_LEN / 2) que
-// le mur du fond lui-meme (BACK_Z) : sans ca, le sol s'arretait sur BACK_Z
-// et laissait un coin sans sol, entre les deux murs, dans ce renfoncement.
-const FLOOR_BACK_Z = Math.min(BACK_Z, SIDE_Z - SIDE_LEN / 2) + FLOOR_MARGIN
-const FLOOR_WIDTH = BACK_WIDTH - FLOOR_MARGIN * 2
-const FLOOR_DEPTH = FLOOR_FRONT_Z - FLOOR_BACK_Z
-const FLOOR_CENTER_Z = (FLOOR_FRONT_Z + FLOOR_BACK_Z) / 2
+const WALL_FOOTPRINT_BACK_Z = Math.min(BACK_Z, SIDE_Z - SIDE_LEN / 2)
+const WALL_FOOTPRINT_WIDTH = BACK_WIDTH
 
 /** Verre des baies : teinte nocturne froide, transmission quasi totale mais
  *  avec une legere absorption qui bleuit ce qu'on voit au travers — un vrai
@@ -88,6 +77,26 @@ export function Stage() {
   const paletteId = useStore((s) => s.visual.paletteId)
   const palette = useMemo(() => paletteById(paletteId), [paletteId])
 
+  const floorMarginX = useStore((s) => s.debug.floorMarginX)
+  const floorMarginBack = useStore((s) => s.debug.floorMarginBack)
+  const floorFrontZ = useStore((s) => s.debug.floorFrontZ)
+  const floorShowOutline = useStore((s) => s.debug.floorShowOutline)
+  const floorShowWallOutline = useStore((s) => s.debug.floorShowWallOutline)
+
+  // Sol reflechissant : cale sur l'empreinte reelle de la piece plutot qu'un
+  // carre arbitraire. Un sol plus grand que les murs debordait derriere le
+  // mur du fond et au-dela des murs lateraux ; le miroir y reflechissait
+  // quand meme le lisere neon du plafond (tres lumineux), qui apparaissait
+  // comme un trait flottant sans aucun mur pour l'expliquer. A l'inverse, une
+  // marge positive laisse un joint sans sol NI mur entre le bord du miroir et
+  // les murs (visible a angle rasant) : d'ou des marges reglables ici, en
+  // debug, plutot que figees — floorMarginX/floorMarginBack negatifs font
+  // mordre le sol sous les murs pour coller sans joint.
+  const floorBackZ = WALL_FOOTPRINT_BACK_Z + floorMarginBack
+  const floorWidth = WALL_FOOTPRINT_WIDTH - floorMarginX * 2
+  const floorDepth = floorFrontZ - floorBackZ
+  const floorCenterZ = (floorFrontZ + floorBackZ) / 2
+
   const grating = useMemo(() => makeGratingTexture(), [])
   const podiumGrating = useMemo(() => {
     const t = makeGratingTexture(18, 3)
@@ -119,8 +128,8 @@ export function Stage() {
       {/* Sol reflechissant. Mat cote PBR : la reflexion vient du miroir, pas du
           lobe speculaire, sinon chaque projecteur laisse une pastille brillante
           au milieu du plateau. */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0, FLOOR_CENTER_Z]} receiveShadow>
-        <planeGeometry args={[FLOOR_WIDTH, FLOOR_DEPTH]} />
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0, floorCenterZ]} receiveShadow>
+        <planeGeometry args={[floorWidth, floorDepth]} />
         <MeshReflectorMaterial
           resolution={1024}
           mixBlur={1.6}
@@ -136,6 +145,29 @@ export function Stage() {
           roughnessMap={tiles}
         />
       </mesh>
+
+      {/* Contour du sol reglable, en fil de fer : le miroir ne peut pas
+          s'afficher en wireframe, ce contour donne quand meme ses bords
+          exacts pour regler les marges a l'oeil (debuggeur, onglet Debug). */}
+      {floorShowOutline && (
+        <lineSegments position={[0, 0.02, floorCenterZ]} rotation-x={-Math.PI / 2}>
+          <edgesGeometry args={[new PlaneGeometry(floorWidth, floorDepth)]} />
+          <lineBasicMaterial color="#ff2f6d" toneMapped={false} />
+        </lineSegments>
+      )}
+      {/* Contour de l'empreinte des murs (marge 0), pour comparer au contour
+          du sol ci-dessus pendant le reglage. */}
+      {floorShowWallOutline && (
+        <lineSegments
+          position={[0, 0.03, (45 + WALL_FOOTPRINT_BACK_Z) / 2]}
+          rotation-x={-Math.PI / 2}
+        >
+          <edgesGeometry
+            args={[new PlaneGeometry(WALL_FOOTPRINT_WIDTH, 45 - WALL_FOOTPRINT_BACK_Z)]}
+          />
+          <lineBasicMaterial color="#2fe6ff" toneMapped={false} />
+        </lineSegments>
+      )}
 
       {/* Ville de nuit au loin : simple texture peinte sur un plan, derriere
           les baies vitrees. Decor de fond, jamais de vraie geometrie. */}

@@ -78,6 +78,18 @@ export interface DebugSettings {
   spotPenumbra: number
   spotDistance: number
   spotDecay: number
+
+  /** Debordement du sol sous les murs lateraux/du fond (negatif = sous les
+   *  murs, colle sans joint ; positif = en retrait, laisse un trou). */
+  floorMarginX: number
+  floorMarginBack: number
+  /** Position Z du bord avant du sol (cote ouvert, face public). */
+  floorFrontZ: number
+  /** Contour du sol en fil de fer, pour voir ses bords exacts par-dessus le
+   *  miroir (qui ne peut pas etre affiche en wireframe). */
+  floorShowOutline: boolean
+  /** Contour de l'empreinte des murs (au sol), pour comparer au sol. */
+  floorShowWallOutline: boolean
 }
 
 export const DEFAULT_DEBUG: DebugSettings = {
@@ -110,6 +122,12 @@ export const DEFAULT_DEBUG: DebugSettings = {
   spotPenumbra: 1,
   spotDistance: 58,
   spotDecay: 1.2,
+
+  floorMarginX: -0.3,
+  floorMarginBack: -0.3,
+  floorFrontZ: 45,
+  floorShowOutline: false,
+  floorShowWallOutline: false,
 }
 
 export type SdkStatus =

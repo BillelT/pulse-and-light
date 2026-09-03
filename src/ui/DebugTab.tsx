@@ -27,6 +27,52 @@ export function DebugTab() {
         />
       </Section>
 
+      <Section title="Sol">
+        <Toggle
+          label="Contour du sol (rouge)"
+          checked={debug.floorShowOutline}
+          onChange={(floorShowOutline) => setDebug({ floorShowOutline })}
+        />
+        <Toggle
+          label="Contour des murs (cyan)"
+          checked={debug.floorShowWallOutline}
+          onChange={(floorShowWallOutline) => setDebug({ floorShowWallOutline })}
+        />
+        <div className="field-hint">
+          Active les deux pour comparer : le rouge doit coller au cyan (ou
+          legerement mordre dessous), jamais rester en retrait.
+        </div>
+        <Slider
+          label="Marge lateraux (X)"
+          value={debug.floorMarginX}
+          min={-5}
+          max={5}
+          step={0.1}
+          format={(v) => v.toFixed(1)}
+          hint="Negatif = le sol mord sous les murs lateraux. Positif = en retrait (trou)."
+          onChange={(floorMarginX) => setDebug({ floorMarginX })}
+        />
+        <Slider
+          label="Marge fond (Z)"
+          value={debug.floorMarginBack}
+          min={-5}
+          max={5}
+          step={0.1}
+          format={(v) => v.toFixed(1)}
+          hint="Negatif = le sol mord sous le renfoncement du fond. Positif = en retrait (trou)."
+          onChange={(floorMarginBack) => setDebug({ floorMarginBack })}
+        />
+        <Slider
+          label="Bord avant (Z)"
+          value={debug.floorFrontZ}
+          min={20}
+          max={80}
+          step={1}
+          format={(v) => v.toFixed(0)}
+          onChange={(floorFrontZ) => setDebug({ floorFrontZ })}
+        />
+      </Section>
+
       <Section title="Brouillard">
         <ColorField
           label="Couleur du brouillard"
