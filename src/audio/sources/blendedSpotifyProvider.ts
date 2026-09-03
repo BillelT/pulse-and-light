@@ -52,7 +52,14 @@ export class BlendedSpotifyProvider implements SpectrumProvider {
   }
 
   get label(): string {
-    return this.real ? `iTunes + Spotify (FFT reelle amortie) — ${this.procedural.label}` : this.procedural.label
+    const snap = this.getSnapshot()
+    // Aucune source (Spotify audio-features/analysis fermes, ReccoBeats ET
+    // Deezer muets) n'a fourni de tempo reel pour ce morceau : le mur tourne
+    // alors sur des valeurs par defaut generiques, pas sur une donnee propre
+    // au morceau. On le rend visible plutot que de le cacher derriere un
+    // label identique a un morceau avec de vraies donnees.
+    const generic = snap.tempoSource === 'inconnu' ? ' (donnees generiques — aucun tempo reel trouve)' : ''
+    return (this.real ? `iTunes + Spotify (FFT reelle amortie) — ${this.procedural.label}` : this.procedural.label) + generic
   }
 
   knownBpm = () => this.procedural.knownBpm()
@@ -65,15 +72,18 @@ export class BlendedSpotifyProvider implements SpectrumProvider {
 
   read(out: Uint8Array<ArrayBuffer>, dt: number): boolean {
     this.procedural.read(this.procBuf, dt)
+    const volume = clamp01(this.getVolume())
 
     if (!this.real || !this.real.read(this.realBuf, dt)) {
-      out.set(this.procBuf)
+      // Meme sans extrait iTunes, le volume choisi par l'utilisateur doit
+      // moduler l'intensite du mur — sinon il reste a la meme energie qu'on
+      // baisse le son ou pas, ce qui n'a rien "d'accurate".
+      for (let i = 0; i < BIN_COUNT; i++) out[i] = Math.round(this.procBuf[i] * volume)
       return true
     }
 
     const snap = this.getSnapshot()
     const energyCeiling = clamp(0.3 + clamp01(snap.energy) * 0.85, 0.3, 1) * 255
-    const volume = clamp01(this.getVolume())
 
     for (let i = 0; i < BIN_COUNT; i++) {
       const realVal = Math.min(this.realBuf[i], energyCeiling)
