@@ -93,6 +93,8 @@ export interface PlaybackSnapshot {
   acousticness: number
   instrumentalness: number
   speechiness: number
+  /** D'ou vient tempo/loudness — utile pour comprendre la scene, affiche dans l'UI. */
+  tempoSource: 'analysis' | 'features' | 'deezer' | 'inconnu'
   analysis: AudioAnalysis | null
 }
 
@@ -113,5 +115,6 @@ export const EMPTY_SNAPSHOT: PlaybackSnapshot = {
   acousticness: 0.3,
   instrumentalness: 0.1,
   speechiness: 0.05,
+  tempoSource: 'inconnu',
   analysis: null,
 }

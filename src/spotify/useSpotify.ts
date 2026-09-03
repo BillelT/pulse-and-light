@@ -9,7 +9,8 @@ import {
   type StoredToken,
 } from './auth'
 import * as api from './api'
-import type { AudioAnalysis, PlaybackSnapshot, SpotifyTrack } from './types'
+import { getDeezerFeatures } from './deezer'
+import type { AudioAnalysis, AudioFeatures, PlaybackSnapshot, SpotifyTrack } from './types'
 import { EMPTY_SNAPSHOT } from './types'
 
 const SDK_SRC = 'https://sdk.scdn.co/spotify-player.js'
@@ -103,7 +104,7 @@ export function useSpotify(): SpotifyController {
 
   /** Charge les metadonnees analytiques d'une piste (best effort). */
   const loadTrackAnalysis = useCallback(
-    async (trackId: string | null) => {
+    async (trackId: string | null, artistName: string, trackTitle: string) => {
       analysisRef.current = null
       if (!trackId) {
         setAnalysisAvailable(null)
@@ -111,38 +112,54 @@ export function useSpotify(): SpotifyController {
         publish({ analysis: null, tempo: 0, key: -1 })
         return
       }
+      let features: AudioFeatures | null = null
+      let analysis: AudioAnalysis | null = null
       try {
         const token = await freshToken()
-        const [features, analysis] = await Promise.all([
+        ;[features, analysis] = await Promise.all([
           api.getAudioFeatures(token, trackId),
           api.getAudioAnalysis(token, trackId),
         ])
-        // La piste a pu changer pendant la requete.
-        if (trackIdRef.current !== trackId) return
-        analysisRef.current = analysis
-        setAnalysisAvailable(Boolean(analysis))
-        setFeaturesAvailable(Boolean(features))
-        publish({
-          analysis,
-          tempo: features?.tempo ?? analysis?.track.tempo ?? 0,
-          energy: features?.energy ?? 0.6,
-          danceability: features?.danceability ?? 0.6,
-          valence: features?.valence ?? 0.5,
-          key: features?.key ?? analysis?.track.key ?? -1,
-          mode: features?.mode ?? analysis?.track.mode ?? 1,
-          loudness: features?.loudness ?? analysis?.track.loudness ?? -12,
-          timeSignature: features?.time_signature ?? analysis?.track.time_signature ?? 4,
-          acousticness: features?.acousticness ?? 0.3,
-          instrumentalness: features?.instrumentalness ?? 0.1,
-          speechiness: features?.speechiness ?? 0.05,
-        })
       } catch {
-        // Endpoints deprecies / restreints : la scene continue sur la grille.
-        if (trackIdRef.current === trackId) {
-          setAnalysisAvailable(false)
-          setFeaturesAvailable(false)
+        // Endpoints deprecies / restreints : on continue quand meme sur le fallback Deezer.
+      }
+      if (trackIdRef.current !== trackId) return
+      analysisRef.current = analysis
+      setAnalysisAvailable(Boolean(analysis))
+      setFeaturesAvailable(Boolean(features))
+
+      let tempo = features?.tempo ?? analysis?.track.tempo ?? 0
+      let loudness = features?.loudness ?? analysis?.track.loudness ?? -12
+      let tempoSource: PlaybackSnapshot['tempoSource'] = tempo > 0 ? (features ? 'features' : 'analysis') : 'inconnu'
+
+      // Spotify a ferme audio-features/audio-analysis a la plupart des nouvelles
+      // apps : quand tempo est totalement inconnu, on va le chercher sur Deezer
+      // (catalogue public, sans auth) en matchant artiste + titre.
+      if (tempo <= 0 && artistName && trackTitle) {
+        const deezer = await getDeezerFeatures(artistName, trackTitle)
+        if (trackIdRef.current !== trackId) return
+        if (deezer.found && deezer.bpm) {
+          tempo = deezer.bpm
+          tempoSource = 'deezer'
+          if (deezer.gain !== null) loudness = deezer.gain
         }
       }
+
+      publish({
+        analysis,
+        tempo,
+        loudness,
+        tempoSource,
+        energy: features?.energy ?? 0.6,
+        danceability: features?.danceability ?? 0.6,
+        valence: features?.valence ?? 0.5,
+        key: features?.key ?? analysis?.track.key ?? -1,
+        mode: features?.mode ?? analysis?.track.mode ?? 1,
+        timeSignature: features?.time_signature ?? analysis?.track.time_signature ?? 4,
+        acousticness: features?.acousticness ?? 0.3,
+        instrumentalness: features?.instrumentalness ?? 0.1,
+        speechiness: features?.speechiness ?? 0.05,
+      })
     },
     [freshToken, publish, setAnalysisAvailable, setFeaturesAvailable],
   )
@@ -177,7 +194,7 @@ export function useSpotify(): SpotifyController {
       })
       if (t.id !== trackIdRef.current) {
         trackIdRef.current = t.id
-        void loadTrackAnalysis(t.id)
+        void loadTrackAnalysis(t.id, t.artists[0]?.name ?? '', t.name)
       }
     },
     [loadTrackAnalysis, publish],

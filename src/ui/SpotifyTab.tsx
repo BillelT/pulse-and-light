@@ -2,8 +2,15 @@ import { useState } from 'react'
 import { useStore } from '../state/store'
 import { clientId, redirectUri } from '../spotify/auth'
 import type { SpotifyController } from '../spotify/useSpotify'
-import type { SpotifyTrack } from '../spotify/types'
+import type { PlaybackSnapshot, SpotifyTrack } from '../spotify/types'
 import { Kv, Section } from './controls'
+
+const TEMPO_SOURCE_LABEL: Record<PlaybackSnapshot['tempoSource'], string> = {
+  analysis: '',
+  features: '',
+  deezer: ' (via Deezer)',
+  inconnu: '',
+}
 
 const SDK_LABEL: Record<string, string> = {
   idle: 'inactif',
@@ -99,7 +106,14 @@ export function SpotifyTab({ spotify }: { spotify: SpotifyController }) {
         {snapshot.track ? (
           <>
             <Kv k="Titre" v={snapshot.track.name} />
-            <Kv k="Tempo" v={snapshot.tempo > 0 ? `${snapshot.tempo.toFixed(1)} BPM` : 'inconnu'} />
+            <Kv
+              k="Tempo"
+              v={
+                snapshot.tempo > 0
+                  ? `${snapshot.tempo.toFixed(1)} BPM${TEMPO_SOURCE_LABEL[snapshot.tempoSource]}`
+                  : 'inconnu'
+              }
+            />
             <Kv k="Tonalite" v={keyName(snapshot.key, snapshot.mode)} />
             <Kv
               k="Audio Features"
@@ -113,8 +127,9 @@ export function SpotifyTab({ spotify }: { spotify: SpotifyController }) {
               <div className="note note-warn" style={{ marginTop: 8 }}>
                 Spotify a restreint <code>/audio-features</code> et <code>/audio-analysis</code>
                 &nbsp;aux apps creees avant novembre 2024 : une nouvelle app recoit un 403.
-                La scene bascule automatiquement sur la grille rythmique — ou, mieux, sur la
-                capture de l&apos;audio de l&apos;onglet.
+                Le tempo est alors recupere sur Deezer (catalogue public) quand le morceau y est
+                trouve ; sinon la scene bascule sur la grille rythmique par defaut — ou, mieux,
+                sur la capture de l&apos;audio de l&apos;onglet.
               </div>
             )}
           </>
