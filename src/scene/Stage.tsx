@@ -4,6 +4,7 @@ import { MeshReflectorMaterial } from '@react-three/drei'
 import {
   Color,
   DoubleSide,
+  LinearFilter,
   MeshBasicMaterial,
   SRGBColorSpace,
   Texture,
@@ -300,6 +301,16 @@ function useCitySheet(url: string): { texture: Texture; isSheet: boolean } {
         if (cancelled) return
         loaded.colorSpace = SRGBColorSpace
         loaded.anisotropy = 4
+        // Mipmaps desactives : chaque plan n'affiche qu'une bande fine (25% de
+        // la hauteur) via repeat/offset, mais les mipmaps se calculent sur
+        // l'image ENTIERE. Aux niveaux grossiers, les liserés blancs qui
+        // separent les bandes dans la feuille de sprites se mettaient a
+        // baver dans la bande affichee — un trait lumineux parasite, visible
+        // au loin sur les murs lateraux. Le plan est deja assez flou (brume,
+        // verre) pour que l'absence de mipmap ne cree pas de moire.
+        loaded.generateMipmaps = false
+        loaded.minFilter = LinearFilter
+        loaded.magFilter = LinearFilter
         setState({ texture: loaded, isSheet: true })
       },
       undefined,
