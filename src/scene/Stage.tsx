@@ -14,6 +14,7 @@ import { Band } from '../audio/bands'
 import { useStore } from '../state/store'
 import { Dancer } from './Dancer'
 import { paletteById } from './palettes'
+import { BACK_WIDTH, BACK_Z, SIDE_LEN, SIDE_X, SIDE_Z, WALL_HEIGHT, WALL_TOP, WALL_Y } from './roomLayout'
 import { makeCityTexture, makeGratingTexture, makeTileTexture } from './textures'
 
 /**
@@ -32,20 +33,6 @@ const CITY_SHEET_BAND_HEIGHT = 0.25
 /** Hauteur du plateau de la regie, en coordonnees monde. */
 const PODIUM_TOP = 0.54
 const PODIUM_Z = 4.6
-
-/**
- * Geometrie des murs vitres, partagee par le rendu du verre et son habillage.
- * Le mur du fond DOIT faire exactement 2 * SIDE_X de large, sinon il depasse
- * des murs lateraux au lieu de se refermer sur leurs coins.
- */
-const WALL_HEIGHT = 30
-const WALL_Y = 12
-const WALL_TOP = WALL_Y + WALL_HEIGHT / 2
-const BACK_Z = -16
-const SIDE_X = 24
-const SIDE_Z = 2
-const SIDE_LEN = 40
-const BACK_WIDTH = SIDE_X * 2
 
 /** Verre des baies : teinte nocturne froide, transmission quasi totale mais
  *  avec une legere absorption qui bleuit ce qu'on voit au travers — un vrai

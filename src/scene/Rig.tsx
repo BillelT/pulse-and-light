@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera, Spherical, Vector3 } from 'three'
 import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
+import { CAMERA_BOUNDS } from './roomLayout'
 import { readState, useStore } from '../state/store'
 
 /**
@@ -17,8 +18,12 @@ const _pos = new Vector3()
 const _look = new Vector3()
 
 const MIN_RADIUS = 11
-const MAX_RADIUS = 46
-const MIN_PHI = 0.55
+const MAX_RADIUS = 48
+// MIN_PHI releve (vs anciennement 0.55) : plus l'angle est petit, plus la
+// camera survole la scene depuis le dessus — au dela on voyait le plafond
+// depuis l'exterieur. La marge dure (CAMERA_BOUNDS) reste le vrai filet de
+// securite, celle-ci evite surtout de la faire declencher en usage normal.
+const MIN_PHI = 0.85
 const MAX_PHI = 1.52
 
 /**
@@ -128,6 +133,14 @@ export function CameraRig() {
       s.theta + swayTheta,
     )
     _pos.add(TARGET)
+
+    // Filet de securite : quels que soient radius/phi/theta (et leurs
+    // combinaisons avec le sway et le zoom automatiques), la camera ne doit
+    // jamais sortir de la piece ni passer au dessus du plafond — sinon on
+    // voit les baies vitrees et le decor depuis "les coulisses".
+    _pos.x = clamp(_pos.x, -CAMERA_BOUNDS.x, CAMERA_BOUNDS.x)
+    _pos.y = clamp(_pos.y, CAMERA_BOUNDS.yMin, CAMERA_BOUNDS.yMax)
+    _pos.z = clamp(_pos.z, CAMERA_BOUNDS.zMin, CAMERA_BOUNDS.zMax)
 
     const amp = shake.current * shake.current * visual.shake * 0.42
     if (amp > 1e-4) {
