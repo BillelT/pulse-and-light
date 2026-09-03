@@ -93,6 +93,13 @@ export interface SearchResult {
   tracks: { items: SpotifyTrack[] }
 }
 
+/**
+ * Depuis le changement d'API Spotify du 27 novembre 2024, une app en mode
+ * "Development" (sans Extended Quota Mode approuve) perd l'acces au
+ * catalogue : /search echoue avec 400 "Invalid limit", un message trompeur
+ * qui n'a rien a voir avec le parametre limit envoye — c'est en realite un
+ * refus d'acces catalogue. Cf. `isCatalogAccessError` dans useSpotify.ts.
+ */
 export function searchTracks(token: string, query: string, limit = 12) {
   const params = new URLSearchParams({ q: query, type: 'track', limit: String(limit) })
   return request<SearchResult>(token, `/search?${params}`)

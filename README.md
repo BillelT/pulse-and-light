@@ -72,6 +72,14 @@ active.
 > traite ce cas comme normal, pas comme une erreur, et bascule sur la grille
 > rythmique. Le panneau Spotify indique quel chemin est actif pour la piste
 > courante.
+>
+> **Note sur la recherche.** Même restriction pour `/search` (et le reste du
+> catalogue) : depuis le 27 novembre 2024, une app sans **Extended Quota
+> Mode** approuvé sur le dashboard développeur n'y a plus accès. Spotify
+> renvoie alors un `400` au message trompeur `"Invalid limit"`, qui n'a rien
+> à voir avec le paramètre `limit` envoyé — l'app doit demander l'Extended
+> Quota Mode pour que la recherche fonctionne. En attendant, la lecture doit
+> être lancée depuis l'app Spotify elle-même.
 
 ---
 
