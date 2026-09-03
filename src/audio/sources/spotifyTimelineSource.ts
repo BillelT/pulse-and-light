@@ -150,30 +150,45 @@ export class SpotifyTimelineProvider implements SpectrumProvider {
     const beatPos = t / beatDur
     const beatIndex = Math.floor(beatPos)
     const beatPhase = beatPos - beatIndex
+    // Mesure reelle (3/4, 4/4, ...) au lieu d'un pattern fige a 4 temps.
+    const beatsPerBar = snap.timeSignature >= 2 ? snap.timeSignature : 4
+    const beatInBar = ((beatIndex % beatsPerBar) + beatsPerBar) % beatsPerBar
 
     if (beatIndex !== this.lastSegment) {
       this.lastSegment = beatIndex
-      const strong = beatIndex % 4 === 0
+      const strong = beatInBar === 0
       this.kickEnv = strong ? 1 : 0.72
-      if (beatIndex % 4 === 2) this.snareEnv = 0.75
+      if (beatInBar === Math.floor(beatsPerBar / 2)) this.snareEnv = 0.75
     }
     // Charley sur les croches.
     if (beatPhase < 0.5 && beatPhase + dt / beatDur >= 0.5) this.hatEnv = 0.45
 
     const energy = clamp(snap.energy, 0.05, 1)
     const dance = clamp(snap.danceability, 0.05, 1)
+    // acousticness/instrumentalness deplacent le poids entre percussions
+    // synthetiques (morceaux electro/produits) et nappe harmonique (morceaux
+    // acoustiques/instrumentaux), plutot qu'un seul melange fixe pour tout.
+    const acoustic = clamp(snap.acousticness, 0, 1)
+    const instrumental = clamp(snap.instrumentalness, 0, 1)
+    // Gain global calibre sur le loudness reel du morceau (LUFS-like, en dB).
+    const loudnessGain = clamp(dbToLinear(snap.loudness) * 1.8, 0.35, 1.4)
 
-    // Nappe : deux LFO lents desaccordes, module par la valence (majeur = plus haut).
-    const root = 55 * 2 ** ((snap.key >= 0 ? snap.key : 0) / 12)
+    // Nappe : plus presente si le morceau est acoustique/instrumental.
+    // mode Spotify (0 = mineur, 1 = majeur) incline le registre en plus de la valence.
+    const root = 55 * 2 ** ((snap.key >= 0 ? snap.key : 0) / 12) * (snap.mode === 0 ? 0.944 : 1)
+    const harmonicPresence = 0.6 + instrumental * 0.5 + acoustic * 0.3
     for (let harmonic = 1; harmonic <= 10; harmonic++) {
       const wob = 1 + 0.02 * Math.sin(this.phase * (0.7 + harmonic * 0.13))
       const amp =
         (energy * 0.5) / harmonic ** 1.15 +
         0.06 * Math.abs(Math.sin(this.phase * 0.35 + harmonic)) * snap.valence
-      this.peak(root * harmonic * wob, 0.13, amp * 0.7)
+      this.peak(root * harmonic * wob, 0.13, amp * 0.7 * harmonicPresence * loudnessGain)
     }
-    this.shelf(3000, energy * 0.12 + dance * 0.05)
-    this.renderDrums(dt, 0.55 + energy * 0.6)
+    this.shelf(3000, (energy * 0.12 + dance * 0.05) * loudnessGain)
+    // Percussions attenuees sur les morceaux acoustiques/instrumentaux : elles
+    // en ont generalement moins que la pop/electro dansante.
+    const drumPresence = 1 - 0.5 * Math.max(acoustic, instrumental)
+    this.renderDrums(dt, (0.55 + energy * 0.6) * drumPresence * loudnessGain)
   }
 
   // --- Percussions communes aux deux chemins -------------------------------

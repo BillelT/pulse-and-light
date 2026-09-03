@@ -68,6 +68,7 @@ export function useSpotify(): SpotifyController {
   const setSpotifyError = useStore((s) => s.setSpotifyError)
   const setSnapshot = useStore((s) => s.setSnapshot)
   const setAnalysisAvailable = useStore((s) => s.setAnalysisAvailable)
+  const setFeaturesAvailable = useStore((s) => s.setFeaturesAvailable)
 
   const [busy, setBusy] = useState(false)
 
@@ -106,6 +107,7 @@ export function useSpotify(): SpotifyController {
       analysisRef.current = null
       if (!trackId) {
         setAnalysisAvailable(null)
+        setFeaturesAvailable(null)
         publish({ analysis: null, tempo: 0, key: -1 })
         return
       }
@@ -119,6 +121,7 @@ export function useSpotify(): SpotifyController {
         if (trackIdRef.current !== trackId) return
         analysisRef.current = analysis
         setAnalysisAvailable(Boolean(analysis))
+        setFeaturesAvailable(Boolean(features))
         publish({
           analysis,
           tempo: features?.tempo ?? analysis?.track.tempo ?? 0,
@@ -127,13 +130,21 @@ export function useSpotify(): SpotifyController {
           valence: features?.valence ?? 0.5,
           key: features?.key ?? analysis?.track.key ?? -1,
           mode: features?.mode ?? analysis?.track.mode ?? 1,
+          loudness: features?.loudness ?? analysis?.track.loudness ?? -12,
+          timeSignature: features?.time_signature ?? analysis?.track.time_signature ?? 4,
+          acousticness: features?.acousticness ?? 0.3,
+          instrumentalness: features?.instrumentalness ?? 0.1,
+          speechiness: features?.speechiness ?? 0.05,
         })
       } catch {
         // Endpoints deprecies / restreints : la scene continue sur la grille.
-        if (trackIdRef.current === trackId) setAnalysisAvailable(false)
+        if (trackIdRef.current === trackId) {
+          setAnalysisAvailable(false)
+          setFeaturesAvailable(false)
+        }
       }
     },
-    [freshToken, publish, setAnalysisAvailable],
+    [freshToken, publish, setAnalysisAvailable, setFeaturesAvailable],
   )
 
   const onPlayerState = useCallback(
