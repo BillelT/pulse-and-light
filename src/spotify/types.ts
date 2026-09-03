@@ -18,6 +18,8 @@ export interface SpotifyTrack {
   duration_ms: number
   artists: SpotifyArtist[]
   album: { name: string; images: SpotifyImage[] }
+  /** ISRC (International Standard Recording Code), recupere apres coup via /v1/tracks/{id}. */
+  isrc: string | null
 }
 
 export interface SpotifyUser {

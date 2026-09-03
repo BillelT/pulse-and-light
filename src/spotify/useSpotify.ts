@@ -10,6 +10,7 @@ import {
 } from './auth'
 import * as api from './api'
 import { getTrackFeatures } from './trackFeatures'
+import { getItunesPreview } from './itunesPreview'
 import type { AudioAnalysis, AudioFeatures, PlaybackSnapshot, SpotifyTrack } from './types'
 import { EMPTY_SNAPSHOT } from './types'
 
@@ -114,17 +115,25 @@ export function useSpotify(): SpotifyController {
       }
       let features: AudioFeatures | null = null
       let analysis: AudioAnalysis | null = null
+      let isrc: string | null = null
       try {
         const token = await freshToken()
-        ;[features, analysis] = await Promise.all([
+        ;[features, analysis, isrc] = await Promise.all([
           api.getAudioFeatures(token, trackId),
           api.getAudioAnalysis(token, trackId),
+          api.getTrackIsrc(token, trackId),
         ])
       } catch {
         // Endpoints deprecies / restreints : on continue quand meme sur le fallback Deezer.
       }
       if (trackIdRef.current !== trackId) return
       analysisRef.current = analysis
+      // L'ISRC arrive apres coup (le SDK ne le fournit pas) : on patch la
+      // piste deja publiee, utilise par la source iTunes preview pour matcher
+      // le master exact plutot qu'une recherche artiste/titre approximative.
+      if (isrc && snapshotRef.current.track?.id === trackId) {
+        publish({ track: { ...snapshotRef.current.track, isrc } })
+      }
       setAnalysisAvailable(Boolean(analysis))
       setFeaturesAvailable(Boolean(features))
 
@@ -206,6 +215,7 @@ export function useSpotify(): SpotifyController {
         duration_ms: t.duration_ms,
         artists: t.artists.map((a) => ({ id: a.uri, name: a.name })),
         album: { name: t.album.name, images: t.album.images as SpotifyTrack['album']['images'] },
+        isrc: null,
       }
       publish({
         connected: true,
@@ -217,6 +227,14 @@ export function useSpotify(): SpotifyController {
       if (t.id !== trackIdRef.current) {
         trackIdRef.current = t.id
         void loadTrackAnalysis(t.id, t.artists[0]?.name ?? '', t.name)
+      }
+      // Pre-analyse (zero latence) : des que le SDK annonce la piste suivante,
+      // on prechauffe le cache d'extrait iTunes en arriere-plan. Sans ISRC (le
+      // SDK ne le fournit pas), mais la recherche artiste/titre suffit a
+      // remplir le cache avant que la piste ne devienne active.
+      const next = state.track_window.next_tracks[0]
+      if (next?.id) {
+        void getItunesPreview(next.id, null, next.artists[0]?.name ?? '', next.name, next.duration_ms)
       }
     },
     [loadTrackAnalysis, publish],

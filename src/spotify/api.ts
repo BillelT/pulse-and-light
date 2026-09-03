@@ -135,3 +135,18 @@ export async function getAudioAnalysis(
     throw err
   }
 }
+
+/**
+ * ISRC de la piste, via `/v1/tracks/{id}` (endpoint standard, non touche par
+ * les fermetures de nov. 2024). Sert a matcher le master exact cote iTunes
+ * Search API plutot qu'une recherche artiste/titre approximative.
+ */
+export async function getTrackIsrc(token: string, trackId: string): Promise<string | null> {
+  try {
+    const track = await request<{ external_ids?: { isrc?: string } }>(token, `/tracks/${trackId}`)
+    return track?.external_ids?.isrc ?? null
+  } catch (err) {
+    if (err instanceof SpotifyApiError) return null
+    throw err
+  }
+}

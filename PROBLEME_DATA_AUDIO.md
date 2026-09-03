@@ -101,6 +101,42 @@ navigateur à chaque session (impossible à automatiser ou pré-valider par
 script, c'est une protection anti-espionnage du navigateur, pas
 contournable côté client quel que soit le navigateur).
 
+## Pivot implémenté : extrait iTunes + vraie FFT client (piste 1 ci-dessous)
+
+La piste 1 listée ci-dessous a été implémentée. Pipeline :
+
+`Piste Spotify (id, artiste, titre, durée)` → `ISRC via GET /v1/tracks/{id}`
+(non déprécié) → `/api/itunes-preview` (Edge Function, contourne un éventuel
+CORS et met en cache CDN) → `iTunes lookup by ISRC`, sinon `iTunes search
+artiste+titre` avec score de correspondance (nom normalisé + durée) →
+`previewUrl` → `<audio>` + `MediaElementAudioSourceNode` (jamais connecté à
+`ctx.destination`, donc jamais entendu — Spotify reste la seule source
+sonore) → `AnalyserNode` → vraie FFT consommée par le même `AudioEngine` que
+les autres sources réelles (micro, onglet, fichier).
+
+Fichiers : `api/itunes-preview.ts`, `src/spotify/itunesPreview.ts`,
+`src/audio/sources/itunesPreviewProvider.ts`, branchement dans
+`src/audio/useAudioSource.ts` (effet sur changement de piste).
+
+- **Fallback silencieux** : `useAudioSource` bascule d'abord sur
+  `SpotifyTimelineProvider` (résynthèse procédurale, zéro latence) à chaque
+  changement de piste, puis remplace par l'extrait iTunes réel dès qu'il est
+  prêt. Si `previewUrl` est introuvable, le fallback procédural reste actif
+  sans jamais d'écran noir.
+- **Cache** : mémoire (session) + `localStorage` côté client, côté serveur
+  `Cache-Control` long (les extraits ne changent jamais pour un morceau
+  donné) — limite les appels à l'API iTunes Search.
+- **Pré-analyse** : `player_state_changed` expose `track_window.next_tracks`
+  ; on lance une requête de préchauffage du cache dès que le SDK annonce la
+  piste suivante, avant qu'elle ne devienne active.
+- **Limite assumée, non résolue** : l'extrait de 30s ne correspond pas
+  forcément à la section du morceau en cours de lecture réelle (Spotify joue
+  le morceau entier, l'extrait iTunes est souvent un passage du milieu, lu en
+  boucle). Le contenu spectral est donc réel et variable dans le temps —
+  contrairement à la resynthèse — mais pas nécessairement synchronisé
+  seconde par seconde avec ce que l'auditeur entend à l'instant `t`. Reste
+  très supérieur à des scalaires statiques par morceau.
+
 ## Pistes non explorées / à rechercher
 
 1. **`preview_url` de `GET /v1/tracks/{id}`** (endpoint non restreint par

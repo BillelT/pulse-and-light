@@ -5,6 +5,8 @@ import { engine } from './engine'
 import { createMicSource, createTabAudioSource } from './sources/captureSource'
 import { createFileSource, type FileAudioProvider } from './sources/fileSource'
 import { SpotifyTimelineProvider } from './sources/spotifyTimelineSource'
+import { createItunesPreviewSource } from './sources/itunesPreviewProvider'
+import { getItunesPreview } from '../spotify/itunesPreview'
 import { EMPTY_SNAPSHOT } from '../spotify/types'
 
 /** Morceau fictif du mode demo : 124 BPM, energie haute, tonalite La mineur. */
@@ -86,6 +88,56 @@ export function useAudioSource(readSnapshot: () => PlaybackSnapshot): AudioSourc
     },
     [apply, setAudioError],
   )
+
+  // --- Pivot iTunes preview : vraie FFT quand un extrait est trouve --------
+  //
+  // A chaque changement de piste (tant que la source active est 'spotify'),
+  // on retombe d'abord sur la resynthese procedurale (zero latence, jamais
+  // d'ecran noir), puis on tente en arriere-plan un extrait iTunes reel pour
+  // la remplacer par une vraie analyse FFT des qu'il est pret. Si rien n'est
+  // trouve, le fallback procedural reste actif — silencieusement.
+  const sourceKind = useStore((s) => s.sourceKind)
+  const trackId = useStore((s) => s.snapshot.track?.id ?? null)
+  useEffect(() => {
+    if (sourceKind !== 'spotify' || !trackId) return
+    let cancelled = false
+
+    const fallback = new SpotifyTimelineProvider(() => snapshotRef.current())
+    engine.setProvider(fallback)
+    setSource('spotify', fallback.label)
+
+    const track = snapshotRef.current().track
+    if (track) {
+      void (async () => {
+        const preview = await getItunesPreview(
+          track.id,
+          track.isrc,
+          track.artists[0]?.name ?? '',
+          track.name,
+          track.duration_ms,
+        )
+        if (cancelled || !preview.previewUrl) return
+        try {
+          const p = await createItunesPreviewSource(
+            preview.previewUrl,
+            `iTunes (FFT reelle) — ${track.name}`,
+          )
+          if (cancelled) {
+            p.dispose()
+            return
+          }
+          engine.setProvider(p)
+          setSource('spotify', p.label)
+        } catch {
+          // Extrait trouve mais illisible (reseau, format) : on reste sur le fallback procedural.
+        }
+      })()
+    }
+
+    return () => {
+      cancelled = true
+    }
+  }, [sourceKind, trackId, setSource])
 
   const selectFile = useCallback(
     async (file: File) => {
