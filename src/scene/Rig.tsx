@@ -6,21 +6,6 @@ import { Band } from '../audio/bands'
 import { CAMERA_BOUNDS } from './roomLayout'
 import { readState, useStore } from '../state/store'
 
-/**
- * Largeur occupee par le panneau lateral (droite, cf. `.panel` dans
- * styles.css : right 18px + width 306px). Sert a recentrer la camera sur la
- * zone visible plutot que sur le canvas entier quand le panneau est ouvert.
- */
-const PANEL_WIDTH = 324
-
-/**
- * En dessous de cette largeur (cf. le meme seuil dans `styles.css`), le
- * panneau passe en feuille du bas pleine largeur : il ne mange plus de bande
- * a droite du canvas, donc la correction d'axe optique ci-dessous ne doit
- * plus s'appliquer.
- */
-const DESKTOP_PANEL_BREAKPOINT = 860
-
 const TARGET = new Vector3(0, 4.3, -2.2)
 const _pos = new Vector3()
 const _look = new Vector3()
@@ -74,7 +59,6 @@ export function CameraRig() {
   const camera = useThree((s) => s.camera)
   const gl = useThree((s) => s.gl)
   const size = useThree((s) => s.size)
-  const panelOpen = useStore((s) => s.panelOpen)
 
   const spherical = useRef(
     (() => {
@@ -92,27 +76,6 @@ export function CameraRig() {
   const shake = useRef(0)
   const lastOnset = useRef(0)
   const sway = useRef(0)
-
-  // Le panneau lateral masque une bande a droite du canvas : sans correction,
-  // la scene reste centree sur le canvas entier et orbiter vers la droite
-  // "mange" plus vite dans la zone visible que vers la gauche. On decale
-  // l'axe optique de la camera (off-axis projection) pour que le pivot
-  // reste centre dans la zone reellement visible. Uniquement pertinent quand
-  // le panneau est bien une colonne laterale (desktop) : en dessous du
-  // breakpoint mobile il devient une feuille du bas pleine largeur, et
-  // decaler quand meme l'axe optique excentrait toute la scene vers la
-  // droite (on ne voyait plus que les caissons de droite, danseur coupe).
-  useEffect(() => {
-    if (!(camera instanceof PerspectiveCamera)) return
-    const { width, height } = size
-    const isSideBarLayout = width > DESKTOP_PANEL_BREAKPOINT
-    if (!panelOpen || !isSideBarLayout || width <= PANEL_WIDTH) {
-      camera.clearViewOffset()
-      return
-    }
-    camera.setViewOffset(width + PANEL_WIDTH, height, PANEL_WIDTH, 0, width, height)
-    return () => camera.clearViewOffset()
-  }, [camera, panelOpen, size])
 
   // FOV responsive : voir le commentaire sur MAX_PORTRAIT_FOV.
   useEffect(() => {
