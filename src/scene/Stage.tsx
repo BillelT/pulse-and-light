@@ -17,14 +17,17 @@ import { paletteById } from './palettes'
 import { makeCityTexture, makeGratingTexture, makeTileTexture } from './textures'
 
 /**
- * Photo de ville de nuit optionnelle : depose un fichier a ce chemin (dans
- * `public/`) pour la voir a travers les baies. Une image large (panoramique,
- * 2:1 ou plus) cadre le mieux sur les deux plans du fond et du cote droit.
- * Tant qu'aucun fichier n'existe a cet endroit, la skyline generee en canvas
- * (`makeCityTexture`) reste affichee automatiquement — aucun crash, aucune
- * image cassee.
+ * Feuille de sprites ville de nuit, optionnelle : 4 bandes empilees (FRONT,
+ * RIGHT, BACK, LEFT, dans cet ordre de haut en bas), chacune 1536x256. On
+ * n'utilise que 3 bandes : FRONT derriere le mur du fond, LEFT/RIGHT derriere
+ * les murs lateraux — BACK ne sert pas, la piece n'a pas de quatrieme baie.
+ * Tant qu'aucun fichier n'existe a ce chemin, la skyline generee en canvas
+ * (`makeCityTexture`) reste affichee automatiquement — aucun crash.
  */
-const CITY_PHOTO_URL = '/city-night.jpg'
+const CITY_SHEET_URL = '/test.png'
+const CITY_SHEET_BAND_ASPECT = 1536 / 256
+const CITY_SHEET_BANDS = { front: 0.75, right: 0.5, left: 0 } as const
+const CITY_SHEET_BAND_HEIGHT = 0.25
 
 /** Hauteur du plateau de la regie, en coordonnees monde. */
 const PODIUM_TOP = 0.54
@@ -274,14 +277,17 @@ function DjBooth() {
 }
 
 /**
- * Charge la photo de ville si elle existe, sinon garde la skyline generee.
- * Chargement manuel (pas useLoader/useTexture de drei) : ces hooks suspendent
- * et font planter l'arbre R3F quand le fichier est absent, alors qu'ici
- * l'absence de fichier est un cas normal — pas une erreur.
+ * Charge la feuille de sprites ville si elle existe, sinon garde la skyline
+ * generee. Chargement manuel (pas useLoader/useTexture de drei) : ces hooks
+ * suspendent et font planter l'arbre R3F quand le fichier est absent, alors
+ * qu'ici l'absence de fichier est un cas normal — pas une erreur.
  */
-function useCityTexture(url: string): Texture {
+function useCitySheet(url: string): { texture: Texture; isSheet: boolean } {
   const fallback = useMemo(() => makeCityTexture(), [])
-  const [texture, setTexture] = useState<Texture>(fallback)
+  const [state, setState] = useState<{ texture: Texture; isSheet: boolean }>({
+    texture: fallback,
+    isSheet: false,
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -292,11 +298,11 @@ function useCityTexture(url: string): Texture {
         if (cancelled) return
         loaded.colorSpace = SRGBColorSpace
         loaded.anisotropy = 4
-        setTexture(loaded)
+        setState({ texture: loaded, isSheet: true })
       },
       undefined,
       () => {
-        /* pas de photo fournie : on garde la skyline generee, silencieusement. */
+        /* pas de feuille fournie : on garde la skyline generee, silencieusement. */
       },
     )
     return () => {
@@ -304,31 +310,26 @@ function useCityTexture(url: string): Texture {
     }
   }, [url])
 
-  return texture
+  return state
 }
 
 /**
- * Ajuste repeat/offset pour un cadrage "cover" (comme `background-size:
- * cover`) : une photo panoramique ne doit jamais s'etirer pour remplir un
- * plan d'un ratio different.
+ * Cadre une bande de la feuille de sprites sur un plan d'aspect donne, sans
+ * jamais l'etirer : on rogne la largeur de la bande (elle est bien plus large
+ * que haute) au lieu de la comprimer verticalement, sinon les points
+ * lumineux ronds de la photo deviennent des ellipses.
  */
-function fitCover(tex: Texture, planeAspect: number) {
-  const img = tex.image as { width?: number; height?: number } | undefined
-  if (!img?.width || !img.height) {
-    tex.repeat.set(1, 1)
-    tex.offset.set(0, 0)
-    return
-  }
-  const imgAspect = img.width / img.height
-  if (imgAspect > planeAspect) {
-    const scale = planeAspect / imgAspect
-    tex.repeat.set(scale, 1)
-    tex.offset.set((1 - scale) / 2, 0)
-  } else {
-    const scale = imgAspect / planeAspect
-    tex.repeat.set(1, scale)
-    tex.offset.set(0, (1 - scale) / 2)
-  }
+function fitSheetBand(tex: Texture, band: keyof typeof CITY_SHEET_BANDS, planeAspect: number) {
+  const uSpan = Math.min(1, planeAspect / CITY_SHEET_BAND_ASPECT)
+  tex.repeat.set(uSpan, CITY_SHEET_BAND_HEIGHT)
+  tex.offset.set((1 - uSpan) / 2, CITY_SHEET_BANDS[band])
+  tex.needsUpdate = true
+}
+
+/** Cadrage "cover" de secours pour la skyline generee (pas une bande a rogner). */
+function fitFallback(tex: Texture) {
+  tex.repeat.set(1, 1)
+  tex.offset.set(0, 0)
   tex.needsUpdate = true
 }
 
@@ -336,19 +337,30 @@ const BACKDROP_BACK_SIZE: [number, number] = [110, 56]
 const BACKDROP_SIDE_SIZE: [number, number] = [90, 56]
 
 /**
- * Ville de nuit derriere le mur du fond et la baie de droite : deux plans
- * texture, immobiles. Le mur de gauche reste sombre et reflechissant, comme
- * sur la reference — seul un cote de la piece ouvre sur la ville.
+ * Ville de nuit derriere les trois baies (fond, gauche, droite) : trois plans
+ * texture, immobiles, chacun montrant la bande correspondante de la feuille
+ * de sprites (ou la skyline generee tant qu'elle n'est pas fournie).
  */
 function CityBackdrop() {
-  const base = useCityTexture(CITY_PHOTO_URL)
-  // Deux plans, deux cadrages : chacun a besoin de son propre repeat/offset,
+  const { texture: base, isSheet } = useCitySheet(CITY_SHEET_URL)
+  // Trois plans, trois cadrages : chacun a besoin de son propre repeat/offset,
   // donc de son propre clone plutot que de partager l'instance de texture.
   const backTex = useMemo(() => base.clone(), [base])
-  const sideTex = useMemo(() => base.clone(), [base])
+  const leftTex = useMemo(() => base.clone(), [base])
+  const rightTex = useMemo(() => base.clone(), [base])
 
-  useEffect(() => fitCover(backTex, BACKDROP_BACK_SIZE[0] / BACKDROP_BACK_SIZE[1]), [backTex])
-  useEffect(() => fitCover(sideTex, BACKDROP_SIDE_SIZE[0] / BACKDROP_SIDE_SIZE[1]), [sideTex])
+  useEffect(() => {
+    if (isSheet) fitSheetBand(backTex, 'front', BACKDROP_BACK_SIZE[0] / BACKDROP_BACK_SIZE[1])
+    else fitFallback(backTex)
+  }, [backTex, isSheet])
+  useEffect(() => {
+    if (isSheet) fitSheetBand(leftTex, 'left', BACKDROP_SIDE_SIZE[0] / BACKDROP_SIDE_SIZE[1])
+    else fitFallback(leftTex)
+  }, [leftTex, isSheet])
+  useEffect(() => {
+    if (isSheet) fitSheetBand(rightTex, 'right', BACKDROP_SIDE_SIZE[0] / BACKDROP_SIDE_SIZE[1])
+    else fitFallback(rightTex)
+  }, [rightTex, isSheet])
 
   return (
     <>
@@ -356,9 +368,13 @@ function CityBackdrop() {
         <planeGeometry args={BACKDROP_BACK_SIZE} />
         <meshBasicMaterial map={backTex} toneMapped fog />
       </mesh>
+      <mesh position={[-(SIDE_X + 16), WALL_TOP * 0.75, SIDE_Z]} rotation-y={Math.PI / 2}>
+        <planeGeometry args={BACKDROP_SIDE_SIZE} />
+        <meshBasicMaterial map={leftTex} toneMapped fog />
+      </mesh>
       <mesh position={[SIDE_X + 16, WALL_TOP * 0.75, SIDE_Z]} rotation-y={-Math.PI / 2}>
         <planeGeometry args={BACKDROP_SIDE_SIZE} />
-        <meshBasicMaterial map={sideTex} toneMapped fog />
+        <meshBasicMaterial map={rightTex} toneMapped fog />
       </mesh>
     </>
   )
