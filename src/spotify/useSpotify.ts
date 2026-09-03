@@ -366,19 +366,7 @@ export function useSpotify(): SpotifyController {
         setSpotifyError(null)
         return res?.tracks.items ?? []
       } catch (err) {
-        // "Invalid limit" est le message (trompeur) que Spotify renvoie
-        // depuis nov. 2024 quand l'app n'a pas l'Extended Quota Mode : le
-        // catalogue (recherche, albums, etc.) est ferme aux apps en mode
-        // Development. Rien a corriger cote client, cf. api.ts.
-        const catalogRestricted =
-          err instanceof api.SpotifyApiError && err.status === 400 && err.message === 'Invalid limit'
-        setSpotifyError(
-          catalogRestricted
-            ? "Recherche indisponible : l'app Spotify n'a pas l'acces catalogue (Extended Quota Mode requis depuis nov. 2024). Demande-le sur le dashboard developpeur, ou lance le morceau depuis l'app Spotify."
-            : err instanceof Error
-              ? err.message
-              : String(err),
-        )
+        setSpotifyError(err instanceof Error ? err.message : String(err))
         return []
       }
     },

@@ -73,13 +73,10 @@ active.
 > rythmique. Le panneau Spotify indique quel chemin est actif pour la piste
 > courante.
 >
-> **Note sur la recherche.** Même restriction pour `/search` (et le reste du
-> catalogue) : depuis le 27 novembre 2024, une app sans **Extended Quota
-> Mode** approuvé sur le dashboard développeur n'y a plus accès. Spotify
-> renvoie alors un `400` au message trompeur `"Invalid limit"`, qui n'a rien
-> à voir avec le paramètre `limit` envoyé — l'app doit demander l'Extended
-> Quota Mode pour que la recherche fonctionne. En attendant, la lecture doit
-> être lancée depuis l'app Spotify elle-même.
+> **Note sur la recherche.** Depuis la migration Web API de février 2026,
+> `/search` plafonne le paramètre `limit` à `10` (défaut `5`, contre `50`/`20`
+> avant) : au-delà, l'API renvoie un `400 "Invalid limit"`. `searchTracks`
+> (dans `spotify/api.ts`) clampe donc `limit` à `[1, 10]` avant l'appel.
 
 ---
 
