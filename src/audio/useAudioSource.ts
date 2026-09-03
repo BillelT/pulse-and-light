@@ -121,7 +121,7 @@ export function useAudioSource(readSnapshot: () => PlaybackSnapshot): AudioSourc
           const p = await createItunesPreviewSource(
             preview.previewUrl,
             `iTunes (FFT reelle) — ${track.name}`,
-            () => snapshotRef.current().playing,
+            () => snapshotRef.current(),
           )
           if (cancelled) {
             p.dispose()
