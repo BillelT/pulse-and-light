@@ -1,5 +1,6 @@
 import { useStore } from '../state/store'
 import { Analyzer } from './Analyzer'
+import { CloseIcon, MoreIcon } from './icons'
 
 const DEV = import.meta.env.DEV
 
@@ -17,7 +18,7 @@ export function Hud() {
             title={panelOpen ? 'Masquer le panneau debug' : 'Afficher le panneau debug'}
             aria-label={panelOpen ? 'Masquer le panneau debug' : 'Afficher le panneau debug'}
           >
-            {panelOpen ? '×' : '⋯'}
+            {panelOpen ? <CloseIcon size={13} /> : <MoreIcon size={13} />}
           </button>
         </div>
       )}

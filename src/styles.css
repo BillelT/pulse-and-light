@@ -121,9 +121,9 @@ select {
   border-radius: 3px;
   cursor: pointer;
   color: var(--ink);
-  font-size: 13px;
-  letter-spacing: 0.12em;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
