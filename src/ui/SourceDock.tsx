@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../state/store'
 import type { AudioSourceController } from '../audio/useAudioSource'
 import type { SpotifyController } from '../spotify/useSpotify'
@@ -85,6 +85,13 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
   const track = snapshot.track
 
   const [seekDrag, setSeekDrag] = useState<number | null>(null)
+  // Position visee par un seek en cours, tant que le SDK n'a pas confirme le
+  // changement : sans elle, le relachement du curseur retombe brievement sur
+  // l'ancienne position (celle du dernier snapshot) avant de re-sauter sur la
+  // bonne des que `player_state_changed` arrive, quelques centaines de ms plus
+  // tard — un aller-retour visible et desagreable.
+  const [pendingSeek, setPendingSeek] = useState<number | null>(null)
+  const pendingSeekTimeout = useRef<number | null>(null)
   const [volume, setVolume] = useState(0.7)
   const [volumeDrag, setVolumeDrag] = useState<number | null>(null)
 
@@ -104,9 +111,34 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
     )
   }
 
+  // Des que le snapshot confirme la nouvelle position (a 1.5s pres, le temps
+  // que le SDK republie l'etat), on peut lacher l'override optimiste.
+  useEffect(() => {
+    if (pendingSeek !== null && Math.abs(snapshot.positionSec - pendingSeek) < 1.5) {
+      setPendingSeek(null)
+    }
+  }, [pendingSeek, snapshot.positionSec])
+
+  useEffect(
+    () => () => {
+      if (pendingSeekTimeout.current) window.clearTimeout(pendingSeekTimeout.current)
+    },
+    [],
+  )
+
+  const commitSeek = (v: number) => {
+    setSeekDrag(null)
+    setPendingSeek(v)
+    if (pendingSeekTimeout.current) window.clearTimeout(pendingSeekTimeout.current)
+    // Filet de securite si l'evenement de confirmation n'arrive jamais.
+    pendingSeekTimeout.current = window.setTimeout(() => setPendingSeek(null), 2500)
+    void spotify.seek(v)
+  }
+
   const cover = track?.album.images.at(-1)?.url ?? track?.album.images[0]?.url
   const duration = snapshot.durationSec
-  const position = seekDrag ?? Math.min(snapshot.positionSec, duration || snapshot.positionSec)
+  const position =
+    seekDrag ?? pendingSeek ?? Math.min(snapshot.positionSec, duration || snapshot.positionSec)
   const displayVolume = volumeDrag ?? volume
   const seekPct = duration > 0 ? (position / duration) * 100 : 0
 
@@ -183,17 +215,12 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
               value={position}
               disabled={!deviceId || duration <= 0}
               style={{ background: trackGradient(seekPct) }}
-              onChange={(e) => setSeekDrag(Number(e.target.value))}
-              onMouseUp={(e) => {
-                const v = Number((e.target as HTMLInputElement).value)
-                setSeekDrag(null)
-                void spotify.seek(v)
+              onChange={(e) => {
+                setPendingSeek(null)
+                setSeekDrag(Number(e.target.value))
               }}
-              onTouchEnd={(e) => {
-                const v = Number((e.target as HTMLInputElement).value)
-                setSeekDrag(null)
-                void spotify.seek(v)
-              }}
+              onMouseUp={(e) => commitSeek(Number((e.target as HTMLInputElement).value))}
+              onTouchEnd={(e) => commitSeek(Number((e.target as HTMLInputElement).value))}
             />
             <span className="np-time np-time-end">{formatTime(duration)}</span>
           </div>
