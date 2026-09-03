@@ -101,18 +101,10 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
   const [searching, setSearching] = useState(false)
   const [searched, setSearched] = useState(false)
 
-  if (!token) {
-    return (
-      <div className="dock-hint">
-        <button className="dock-connect" onClick={spotify.login}>
-          Se connecter a Spotify
-        </button>
-      </div>
-    )
-  }
-
   // Des que le snapshot confirme la nouvelle position (a 1.5s pres, le temps
-  // que le SDK republie l'etat), on peut lacher l'override optimiste.
+  // que le SDK republie l'etat), on peut lacher l'override optimiste. Doit
+  // rester avant le `return` anticipe ci-dessous : les hooks ne peuvent pas
+  // etre conditionnels.
   useEffect(() => {
     if (pendingSeek !== null && Math.abs(snapshot.positionSec - pendingSeek) < 1.5) {
       setPendingSeek(null)
@@ -125,6 +117,16 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
     },
     [],
   )
+
+  if (!token) {
+    return (
+      <div className="dock-hint">
+        <button className="dock-connect" onClick={spotify.login}>
+          Se connecter a Spotify
+        </button>
+      </div>
+    )
+  }
 
   const commitSeek = (v: number) => {
     setSeekDrag(null)
