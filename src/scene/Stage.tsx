@@ -1,13 +1,30 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { MeshReflectorMaterial } from '@react-three/drei'
-import { Color, DoubleSide, MeshBasicMaterial } from 'three'
+import {
+  Color,
+  DoubleSide,
+  MeshBasicMaterial,
+  SRGBColorSpace,
+  Texture,
+  TextureLoader,
+} from 'three'
 import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
 import { useStore } from '../state/store'
 import { Dancer } from './Dancer'
 import { paletteById } from './palettes'
 import { makeCityTexture, makeGratingTexture, makeTileTexture } from './textures'
+
+/**
+ * Photo de ville de nuit optionnelle : depose un fichier a ce chemin (dans
+ * `public/`) pour la voir a travers les baies. Une image large (panoramique,
+ * 2:1 ou plus) cadre le mieux sur les deux plans du fond et du cote droit.
+ * Tant qu'aucun fichier n'existe a cet endroit, la skyline generee en canvas
+ * (`makeCityTexture`) reste affichee automatiquement — aucun crash, aucune
+ * image cassee.
+ */
+const CITY_PHOTO_URL = '/city-night.jpg'
 
 /** Hauteur du plateau de la regie, en coordonnees monde. */
 const PODIUM_TOP = 0.54
@@ -257,22 +274,91 @@ function DjBooth() {
 }
 
 /**
+ * Charge la photo de ville si elle existe, sinon garde la skyline generee.
+ * Chargement manuel (pas useLoader/useTexture de drei) : ces hooks suspendent
+ * et font planter l'arbre R3F quand le fichier est absent, alors qu'ici
+ * l'absence de fichier est un cas normal — pas une erreur.
+ */
+function useCityTexture(url: string): Texture {
+  const fallback = useMemo(() => makeCityTexture(), [])
+  const [texture, setTexture] = useState<Texture>(fallback)
+
+  useEffect(() => {
+    let cancelled = false
+    const loader = new TextureLoader()
+    loader.load(
+      url,
+      (loaded) => {
+        if (cancelled) return
+        loaded.colorSpace = SRGBColorSpace
+        loaded.anisotropy = 4
+        setTexture(loaded)
+      },
+      undefined,
+      () => {
+        /* pas de photo fournie : on garde la skyline generee, silencieusement. */
+      },
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [url])
+
+  return texture
+}
+
+/**
+ * Ajuste repeat/offset pour un cadrage "cover" (comme `background-size:
+ * cover`) : une photo panoramique ne doit jamais s'etirer pour remplir un
+ * plan d'un ratio different.
+ */
+function fitCover(tex: Texture, planeAspect: number) {
+  const img = tex.image as { width?: number; height?: number } | undefined
+  if (!img?.width || !img.height) {
+    tex.repeat.set(1, 1)
+    tex.offset.set(0, 0)
+    return
+  }
+  const imgAspect = img.width / img.height
+  if (imgAspect > planeAspect) {
+    const scale = planeAspect / imgAspect
+    tex.repeat.set(scale, 1)
+    tex.offset.set((1 - scale) / 2, 0)
+  } else {
+    const scale = imgAspect / planeAspect
+    tex.repeat.set(1, scale)
+    tex.offset.set(0, (1 - scale) / 2)
+  }
+  tex.needsUpdate = true
+}
+
+const BACKDROP_BACK_SIZE: [number, number] = [110, 56]
+const BACKDROP_SIDE_SIZE: [number, number] = [90, 56]
+
+/**
  * Ville de nuit derriere le mur du fond et la baie de droite : deux plans
  * texture, immobiles. Le mur de gauche reste sombre et reflechissant, comme
  * sur la reference — seul un cote de la piece ouvre sur la ville.
  */
 function CityBackdrop() {
-  const city = useMemo(() => makeCityTexture(), [])
+  const base = useCityTexture(CITY_PHOTO_URL)
+  // Deux plans, deux cadrages : chacun a besoin de son propre repeat/offset,
+  // donc de son propre clone plutot que de partager l'instance de texture.
+  const backTex = useMemo(() => base.clone(), [base])
+  const sideTex = useMemo(() => base.clone(), [base])
+
+  useEffect(() => fitCover(backTex, BACKDROP_BACK_SIZE[0] / BACKDROP_BACK_SIZE[1]), [backTex])
+  useEffect(() => fitCover(sideTex, BACKDROP_SIDE_SIZE[0] / BACKDROP_SIDE_SIZE[1]), [sideTex])
 
   return (
     <>
       <mesh position={[0, WALL_TOP * 0.75, BACK_Z - 16]}>
-        <planeGeometry args={[110, 56]} />
-        <meshBasicMaterial map={city} toneMapped fog />
+        <planeGeometry args={BACKDROP_BACK_SIZE} />
+        <meshBasicMaterial map={backTex} toneMapped fog />
       </mesh>
       <mesh position={[SIDE_X + 16, WALL_TOP * 0.75, SIDE_Z]} rotation-y={-Math.PI / 2}>
-        <planeGeometry args={[90, 56]} />
-        <meshBasicMaterial map={city} toneMapped fog />
+        <planeGeometry args={BACKDROP_SIDE_SIZE} />
+        <meshBasicMaterial map={sideTex} toneMapped fog />
       </mesh>
     </>
   )
