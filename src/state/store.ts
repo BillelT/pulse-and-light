@@ -96,7 +96,7 @@ export const DEFAULT_DEBUG: DebugSettings = {
   showAxes: false,
   showGrid: false,
 
-  fogColor: '#191131',
+  fogColor: 'hsl(255, 48%, 21%)',
 
   ambientIntensity: 3,
   ambientColor: '#8783ae',
