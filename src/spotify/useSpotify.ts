@@ -360,9 +360,15 @@ export function useSpotify(): SpotifyController {
     setVolume: (v) => guard(async () => { await playerRef.current?.setVolume(v) }),
     search: async (q: string) => {
       if (!q.trim()) return []
-      const t = await freshToken()
-      const res = await api.searchTracks(t, q)
-      return res?.tracks.items ?? []
+      try {
+        const t = await freshToken()
+        const res = await api.searchTracks(t, q)
+        setSpotifyError(null)
+        return res?.tracks.items ?? []
+      } catch (err) {
+        setSpotifyError(err instanceof Error ? err.message : String(err))
+        return []
+      }
     },
     playTrack: (uri: string) =>
       guard(async () => {
