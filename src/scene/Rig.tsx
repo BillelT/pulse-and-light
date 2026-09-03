@@ -13,6 +13,14 @@ import { readState, useStore } from '../state/store'
  */
 const PANEL_WIDTH = 324
 
+/**
+ * En dessous de cette largeur (cf. le meme seuil dans `styles.css`), le
+ * panneau passe en feuille du bas pleine largeur : il ne mange plus de bande
+ * a droite du canvas, donc la correction d'axe optique ci-dessous ne doit
+ * plus s'appliquer.
+ */
+const DESKTOP_PANEL_BREAKPOINT = 860
+
 const TARGET = new Vector3(0, 4.3, -2.2)
 const _pos = new Vector3()
 const _look = new Vector3()
@@ -21,6 +29,17 @@ const MIN_RADIUS = 11
 const MAX_RADIUS = 48
 const MIN_PHI = 0.55
 const MAX_PHI = 1.52
+
+/** FOV vertical de reference, calibre pour un ecran large (desktop). */
+const BASE_FOV = 42
+/**
+ * En portrait, un FOV vertical fixe donne un FOV horizontal bien plus etroit
+ * qu'en paysage (le FOV horizontal depend du ratio largeur/hauteur) : on ne
+ * voyait plus qu'une tranche du mur de caissons, jamais le danseur en entier.
+ * On elargit le FOV vertical quand l'ecran est plus haut que large, borne
+ * pour ne pas deformer l'image comme un fisheye.
+ */
+const MAX_PORTRAIT_FOV = 62
 
 const _dir = new Vector3()
 
@@ -57,8 +76,19 @@ export function CameraRig() {
   const size = useThree((s) => s.size)
   const panelOpen = useStore((s) => s.panelOpen)
 
-  const spherical = useRef(new Spherical(22.5, 1.35, 0))
+  const spherical = useRef(
+    (() => {
+      // Meme punition qu'au niveau du FOV : en portrait, on recule un peu la
+      // camera par defaut pour que le mur de caissons ET le danseur tiennent
+      // dans le cadre des l'ouverture, sans que l'utilisateur ait a dezoomer.
+      const aspect = typeof window !== 'undefined' ? window.innerWidth / window.innerHeight : 16 / 9
+      const radius = aspect < 1 ? 22.5 * clamp(1 / aspect, 1, 1.7) : 22.5
+      return new Spherical(radius, 1.35, 0)
+    })(),
+  )
   const drag = useRef<{ active: boolean; x: number; y: number }>({ active: false, x: 0, y: 0 })
+  const pinch = useRef<{ active: boolean; distance: number }>({ active: false, distance: 0 })
+  const pointers = useRef(new Map<number, { x: number; y: number }>())
   const shake = useRef(0)
   const lastOnset = useRef(0)
   const sway = useRef(0)
@@ -67,11 +97,16 @@ export function CameraRig() {
   // la scene reste centree sur le canvas entier et orbiter vers la droite
   // "mange" plus vite dans la zone visible que vers la gauche. On decale
   // l'axe optique de la camera (off-axis projection) pour que le pivot
-  // reste centre dans la zone reellement visible.
+  // reste centre dans la zone reellement visible. Uniquement pertinent quand
+  // le panneau est bien une colonne laterale (desktop) : en dessous du
+  // breakpoint mobile il devient une feuille du bas pleine largeur, et
+  // decaler quand meme l'axe optique excentrait toute la scene vers la
+  // droite (on ne voyait plus que les caissons de droite, danseur coupe).
   useEffect(() => {
     if (!(camera instanceof PerspectiveCamera)) return
     const { width, height } = size
-    if (!panelOpen || width <= PANEL_WIDTH) {
+    const isSideBarLayout = width > DESKTOP_PANEL_BREAKPOINT
+    if (!panelOpen || !isSideBarLayout || width <= PANEL_WIDTH) {
       camera.clearViewOffset()
       return
     }
@@ -79,16 +114,49 @@ export function CameraRig() {
     return () => camera.clearViewOffset()
   }, [camera, panelOpen, size])
 
+  // FOV responsive : voir le commentaire sur MAX_PORTRAIT_FOV.
+  useEffect(() => {
+    if (!(camera instanceof PerspectiveCamera)) return
+    const aspect = size.width / size.height
+    camera.fov = aspect < 1 ? clamp(BASE_FOV / aspect, BASE_FOV, MAX_PORTRAIT_FOV) : BASE_FOV
+    camera.updateProjectionMatrix()
+  }, [camera, size])
+
   useEffect(() => {
     const el = gl.domElement
 
+    const pinchDistance = () => {
+      const pts = Array.from(pointers.current.values())
+      return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
+    }
+
     const down = (e: PointerEvent) => {
-      // Bouton gauche uniquement, et pas au dessus de l'UI (elle stoppe l'event).
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      el.setPointerCapture(e.pointerId)
+
+      if (pointers.current.size >= 2) {
+        // Deux doigts (ou plus) : on bascule en pincement, plus d'orbite.
+        drag.current.active = false
+        pinch.current = { active: true, distance: pinchDistance() }
+        return
+      }
+      // Bouton gauche uniquement (souris), et pas au dessus de l'UI (elle
+      // stoppe l'event) ; en tactile e.button vaut 0 aussi.
       if (e.button !== 0) return
       drag.current = { active: true, x: e.clientX, y: e.clientY }
-      el.setPointerCapture(e.pointerId)
     }
     const move = (e: PointerEvent) => {
+      if (pointers.current.has(e.pointerId)) pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+      if (pinch.current.active && pointers.current.size >= 2) {
+        const d = pinchDistance()
+        const s = spherical.current
+        // Ecarter les doigts rapproche la camera, les rapprocher l'eloigne.
+        s.radius = clamp(s.radius * (pinch.current.distance / d), MIN_RADIUS, MAX_RADIUS)
+        pinch.current.distance = d
+        return
+      }
+
       if (!drag.current.active) return
       const dx = e.clientX - drag.current.x
       const dy = e.clientY - drag.current.y
@@ -101,8 +169,17 @@ export function CameraRig() {
       s.theta = clamp(s.theta, -0.85, 0.85)
     }
     const up = (e: PointerEvent) => {
-      drag.current.active = false
+      pointers.current.delete(e.pointerId)
       if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
+
+      if (pointers.current.size < 2) pinch.current.active = false
+      // Reprendre l'orbite au doigt restant plutot que de rester bloque.
+      if (pointers.current.size === 1 && !pinch.current.active) {
+        const [remaining] = pointers.current.values()
+        drag.current = { active: true, x: remaining.x, y: remaining.y }
+      } else if (pointers.current.size === 0) {
+        drag.current.active = false
+      }
     }
     const wheel = (e: WheelEvent) => {
       e.preventDefault()
