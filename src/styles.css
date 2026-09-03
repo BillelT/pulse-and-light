@@ -213,13 +213,17 @@ select {
   position: absolute;
   right: 24px;
   bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   padding: 8px 16px;
   border-radius: 20px;
   font-family: var(--glass-font);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.72);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
   text-decoration: none;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
   backdrop-filter: blur(28px) saturate(180%);
@@ -234,7 +238,7 @@ select {
 }
 
 .signature:hover {
-  color: rgba(255, 255, 255, 0.95);
+  color: rgba(255, 255, 255, 0.9);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08));
   border-color: rgba(255, 255, 255, 0.4);
 }
@@ -249,7 +253,7 @@ select {
 .dock {
   position: fixed;
   left: 50%;
-  bottom: 40px;
+  bottom: 24px;
   transform: translateX(-50%);
   z-index: 20;
   width: min(400px, 92vw);
@@ -983,7 +987,7 @@ input[type='search']:focus {
     display: none;
   }
   .dock {
-    bottom: 16px;
+    bottom: 24px;
     width: min(400px, 94vw);
   }
 }
