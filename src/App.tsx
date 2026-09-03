@@ -18,20 +18,12 @@ export default function App() {
   const sourceKind = useStore((s) => s.sourceKind)
   const playing = useStore((s) => s.snapshot.playing)
 
-  // La scene demarre vivante, sur la source procedurale : elle n'ouvre aucun
-  // AudioContext ni aucune capture, donc elle ne demande pas de geste
-  // utilisateur. Le panneau reste la pour brancher une vraie source.
-  useEffect(() => {
-    if (sourceKind === 'none') void audio.select('demo')
-    // Volontairement au montage seulement : `audio.stop()` doit pouvoir
-    // couper la source sans que cet effet ne la relance aussitot.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   // Des que Spotify joue, on bascule sur sa timeline : appuyer sur play doit
-  // suffire a ce que le mur suive le morceau.
+  // suffire a ce que le mur suive le morceau. Avant ca, la scene reste
+  // silencieuse (aucune source demo par defaut) : pas d'animation qui tourne
+  // dans le vide avant qu'une vraie source soit branchee.
   useEffect(() => {
-    if (playing && (sourceKind === 'none' || sourceKind === 'demo')) {
+    if (playing && sourceKind === 'none') {
       void audio.select('spotify')
     }
   }, [playing, sourceKind, audio])
