@@ -75,11 +75,11 @@ export function Stage() {
           travers (plus de noir absolu quand la camera orbite devant la
           scene) tout en gardant un effet de vitre, avec reflets et fresnel. */}
       <mesh position={[0, 12, -16]}>
-        <boxGeometry args={[70, 30, 1]} />
+        <boxGeometry args={[70, 30, 0.25]} />
         <meshPhysicalMaterial
           color="#dff5ea"
           transmission={1}
-          thickness={0.6}
+          thickness={0.15}
           roughness={0.06}
           ior={1.45}
           metalness={0}
@@ -91,11 +91,11 @@ export function Stage() {
       </mesh>
       {[-24, 24].map((x) => (
         <mesh key={x} position={[x, 12, 2]} rotation-y={(x < 0 ? 1 : -1) * (Math.PI / 2)}>
-          <boxGeometry args={[40, 30, 1]} />
+          <boxGeometry args={[40, 30, 0.25]} />
           <meshPhysicalMaterial
             color="#dff5ea"
             transmission={1}
-            thickness={0.6}
+            thickness={0.15}
             roughness={0.06}
             ior={1.45}
             metalness={0}
