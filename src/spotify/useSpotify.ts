@@ -136,6 +136,9 @@ export function useSpotify(): SpotifyController {
       let acousticness = features?.acousticness ?? null
       let instrumentalness = features?.instrumentalness ?? null
       let speechiness = features?.speechiness ?? null
+      let key = features?.key ?? analysis?.track.key ?? null
+      let mode = features?.mode ?? analysis?.track.mode ?? null
+      let timeSignature = features?.time_signature ?? analysis?.track.time_signature ?? null
       let tempoSource: PlaybackSnapshot['tempoSource'] = tempo > 0 ? (features ? 'features' : 'analysis') : 'inconnu'
 
       // Spotify a ferme audio-features/audio-analysis a la plupart des nouvelles
@@ -158,6 +161,9 @@ export function useSpotify(): SpotifyController {
           acousticness ??= alt.acousticness
           instrumentalness ??= alt.instrumentalness
           speechiness ??= alt.speechiness
+          key ??= alt.key
+          mode ??= alt.mode
+          timeSignature ??= alt.timeSignature
         }
       }
 
@@ -169,9 +175,9 @@ export function useSpotify(): SpotifyController {
         energy: energy ?? 0.6,
         danceability: danceability ?? 0.6,
         valence: valence ?? 0.5,
-        key: features?.key ?? analysis?.track.key ?? -1,
-        mode: features?.mode ?? analysis?.track.mode ?? 1,
-        timeSignature: features?.time_signature ?? analysis?.track.time_signature ?? 4,
+        key: key ?? -1,
+        mode: mode ?? 1,
+        timeSignature: timeSignature ?? 4,
         acousticness: acousticness ?? 0.3,
         instrumentalness: instrumentalness ?? 0.1,
         speechiness: speechiness ?? 0.05,
