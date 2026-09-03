@@ -23,6 +23,10 @@
   box-sizing: border-box;
 }
 
+::selection {
+  background: #f0680033;
+}
+
 html,
 body,
 #root {
@@ -201,6 +205,43 @@ select {
   font-variant-numeric: tabular-nums;
   margin-top: 16px;
   font-weight: 600;
+}
+
+/* ---------- Signature (bas droite, miroir de l'analyseur, "liquid glass") ---------- */
+
+.signature {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-family: var(--glass-font);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.72);
+  text-decoration: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 1px 1px rgba(255, 255, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.signature:hover {
+  color: rgba(255, 255, 255, 0.95);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08));
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.signature-name {
+  color: #fff;
+  font-weight: 700;
 }
 
 /* ---------- Dock de source (bas centre, "liquid glass") ---------- */
@@ -936,6 +977,9 @@ input[type='search']:focus {
     max-height: 52vh;
   }
   .analyzer {
+    display: none;
+  }
+  .signature {
     display: none;
   }
   .dock {

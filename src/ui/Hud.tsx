@@ -24,6 +24,15 @@ export function Hud() {
       )}
 
       <Analyzer />
+
+      <a
+        className="signature"
+        href="https://x.com/billel_tighidet"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        by <span className="signature-name">billelt</span>
+      </a>
     </div>
   )
 }
