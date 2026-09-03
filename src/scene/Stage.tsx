@@ -41,9 +41,12 @@ const PODIUM_Z = 4.6
  * du fond et au-dela des murs lateraux ; le miroir y reflechissait quand meme
  * le lisere neon du plafond (tres lumineux), qui apparaissait alors comme un
  * trait flottant sans aucun mur pour l'expliquer des que la camera cadrait
- * cette zone hors piece — visible sur les cotes en orbitant.
+ * cette zone hors piece — visible sur les cotes en orbitant. A l'inverse, une
+ * marge positive laisse un liseré sans sol NI mur entre le bord du miroir et
+ * les murs (visibles a angle rasant) : la marge est donc legerement negative,
+ * le sol mord un peu sous les murs pour coller dessus sans laisser de joint.
  */
-const FLOOR_MARGIN = 1
+const FLOOR_MARGIN = -0.3
 const FLOOR_FRONT_Z = 45
 const FLOOR_BACK_Z = BACK_Z + FLOOR_MARGIN
 const FLOOR_WIDTH = BACK_WIDTH - FLOOR_MARGIN * 2
@@ -110,20 +113,6 @@ export function Stage() {
 
   return (
     <group>
-      {/* Extension du sol, mate et non reflechissante : legerement sous le sol
-          miroir, plus grande que l'empreinte de la piece. Le sol MIROIR doit
-          rester cale strictement sur cette empreinte (sinon il reflete le
-          lisere neon comme s'il flottait hors de tout mur), mais s'arreter la
-          laissait voir le fond du Canvas a nu au-dela — un vide qui trahissait
-          la construction des que la camera cadrait large (FOV elargi sur
-          mobile). Cette extension reprend la meme teinte/texture que le sol
-          miroir pour se lire comme sa continuation plutot que comme un trou :
-          juste pas de reflet dessus. */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, -0.02, FLOOR_CENTER_Z]}>
-        <planeGeometry args={[FLOOR_WIDTH + 80, FLOOR_DEPTH + 80]} />
-        <meshStandardMaterial color="#211c33" roughness={1} metalness={0} roughnessMap={tiles} fog />
-      </mesh>
-
       {/* Sol reflechissant. Mat cote PBR : la reflexion vient du miroir, pas du
           lobe speculaire, sinon chaque projecteur laisse une pastille brillante
           au milieu du plateau. */}

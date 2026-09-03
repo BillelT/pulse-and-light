@@ -11,10 +11,7 @@ const _pos = new Vector3()
 const _look = new Vector3()
 
 const MIN_RADIUS = 11
-// Volontairement bien en deca de ce que la piece pourrait geometriquement
-// autoriser (cf. maxRadiusTo) : au dela, le danseur et le mur de caissons
-// deviennent minuscules au milieu d'une piece qui parait alors demesuree.
-const MAX_RADIUS = 30
+const MAX_RADIUS = 48
 const MIN_PHI = 0.55
 const MAX_PHI = 1.52
 
