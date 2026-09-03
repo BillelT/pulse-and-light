@@ -21,8 +21,8 @@ export function Analyzer() {
     if (!ctx) return
 
     const dpr = Math.min(2, window.devicePixelRatio || 1)
-    const w = 250
-    const h = 62
+    const w = 224
+    const h = 64
     canvas.width = w * dpr
     canvas.height = h * dpr
     ctx.scale(dpr, dpr)
@@ -33,7 +33,7 @@ export function Analyzer() {
       const frame = engine.currentFrame
 
       ctx.clearRect(0, 0, w, h)
-      const gap = 2
+      const gap = 4
       const bw = (w - gap * (COLUMN_COUNT + 1)) / COLUMN_COUNT
       for (let i = 0; i < COLUMN_COUNT; i++) {
         const v = frame.columns[i]
