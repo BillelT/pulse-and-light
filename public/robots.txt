@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pulse-and-light.vercel.app/sitemap.xml
