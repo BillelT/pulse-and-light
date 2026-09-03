@@ -15,17 +15,7 @@ import { Band } from '../audio/bands'
 import { useStore } from '../state/store'
 import { Dancer } from './Dancer'
 import { paletteById } from './palettes'
-import {
-  BACK_WIDTH,
-  BACK_Z,
-  BACKGROUND,
-  SIDE_LEN,
-  SIDE_X,
-  SIDE_Z,
-  WALL_HEIGHT,
-  WALL_TOP,
-  WALL_Y,
-} from './roomLayout'
+import { BACK_WIDTH, BACK_Z, SIDE_LEN, SIDE_X, SIDE_Z, WALL_HEIGHT, WALL_TOP, WALL_Y } from './roomLayout'
 import { makeCityTexture, makeGratingTexture, makeTileTexture } from './textures'
 
 /**
@@ -120,17 +110,18 @@ export function Stage() {
 
   return (
     <group>
-      {/* Sol de secours, mat et non reflechissant : legerement sous le sol
-          miroir, beaucoup plus grand que l'empreinte de la piece. Le sol
-          miroir doit rester cale sur cette empreinte (sinon il reflete le
-          lisere neon comme s'il flottait hors de tout mur), mais un mur
-          simplement absent au-dela laisse voir le fond du Canvas a nu — un
-          vide qui trahit la construction dès que la camera cadre large (FOV
-          elargi sur mobile). Cette nappe comble ce vide sans jamais rien
-          reflechir. */}
+      {/* Extension du sol, mate et non reflechissante : legerement sous le sol
+          miroir, plus grande que l'empreinte de la piece. Le sol MIROIR doit
+          rester cale strictement sur cette empreinte (sinon il reflete le
+          lisere neon comme s'il flottait hors de tout mur), mais s'arreter la
+          laissait voir le fond du Canvas a nu au-dela — un vide qui trahissait
+          la construction des que la camera cadrait large (FOV elargi sur
+          mobile). Cette extension reprend la meme teinte/texture que le sol
+          miroir pour se lire comme sa continuation plutot que comme un trou :
+          juste pas de reflet dessus. */}
       <mesh rotation-x={-Math.PI / 2} position={[0, -0.02, FLOOR_CENTER_Z]}>
-        <planeGeometry args={[FLOOR_WIDTH + 200, FLOOR_DEPTH + 200]} />
-        <meshBasicMaterial color={BACKGROUND} toneMapped fog />
+        <planeGeometry args={[FLOOR_WIDTH + 80, FLOOR_DEPTH + 80]} />
+        <meshStandardMaterial color="#211c33" roughness={1} metalness={0} roughnessMap={tiles} fog />
       </mesh>
 
       {/* Sol reflechissant. Mat cote PBR : la reflexion vient du miroir, pas du
