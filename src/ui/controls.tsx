@@ -146,3 +146,11 @@ export function Kv({ k, v }: { k: string; v: ReactNode }) {
     </div>
   )
 }
+
+export function formatTime(sec: number): string {
+  if (!Number.isFinite(sec) || sec < 0) sec = 0
+  const total = Math.floor(sec)
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
+}

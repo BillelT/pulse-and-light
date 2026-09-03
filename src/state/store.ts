@@ -86,7 +86,7 @@ export const DEFAULT_DEBUG: DebugSettings = {
 
   fogColor: '#191131',
 
-  ambientIntensity: 0.68,
+  ambientIntensity: 3,
   ambientColor: '#8783ae',
 
   hemiIntensity: 1.05,

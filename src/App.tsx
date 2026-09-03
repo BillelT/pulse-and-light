@@ -2,9 +2,14 @@ import { useEffect } from 'react'
 import { Scene } from './scene/Scene'
 import { Hud } from './ui/Hud'
 import { Panel } from './ui/Panel'
+import { SourceDock } from './ui/SourceDock'
 import { useAudioSource } from './audio/useAudioSource'
 import { useSpotify } from './spotify/useSpotify'
 import { useStore } from './state/store'
+
+/** Panneau lateral (reglages lumiere, debug, recherche Spotify) : reserve au
+ *  developpement. En production, seul le dock de source reste visible. */
+const DEV = import.meta.env.DEV
 
 export default function App() {
   const spotify = useSpotify()
@@ -34,8 +39,9 @@ export default function App() {
   return (
     <>
       <Scene />
-      <Hud spotify={spotify} />
-      <Panel audio={audio} spotify={spotify} />
+      <Hud />
+      <SourceDock audio={audio} spotify={spotify} />
+      {DEV && <Panel audio={audio} spotify={spotify} />}
     </>
   )
 }
