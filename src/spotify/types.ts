@@ -94,7 +94,7 @@ export interface PlaybackSnapshot {
   instrumentalness: number
   speechiness: number
   /** D'ou vient tempo/loudness — utile pour comprendre la scene, affiche dans l'UI. */
-  tempoSource: 'analysis' | 'features' | 'deezer' | 'inconnu'
+  tempoSource: 'analysis' | 'features' | 'reccobeats' | 'deezer' | 'inconnu'
   analysis: AudioAnalysis | null
 }
 

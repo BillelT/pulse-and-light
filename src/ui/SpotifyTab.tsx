@@ -8,6 +8,7 @@ import { Kv, Section } from './controls'
 const TEMPO_SOURCE_LABEL: Record<PlaybackSnapshot['tempoSource'], string> = {
   analysis: '',
   features: '',
+  reccobeats: ' (via ReccoBeats)',
   deezer: ' (via Deezer)',
   inconnu: '',
 }

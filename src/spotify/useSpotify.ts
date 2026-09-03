@@ -9,7 +9,7 @@ import {
   type StoredToken,
 } from './auth'
 import * as api from './api'
-import { getDeezerFeatures } from './deezer'
+import { getTrackFeatures } from './trackFeatures'
 import type { AudioAnalysis, AudioFeatures, PlaybackSnapshot, SpotifyTrack } from './types'
 import { EMPTY_SNAPSHOT } from './types'
 
@@ -130,22 +130,34 @@ export function useSpotify(): SpotifyController {
 
       let tempo = features?.tempo ?? analysis?.track.tempo ?? 0
       let loudness = features?.loudness ?? analysis?.track.loudness ?? -12
+      let energy = features?.energy ?? null
+      let danceability = features?.danceability ?? null
+      let valence = features?.valence ?? null
+      let acousticness = features?.acousticness ?? null
+      let instrumentalness = features?.instrumentalness ?? null
+      let speechiness = features?.speechiness ?? null
       let tempoSource: PlaybackSnapshot['tempoSource'] = tempo > 0 ? (features ? 'features' : 'analysis') : 'inconnu'
 
       // Spotify a ferme audio-features/audio-analysis a la plupart des nouvelles
-      // apps : quand tempo est totalement inconnu, on va le chercher sur Deezer
-      // (catalogue public, sans auth) en matchant artiste + titre. La base BPM
-      // de Deezer est loin d'etre exhaustive (bpm souvent null) : on recupere
-      // le gain independamment, meme quand le bpm manque.
-      if (tempo <= 0 && artistName && trackTitle) {
-        const deezer = await getDeezerFeatures(artistName, trackTitle)
+      // apps : quand tempo est totalement inconnu, on va le chercher ailleurs.
+      // ReccoBeats reconstruit le meme schema de features a partir de l'ID
+      // Spotify (le plus complet quand il trouve le morceau) ; Deezer, en
+      // secours, n'a que tempo/loudness mais couvre plus de morceaux.
+      if (tempo <= 0) {
+        const alt = await getTrackFeatures(trackId, artistName, trackTitle)
         if (trackIdRef.current !== trackId) return
-        if (deezer.found) {
-          if (deezer.bpm) {
-            tempo = deezer.bpm
-            tempoSource = 'deezer'
+        if (alt.found) {
+          if (alt.tempo && alt.source !== 'none') {
+            tempo = alt.tempo
+            tempoSource = alt.source
           }
-          if (deezer.gain !== null) loudness = deezer.gain
+          if (alt.loudness !== null) loudness = alt.loudness
+          energy ??= alt.energy
+          danceability ??= alt.danceability
+          valence ??= alt.valence
+          acousticness ??= alt.acousticness
+          instrumentalness ??= alt.instrumentalness
+          speechiness ??= alt.speechiness
         }
       }
 
@@ -154,15 +166,15 @@ export function useSpotify(): SpotifyController {
         tempo,
         loudness,
         tempoSource,
-        energy: features?.energy ?? 0.6,
-        danceability: features?.danceability ?? 0.6,
-        valence: features?.valence ?? 0.5,
+        energy: energy ?? 0.6,
+        danceability: danceability ?? 0.6,
+        valence: valence ?? 0.5,
         key: features?.key ?? analysis?.track.key ?? -1,
         mode: features?.mode ?? analysis?.track.mode ?? 1,
         timeSignature: features?.time_signature ?? analysis?.track.time_signature ?? 4,
-        acousticness: features?.acousticness ?? 0.3,
-        instrumentalness: features?.instrumentalness ?? 0.1,
-        speechiness: features?.speechiness ?? 0.05,
+        acousticness: acousticness ?? 0.3,
+        instrumentalness: instrumentalness ?? 0.1,
+        speechiness: speechiness ?? 0.05,
       })
     },
     [freshToken, publish, setAnalysisAvailable, setFeaturesAvailable],
