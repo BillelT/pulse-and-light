@@ -48,7 +48,10 @@ const PODIUM_Z = 4.6
  */
 const FLOOR_MARGIN = -0.3
 const FLOOR_FRONT_Z = 45
-const FLOOR_BACK_Z = BACK_Z + FLOOR_MARGIN
+// Les murs lateraux vont plus loin vers le fond (SIDE_Z - SIDE_LEN / 2) que
+// le mur du fond lui-meme (BACK_Z) : sans ca, le sol s'arretait sur BACK_Z
+// et laissait un coin sans sol, entre les deux murs, dans ce renfoncement.
+const FLOOR_BACK_Z = Math.min(BACK_Z, SIDE_Z - SIDE_LEN / 2) + FLOOR_MARGIN
 const FLOOR_WIDTH = BACK_WIDTH - FLOOR_MARGIN * 2
 const FLOOR_DEPTH = FLOOR_FRONT_Z - FLOOR_BACK_Z
 const FLOOR_CENTER_Z = (FLOOR_FRONT_Z + FLOOR_BACK_Z) / 2
