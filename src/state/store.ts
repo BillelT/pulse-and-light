@@ -143,6 +143,8 @@ interface AppState {
   snapshot: PlaybackSnapshot
   /** true si l'endpoint Audio Analysis a repondu pour la piste courante. */
   analysisAvailable: boolean | null
+  /** true si l'endpoint Audio Features a repondu pour la piste courante. */
+  featuresAvailable: boolean | null
   setToken: (token: StoredToken | null) => void
   setUser: (user: SpotifyUser | null) => void
   setDeviceId: (id: string | null) => void
@@ -150,6 +152,7 @@ interface AppState {
   setSpotifyError: (message: string | null) => void
   setSnapshot: (snapshot: PlaybackSnapshot) => void
   setAnalysisAvailable: (value: boolean | null) => void
+  setFeaturesAvailable: (value: boolean | null) => void
 
   panelOpen: boolean
   togglePanel: () => void
@@ -178,6 +181,7 @@ export const useStore = create<AppState>((set) => ({
   spotifyError: null,
   snapshot: EMPTY_SNAPSHOT,
   analysisAvailable: null,
+  featuresAvailable: null,
   setToken: (token) => set({ token }),
   setUser: (user) => set({ user }),
   setDeviceId: (deviceId) => set({ deviceId }),
@@ -185,6 +189,7 @@ export const useStore = create<AppState>((set) => ({
   setSpotifyError: (spotifyError) => set({ spotifyError }),
   setSnapshot: (snapshot) => set({ snapshot }),
   setAnalysisAvailable: (analysisAvailable) => set({ analysisAvailable }),
+  setFeaturesAvailable: (featuresAvailable) => set({ featuresAvailable }),
 
   panelOpen: true,
   togglePanel: () => set((s) => ({ panelOpen: !s.panelOpen })),

@@ -37,6 +37,9 @@ export interface AudioFeatures {
   key: number
   mode: number
   time_signature: number
+  acousticness: number
+  instrumentalness: number
+  speechiness: number
 }
 
 export interface AnalysisSegment {
@@ -83,6 +86,13 @@ export interface PlaybackSnapshot {
   /** Tonalite Spotify : 0 = Do, 1 = Do#, ... 11 = Si. -1 si inconnue. */
   key: number
   mode: number
+  /** dB, generalement entre -60 et 0. Calibre le gain global de la grille rythmique. */
+  loudness: number
+  /** Numerateur de la mesure (3 = 3/4, 4 = 4/4, ...). */
+  timeSignature: number
+  acousticness: number
+  instrumentalness: number
+  speechiness: number
   analysis: AudioAnalysis | null
 }
 
@@ -98,5 +108,10 @@ export const EMPTY_SNAPSHOT: PlaybackSnapshot = {
   valence: 0.5,
   key: -1,
   mode: 1,
+  loudness: -12,
+  timeSignature: 4,
+  acousticness: 0.3,
+  instrumentalness: 0.1,
+  speechiness: 0.05,
   analysis: null,
 }

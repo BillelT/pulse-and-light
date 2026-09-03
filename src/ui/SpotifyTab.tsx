@@ -22,6 +22,7 @@ export function SpotifyTab({ spotify }: { spotify: SpotifyController }) {
   const error = useStore((s) => s.spotifyError)
   const snapshot = useStore((s) => s.snapshot)
   const analysisAvailable = useStore((s) => s.analysisAvailable)
+  const featuresAvailable = useStore((s) => s.featuresAvailable)
 
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SpotifyTrack[]>([])
@@ -100,6 +101,10 @@ export function SpotifyTab({ spotify }: { spotify: SpotifyController }) {
             <Kv k="Titre" v={snapshot.track.name} />
             <Kv k="Tempo" v={snapshot.tempo > 0 ? `${snapshot.tempo.toFixed(1)} BPM` : 'inconnu'} />
             <Kv k="Tonalite" v={keyName(snapshot.key, snapshot.mode)} />
+            <Kv
+              k="Audio Features"
+              v={featuresAvailable === null ? '—' : featuresAvailable ? 'disponible' : 'indisponible'}
+            />
             <Kv
               k="Audio Analysis"
               v={analysisAvailable === null ? '—' : analysisAvailable ? 'disponible' : 'indisponible'}
