@@ -41,12 +41,20 @@ function num(v: unknown): number | null {
 
 async function fromReccoBeats(spotifyId: string): Promise<TrackFeatures | null> {
   try {
-    const res = await fetch(
-      `https://api.reccobeats.com/v1/audio-features?ids=${encodeURIComponent(spotifyId)}`,
-      { headers: { Accept: 'application/json' } },
-    )
-    if (!res.ok) return null
-    const body: unknown = await res.json()
+    const reqUrl = `https://api.reccobeats.com/v1/audio-features?ids=${encodeURIComponent(spotifyId)}`
+    const res = await fetch(reqUrl, { headers: { Accept: 'application/json' } })
+    const raw = await res.text()
+    if (!res.ok) {
+      console.error(`[reccobeats] ${reqUrl} -> HTTP ${res.status}: ${raw.slice(0, 500)}`)
+      return null
+    }
+    let body: unknown
+    try {
+      body = JSON.parse(raw)
+    } catch {
+      console.error(`[reccobeats] reponse non-JSON pour ${reqUrl}: ${raw.slice(0, 500)}`)
+      return null
+    }
     const list = Array.isArray(body)
       ? body
       : ((body as { content?: unknown[]; data?: unknown[]; items?: unknown[] }).content ??
@@ -54,9 +62,15 @@ async function fromReccoBeats(spotifyId: string): Promise<TrackFeatures | null> 
         (body as { items?: unknown[] }).items ??
         [])
     const item = (list as Record<string, unknown>[])[0]
-    if (!item) return null
+    if (!item) {
+      console.error(`[reccobeats] aucun item exploitable dans la reponse: ${raw.slice(0, 500)}`)
+      return null
+    }
     const tempo = num(item.tempo)
-    if (tempo === null || tempo <= 0) return null
+    if (tempo === null || tempo <= 0) {
+      console.error(`[reccobeats] item sans tempo exploitable: ${JSON.stringify(item).slice(0, 500)}`)
+      return null
+    }
 
     return {
       found: true,
