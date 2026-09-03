@@ -2,16 +2,18 @@ import { useState } from 'react'
 import { useStore } from '../state/store'
 import type { AudioSourceController } from '../audio/useAudioSource'
 import type { SpotifyController } from '../spotify/useSpotify'
+import { DebugTab } from './DebugTab'
 import { LightingTab } from './LightingTab'
 import { SourceTab } from './SourceTab'
 import { SpotifyTab } from './SpotifyTab'
 
-type Tab = 'source' | 'spotify' | 'light'
+type Tab = 'source' | 'spotify' | 'light' | 'debug'
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'source', label: 'Source' },
   { id: 'spotify', label: 'Spotify' },
   { id: 'light', label: 'Lumiere' },
+  { id: 'debug', label: 'Debug' },
 ]
 
 export function Panel({
@@ -38,6 +40,7 @@ export function Panel({
         {tab === 'source' && <SourceTab audio={audio} />}
         {tab === 'spotify' && <SpotifyTab spotify={spotify} />}
         {tab === 'light' && <LightingTab />}
+        {tab === 'debug' && <DebugTab />}
       </div>
     </div>
   )

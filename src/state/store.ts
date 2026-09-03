@@ -47,6 +47,71 @@ export const DEFAULT_VISUAL: VisualSettings = {
   quantize: true,
 }
 
+/** Reglages du debuggeur de scene : lumieres, brouillard, aides visuelles. */
+export interface DebugSettings {
+  showAxes: boolean
+  showGrid: boolean
+
+  fogColor: string
+
+  ambientIntensity: number
+  ambientColor: string
+
+  hemiIntensity: number
+  hemiSkyColor: string
+  hemiGroundColor: string
+
+  dirIntensity: number
+  dirColor: string
+  dirPos: [number, number, number]
+
+  pointIntensity: number
+  pointColor: string
+  pointPos: [number, number, number]
+  pointDistance: number
+  pointDecay: number
+
+  spotIntensity: number
+  spotColor: string
+  spotPos: [number, number, number]
+  spotAngle: number
+  spotPenumbra: number
+  spotDistance: number
+  spotDecay: number
+}
+
+export const DEFAULT_DEBUG: DebugSettings = {
+  showAxes: false,
+  showGrid: false,
+
+  fogColor: '#191131',
+
+  ambientIntensity: 0.68,
+  ambientColor: '#8783ae',
+
+  hemiIntensity: 1.05,
+  hemiSkyColor: '#6e6a9e',
+  hemiGroundColor: '#1c1530',
+
+  dirIntensity: 1.35,
+  dirColor: '#a8aad0',
+  dirPos: [6, 16, 10],
+
+  pointIntensity: 52,
+  pointColor: '#918cc0',
+  pointPos: [0, 7.5, 11],
+  pointDistance: 26,
+  pointDecay: 1.8,
+
+  spotIntensity: 13,
+  spotColor: '#7d84ad',
+  spotPos: [-11, 17, 16],
+  spotAngle: 0.62,
+  spotPenumbra: 1,
+  spotDistance: 58,
+  spotDecay: 1.2,
+}
+
 export type SdkStatus =
   | 'idle'
   | 'loading'
@@ -58,8 +123,10 @@ export type SdkStatus =
 interface AppState {
   analysis: AnalysisSettings
   visual: VisualSettings
+  debug: DebugSettings
   setAnalysis: (patch: Partial<AnalysisSettings>) => void
   setVisual: (patch: Partial<VisualSettings>) => void
+  setDebug: (patch: Partial<DebugSettings>) => void
   resetSettings: () => void
 
   sourceKind: SourceKind
@@ -91,9 +158,12 @@ interface AppState {
 export const useStore = create<AppState>((set) => ({
   analysis: { ...DEFAULT_ANALYSIS },
   visual: { ...DEFAULT_VISUAL },
+  debug: { ...DEFAULT_DEBUG },
   setAnalysis: (patch) => set((s) => ({ analysis: { ...s.analysis, ...patch } })),
   setVisual: (patch) => set((s) => ({ visual: { ...s.visual, ...patch } })),
-  resetSettings: () => set({ analysis: { ...DEFAULT_ANALYSIS }, visual: { ...DEFAULT_VISUAL } }),
+  setDebug: (patch) => set((s) => ({ debug: { ...s.debug, ...patch } })),
+  resetSettings: () =>
+    set({ analysis: { ...DEFAULT_ANALYSIS }, visual: { ...DEFAULT_VISUAL }, debug: { ...DEFAULT_DEBUG } }),
 
   sourceKind: 'none',
   sourceLabel: 'Aucune source',

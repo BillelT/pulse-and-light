@@ -1,9 +1,16 @@
 import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
-import { Spherical, Vector3 } from 'three'
+import { PerspectiveCamera, Spherical, Vector3 } from 'three'
 import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
-import { readState } from '../state/store'
+import { readState, useStore } from '../state/store'
+
+/**
+ * Largeur occupee par le panneau lateral (droite, cf. `.panel` dans
+ * styles.css : right 18px + width 306px). Sert a recentrer la camera sur la
+ * zone visible plutot que sur le canvas entier quand le panneau est ouvert.
+ */
+const PANEL_WIDTH = 324
 
 const TARGET = new Vector3(0, 4.3, -2.2)
 const _pos = new Vector3()
@@ -22,12 +29,30 @@ const MAX_PHI = 1.52
 export function CameraRig() {
   const camera = useThree((s) => s.camera)
   const gl = useThree((s) => s.gl)
+  const size = useThree((s) => s.size)
+  const panelOpen = useStore((s) => s.panelOpen)
 
   const spherical = useRef(new Spherical(22.5, 1.35, 0))
   const drag = useRef<{ active: boolean; x: number; y: number }>({ active: false, x: 0, y: 0 })
   const shake = useRef(0)
   const lastOnset = useRef(0)
   const sway = useRef(0)
+
+  // Le panneau lateral masque une bande a droite du canvas : sans correction,
+  // la scene reste centree sur le canvas entier et orbiter vers la droite
+  // "mange" plus vite dans la zone visible que vers la gauche. On decale
+  // l'axe optique de la camera (off-axis projection) pour que le pivot
+  // reste centre dans la zone reellement visible.
+  useEffect(() => {
+    if (!(camera instanceof PerspectiveCamera)) return
+    const { width, height } = size
+    if (!panelOpen || width <= PANEL_WIDTH) {
+      camera.clearViewOffset()
+      return
+    }
+    camera.setViewOffset(width + PANEL_WIDTH, height, PANEL_WIDTH, 0, width, height)
+    return () => camera.clearViewOffset()
+  }, [camera, panelOpen, size])
 
   useEffect(() => {
     const el = gl.domElement
@@ -125,16 +150,21 @@ export function CameraRig() {
  * Eclairage de base. Volontairement famelique : dans la reference, presque
  * toute la lumiere vient des caissons eux-memes. Ces sources ne servent qu'a
  * ce que la geometrie non emissive ne disparaisse pas completement.
+ *
+ * Chaque valeur vient du store (`debug`) pour etre manipulable en direct
+ * depuis l'onglet Debug, `DEFAULT_DEBUG` portant les valeurs d'origine.
  */
 export function Rig() {
+  const debug = useStore((s) => s.debug)
+
   return (
     <>
-      <ambientLight intensity={0.68} color="#8783ae" />
-      <hemisphereLight args={['#6e6a9e', '#1c1530', 1.05]} />
+      <ambientLight intensity={debug.ambientIntensity} color={debug.ambientColor} />
+      <hemisphereLight args={[debug.hemiSkyColor, debug.hemiGroundColor, debug.hemiIntensity]} />
       <directionalLight
-        position={[6, 16, 10]}
-        intensity={1.35}
-        color="#a8aad0"
+        position={debug.dirPos}
+        intensity={debug.dirIntensity}
+        color={debug.dirColor}
         castShadow
         shadow-mapSize={[2048, 2048]}
         shadow-camera-left={-26}
@@ -144,16 +174,38 @@ export function Rig() {
         shadow-camera-far={60}
         shadow-bias={-0.0008}
       />
-      <pointLight position={[0, 7.5, 11]} intensity={52} distance={26} decay={1.8} color="#918cc0" />
-      <spotLight
-        position={[-11, 17, 16]}
-        angle={0.62}
-        penumbra={1}
-        intensity={13}
-        distance={58}
-        decay={1.2}
-        color="#7d84ad"
+      <pointLight
+        position={debug.pointPos}
+        intensity={debug.pointIntensity}
+        distance={debug.pointDistance}
+        decay={debug.pointDecay}
+        color={debug.pointColor}
       />
+      <spotLight
+        position={debug.spotPos}
+        angle={debug.spotAngle}
+        penumbra={debug.spotPenumbra}
+        intensity={debug.spotIntensity}
+        distance={debug.spotDistance}
+        decay={debug.spotDecay}
+        color={debug.spotColor}
+      />
+    </>
+  )
+}
+
+/**
+ * Aides visuelles de debug : axes du monde (rouge/vert/bleu = X/Y/Z) et
+ * grille au sol, togglables depuis l'onglet Debug.
+ */
+export function DebugHelpers() {
+  const showAxes = useStore((s) => s.debug.showAxes)
+  const showGrid = useStore((s) => s.debug.showGrid)
+
+  return (
+    <>
+      {showAxes && <axesHelper args={[8]} />}
+      {showGrid && <gridHelper args={[80, 40, '#4d5a8f', '#2a2f45']} />}
     </>
   )
 }

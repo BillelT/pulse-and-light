@@ -5,16 +5,16 @@ import { useStore } from '../state/store'
 import { AudioDriver } from './AudioDriver'
 import { CaissonWall } from './CaissonWall'
 import { Effects } from './Effects'
-import { CameraRig, Rig } from './Rig'
+import { CameraRig, DebugHelpers, Rig } from './Rig'
 import { Stage } from './Stage'
 import { SubCabinets } from './SubCabinets'
 
-/** Fond et brume partagent la meme famille : un violet tres sombre. */
+/** Fond : un violet tres sombre. */
 const BACKGROUND = '#0a0714'
-const FOG_COLOR = '#191131'
 
 export function Scene() {
   const fog = useStore((s) => s.visual.fog)
+  const fogColor = useStore((s) => s.debug.fogColor)
 
   return (
     <Canvas
@@ -31,11 +31,12 @@ export function Scene() {
           materialise rien, elle se contente d'effacer la scene des qu'on
           recule. Une brume teintee et peu dense laisse lire la profondeur tout
           en donnant un volume aux faisceaux. */}
-      <fogExp2 attach="fog" args={[FOG_COLOR, fog]} />
+      <fogExp2 attach="fog" args={[fogColor, fog]} />
 
       <AudioDriver />
       <CameraRig />
       <Rig />
+      <DebugHelpers />
 
       <Suspense fallback={null}>
         <Stage />
