@@ -19,12 +19,32 @@ const _look = new Vector3()
 
 const MIN_RADIUS = 11
 const MAX_RADIUS = 48
-// MIN_PHI releve (vs anciennement 0.55) : plus l'angle est petit, plus la
-// camera survole la scene depuis le dessus — au dela on voyait le plafond
-// depuis l'exterieur. La marge dure (CAMERA_BOUNDS) reste le vrai filet de
-// securite, celle-ci evite surtout de la faire declencher en usage normal.
-const MIN_PHI = 0.85
+const MIN_PHI = 0.55
 const MAX_PHI = 1.52
+
+const _dir = new Vector3()
+
+/**
+ * Distance maximale, depuis TARGET et dans la direction (phi, theta) donnee,
+ * avant de sortir de la boite CAMERA_BOUNDS (plafond, murs lateraux, mur du
+ * fond). Remplace un clamp brut de la position finale : celui-ci "aplatissait"
+ * la trajectoire des qu'un axe touchait sa limite (la camera se mettait a
+ * glisser le long du mur au lieu de continuer son arc), ce qui se sentait
+ * comme un mouvement casse. En bornant le RAYON plutot que la position, la
+ * camera reste sur une trajectoire spherique lisse et ralentit naturellement
+ * en approchant une paroi, quelle que soit la direction visee.
+ */
+function maxRadiusTo(phi: number, theta: number): number {
+  _dir.set(Math.sin(phi) * Math.sin(theta), Math.cos(phi), Math.sin(phi) * Math.cos(theta))
+  let t = Infinity
+  if (_dir.x > 1e-6) t = Math.min(t, (CAMERA_BOUNDS.x - TARGET.x) / _dir.x)
+  else if (_dir.x < -1e-6) t = Math.min(t, (-CAMERA_BOUNDS.x - TARGET.x) / _dir.x)
+  if (_dir.y > 1e-6) t = Math.min(t, (CAMERA_BOUNDS.yMax - TARGET.y) / _dir.y)
+  else if (_dir.y < -1e-6) t = Math.min(t, (CAMERA_BOUNDS.yMin - TARGET.y) / _dir.y)
+  if (_dir.z > 1e-6) t = Math.min(t, (CAMERA_BOUNDS.zMax - TARGET.z) / _dir.z)
+  else if (_dir.z < -1e-6) t = Math.min(t, (CAMERA_BOUNDS.zMin - TARGET.z) / _dir.z)
+  return t
+}
 
 /**
  * Camera maison plutot qu'OrbitControls : il faut pouvoir superposer un
@@ -127,20 +147,15 @@ export function CameraRig() {
     // Le morceau "recule" legerement la camera quand il ouvre : on respire avec.
     const zoom = visual.autoCamera ? frame.level * -1.4 : 0
 
-    _pos.setFromSphericalCoords(
-      clamp(s.radius + zoom, MIN_RADIUS, MAX_RADIUS),
-      clamp(s.phi + swayPhi, MIN_PHI, MAX_PHI),
-      s.theta + swayTheta,
-    )
-    _pos.add(TARGET)
+    const phi = clamp(s.phi + swayPhi, MIN_PHI, MAX_PHI)
+    const theta = s.theta + swayTheta
+    // Le rayon ne peut jamais depasser la distance a laquelle cette direction
+    // sort de la piece : la camera ralentit en douceur en approchant un mur
+    // ou le plafond, elle ne s'arrete pas net sur un axe.
+    const radius = clamp(s.radius + zoom, MIN_RADIUS, Math.min(MAX_RADIUS, maxRadiusTo(phi, theta)))
 
-    // Filet de securite : quels que soient radius/phi/theta (et leurs
-    // combinaisons avec le sway et le zoom automatiques), la camera ne doit
-    // jamais sortir de la piece ni passer au dessus du plafond — sinon on
-    // voit les baies vitrees et le decor depuis "les coulisses".
-    _pos.x = clamp(_pos.x, -CAMERA_BOUNDS.x, CAMERA_BOUNDS.x)
-    _pos.y = clamp(_pos.y, CAMERA_BOUNDS.yMin, CAMERA_BOUNDS.yMax)
-    _pos.z = clamp(_pos.z, CAMERA_BOUNDS.zMin, CAMERA_BOUNDS.zMax)
+    _pos.setFromSphericalCoords(radius, phi, theta)
+    _pos.add(TARGET)
 
     const amp = shake.current * shake.current * visual.shake * 0.42
     if (amp > 1e-4) {
