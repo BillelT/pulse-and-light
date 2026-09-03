@@ -75,63 +75,49 @@ export function makeCityTexture(): Texture {
   ctx.fillStyle = sky
   ctx.fillRect(0, 0, width, height)
 
-  // Lueur douce (lune / halo), decalee pour ne pas etre centree.
-  const glow = ctx.createRadialGradient(
-    width * 0.78,
-    height * 0.28,
-    0,
-    width * 0.78,
-    height * 0.28,
-    height * 0.5,
-  )
-  glow.addColorStop(0, 'rgba(150,190,255,0.16)')
-  glow.addColorStop(1, 'rgba(150,190,255,0)')
-  ctx.fillStyle = glow
-  ctx.fillRect(0, 0, width, height)
+  // Lueur de ville : bande de pollution lumineuse a l'horizon, la seule
+  // source de couleur vive de l'image — tout le reste reste tres sombre et
+  // flou, comme une skyline vue a plusieurs kilometres a travers la brume.
+  const horizon = height * 0.76
+  const cityGlow = ctx.createLinearGradient(0, horizon - height * 0.22, 0, horizon + 10)
+  cityGlow.addColorStop(0, 'rgba(130,100,210,0)')
+  cityGlow.addColorStop(0.7, 'rgba(160,120,220,0.28)')
+  cityGlow.addColorStop(1, 'rgba(100,150,230,0.4)')
+  ctx.fillStyle = cityGlow
+  ctx.fillRect(0, horizon - height * 0.22, width, height * 0.22 + 10)
 
-  // Silhouettes de tours, en deux plans (loin/pres) pour la profondeur.
-  const horizon = height * 0.74
+  // Silhouette de tours : des blocs flous et peu contrastes, jamais des
+  // aretes nettes — a cette distance, sous la brume, on ne lit qu'une masse
+  // sombre, pas des facades.
   const rand = mulberry32(0x9e3779)
-  const drawSkyline = (baseline: number, maxRise: number, tint: string, windowAlpha: number) => {
-    let x = -20
-    while (x < width + 20) {
-      const w = 26 + rand() * 60
-      const h = 40 + rand() * maxRise
-      ctx.fillStyle = tint
-      ctx.fillRect(x, baseline - h, w, h + 40)
-      // Fenetres eclairees : quadrillage clairseme, jamais toute la facade.
-      const cols = Math.max(1, Math.floor(w / 9))
-      const rows = Math.max(1, Math.floor(h / 12))
-      for (let cx = 0; cx < cols; cx++) {
-        for (let cy = 0; cy < rows; cy++) {
-          if (rand() > 0.16) continue
-          const wx = x + 3 + cx * 9
-          const wy = baseline - h + 4 + cy * 12
-          const warm = rand() > 0.82
-          ctx.fillStyle = warm
-            ? `rgba(255,214,150,${windowAlpha})`
-            : `rgba(150,225,255,${windowAlpha})`
-          ctx.fillRect(wx, wy, 3, 5)
-        }
-      }
-      x += w + 4 + rand() * 10
-    }
+  ctx.filter = 'blur(7px)'
+  let x = -30
+  while (x < width + 30) {
+    const w = 40 + rand() * 90
+    const h = 30 + rand() * height * 0.22
+    ctx.fillStyle = `rgba(6,7,16,${0.55 + rand() * 0.3})`
+    ctx.fillRect(x, horizon - h, w, h + 30)
+    x += w + rand() * 24
   }
+  ctx.filter = 'none'
 
-  drawSkyline(horizon, height * 0.3, '#0a0a18', 0.55)
-  drawSkyline(horizon + 18, height * 0.5, '#050509', 0.85)
-
-  // Quelques feux distants (avions, antennes) : points doux qui accrochent le
-  // bloom sans dessiner de vraie geometrie.
-  for (let i = 0; i < 5; i++) {
-    const px = width * (0.55 + rand() * 0.4)
-    const py = height * (0.2 + rand() * 0.35)
-    const r = 3 + rand() * 3
-    const dot = ctx.createRadialGradient(px, py, 0, px, py, r * 5)
-    dot.addColorStop(0, 'rgba(190,240,255,0.9)')
-    dot.addColorStop(1, 'rgba(190,240,255,0)')
+  // Poignee de feux distants (avions, antennes) : quelques points nets,
+  // jamais une nuee — c'est ce qui vend l'echelle "tres loin" de la ref.
+  const lights: Array<[number, number, number]> = [
+    [0.62, 0.32, 3],
+    [0.655, 0.33, 2.4],
+    [0.9, 0.4, 2],
+    [0.2, 0.42, 1.6],
+  ]
+  for (const [fx, fy, r] of lights) {
+    const px = width * fx
+    const py = height * fy
+    const dot = ctx.createRadialGradient(px, py, 0, px, py, r * 6)
+    dot.addColorStop(0, 'rgba(195,235,255,0.95)')
+    dot.addColorStop(0.35, 'rgba(160,210,255,0.35)')
+    dot.addColorStop(1, 'rgba(160,210,255,0)')
     ctx.fillStyle = dot
-    ctx.fillRect(px - r * 5, py - r * 5, r * 10, r * 10)
+    ctx.fillRect(px - r * 6, py - r * 6, r * 12, r * 12)
   }
 
   const tex = new CanvasTexture(canvas)

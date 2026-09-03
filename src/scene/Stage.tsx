@@ -13,13 +13,19 @@ import { makeCityTexture, makeGratingTexture, makeTileTexture } from './textures
 const PODIUM_TOP = 0.54
 const PODIUM_Z = 4.6
 
-/** Geometrie des murs vitres, partagee par le rendu du verre et son habillage. */
+/**
+ * Geometrie des murs vitres, partagee par le rendu du verre et son habillage.
+ * Le mur du fond DOIT faire exactement 2 * SIDE_X de large, sinon il depasse
+ * des murs lateraux au lieu de se refermer sur leurs coins.
+ */
 const WALL_HEIGHT = 30
-const WALL_TOP = 24 // hauteur du haut des baies (WALL_HEIGHT/2 + y du mur)
+const WALL_Y = 12
+const WALL_TOP = WALL_Y + WALL_HEIGHT / 2
 const BACK_Z = -16
 const SIDE_X = 24
 const SIDE_Z = 2
 const SIDE_LEN = 40
+const BACK_WIDTH = SIDE_X * 2
 
 /** Verre des baies : teinte nocturne froide, transmission quasi totale mais
  *  avec une legere absorption qui bleuit ce qu'on voit au travers — un vrai
@@ -109,12 +115,12 @@ export function Stage() {
       {/* Murs en verre : la transmission laisse voir le fond/la brume au
           travers (plus de noir absolu quand la camera orbite devant la
           scene) tout en gardant un effet de vitre, avec reflets et fresnel. */}
-      <mesh position={[0, WALL_HEIGHT / 2, BACK_Z]}>
-        <boxGeometry args={[70, WALL_HEIGHT, 0.25]} />
+      <mesh position={[0, WALL_Y, BACK_Z]}>
+        <boxGeometry args={[BACK_WIDTH, WALL_HEIGHT, 0.25]} />
         <GlassMaterial />
       </mesh>
       {[-SIDE_X, SIDE_X].map((x) => (
-        <mesh key={x} position={[x, WALL_HEIGHT / 2, SIDE_Z]} rotation-y={(x < 0 ? 1 : -1) * (Math.PI / 2)}>
+        <mesh key={x} position={[x, WALL_Y, SIDE_Z]} rotation-y={(x < 0 ? 1 : -1) * (Math.PI / 2)}>
           <boxGeometry args={[SIDE_LEN, WALL_HEIGHT, 0.25]} />
           <GlassMaterial />
         </mesh>
@@ -124,8 +130,8 @@ export function Stage() {
 
       {/* Plafond : plan mat sombre, juste assez pour fermer la piece — la
           reference ne montre jamais sa texture, seul le lisere neon compte. */}
-      <mesh position={[0, WALL_TOP + 0.3, -7]} rotation-x={Math.PI / 2}>
-        <planeGeometry args={[68, 44]} />
+      <mesh position={[0, WALL_TOP + 0.3, SIDE_Z]} rotation-x={Math.PI / 2}>
+        <planeGeometry args={[BACK_WIDTH + 4, SIDE_LEN + 4]} />
         <meshStandardMaterial color="#050408" roughness={1} metalness={0} side={DoubleSide} />
       </mesh>
 
@@ -260,12 +266,12 @@ function CityBackdrop() {
 
   return (
     <>
-      <mesh position={[0, WALL_TOP * 0.7, BACK_Z - 38]}>
-        <planeGeometry args={[150, 64]} />
+      <mesh position={[0, WALL_TOP * 0.75, BACK_Z - 16]}>
+        <planeGeometry args={[110, 56]} />
         <meshBasicMaterial map={city} toneMapped fog />
       </mesh>
-      <mesh position={[SIDE_X + 38, WALL_TOP * 0.7, SIDE_Z]} rotation-y={-Math.PI / 2}>
-        <planeGeometry args={[130, 64]} />
+      <mesh position={[SIDE_X + 16, WALL_TOP * 0.75, SIDE_Z]} rotation-y={-Math.PI / 2}>
+        <planeGeometry args={[90, 56]} />
         <meshBasicMaterial map={city} toneMapped fog />
       </mesh>
     </>
@@ -289,7 +295,7 @@ function RoomTrim() {
     <group>
       {/* Lisere haut du mur du fond. */}
       <mesh position={[0, WALL_TOP, BACK_Z + 0.14]} material={trimMaterial}>
-        <boxGeometry args={[70, 0.05, 0.05]} />
+        <boxGeometry args={[BACK_WIDTH, 0.05, 0.05]} />
       </mesh>
       {/* Liseres hauts des murs lateraux. */}
       {[-SIDE_X, SIDE_X].map((x) => (
@@ -301,8 +307,9 @@ function RoomTrim() {
           <boxGeometry args={[0.05, 0.05, SIDE_LEN]} />
         </mesh>
       ))}
-      {/* Angles verticaux ou le fond rencontre les cotes. */}
-      {[-35, 35].map((x) => (
+      {/* Angles verticaux ou le fond rencontre les cotes : memes abscisses que
+          les murs lateraux, sinon le poste flotte hors de tout mur. */}
+      {[-SIDE_X, SIDE_X].map((x) => (
         <mesh key={x} position={[x, WALL_TOP / 2, BACK_Z + 0.14]} material={trimMaterial}>
           <boxGeometry args={[0.05, WALL_TOP, 0.05]} />
         </mesh>
