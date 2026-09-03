@@ -160,11 +160,11 @@ export class SpotifyTimelineProvider implements SpectrumProvider {
       this.kickEnv = strong ? 1 : 0.72
       if (beatInBar === Math.floor(beatsPerBar / 2)) this.snareEnv = 0.75
     }
-    // Charley sur les croches.
-    if (beatPhase < 0.5 && beatPhase + dt / beatDur >= 0.5) this.hatEnv = 0.45
+    // Charley sur les croches, plus persistant sur un morceau dansant.
+    const dance = clamp(snap.danceability, 0.05, 1)
+    if (beatPhase < 0.5 && beatPhase + dt / beatDur >= 0.5) this.hatEnv = 0.2 + dance * 0.5
 
     const energy = clamp(snap.energy, 0.05, 1)
-    const dance = clamp(snap.danceability, 0.05, 1)
     // acousticness/instrumentalness deplacent le poids entre percussions
     // synthetiques (morceaux electro/produits) et nappe harmonique (morceaux
     // acoustiques/instrumentaux), plutot qu'un seul melange fixe pour tout.
@@ -173,11 +173,15 @@ export class SpotifyTimelineProvider implements SpectrumProvider {
     // Gain global calibre sur le loudness reel du morceau (LUFS-like, en dB).
     const loudnessGain = clamp(dbToLinear(snap.loudness) * 1.8, 0.35, 1.4)
 
-    // Nappe : plus presente si le morceau est acoustique/instrumental.
+    // Nappe : plus presente si le morceau est acoustique/instrumental. La
+    // largeur (nombre d'harmoniques allumees, donc combien de colonnes hautes
+    // s'activent) suit la danceability : un morceau dansant occupe plus de
+    // colonnes, un morceau pose reste concentre sur les graves.
     // mode Spotify (0 = mineur, 1 = majeur) incline le registre en plus de la valence.
     const root = 55 * 2 ** ((snap.key >= 0 ? snap.key : 0) / 12) * (snap.mode === 0 ? 0.944 : 1)
     const harmonicPresence = 0.6 + instrumental * 0.5 + acoustic * 0.3
-    for (let harmonic = 1; harmonic <= 10; harmonic++) {
+    const harmonicSpread = 4 + Math.round(dance * 8)
+    for (let harmonic = 1; harmonic <= harmonicSpread; harmonic++) {
       const wob = 1 + 0.02 * Math.sin(this.phase * (0.7 + harmonic * 0.13))
       const amp =
         (energy * 0.5) / harmonic ** 1.15 +
@@ -185,6 +189,16 @@ export class SpotifyTimelineProvider implements SpectrumProvider {
       this.peak(root * harmonic * wob, 0.13, amp * 0.7 * harmonicPresence * loudnessGain)
     }
     this.shelf(3000, (energy * 0.12 + dance * 0.05) * loudnessGain)
+    // Inclinaison spectrale par la valence : un morceau "triste" (valence
+    // basse) garde le poids dans les graves, un morceau "joyeux" (valence
+    // haute) pousse l'energie vers les colonnes aigues. C'est ce qui fait
+    // qu'un autre morceau allume d'autres colonnes, pas juste plus fort/vite.
+    this.tilt(0.5 + (snap.valence - 0.5) * 0.7)
+    // Presence vocale : la speechiness pousse une bosse dans le medium
+    // (voix/paroles), qui n'existe pas sur un morceau instrumental.
+    if (snap.speechiness > 0.05) {
+      this.peak(1800, 0.6, snap.speechiness * energy * 1.3 * loudnessGain)
+    }
     // Percussions attenuees sur les morceaux acoustiques/instrumentaux : elles
     // en ont generalement moins que la pop/electro dansante.
     const drumPresence = 1 - 0.5 * Math.max(acoustic, instrumental)
