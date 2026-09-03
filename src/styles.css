@@ -170,16 +170,17 @@ select {
 .analyzer-bands {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
+  gap: 4px;
   margin-top: 16px;
 }
 
 .analyzer-band {
-  font-size: 9px;
+  font-size: 8px;
   color: rgba(255, 255, 255, 0.68);
   text-align: center;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .analyzer-band span {
@@ -293,6 +294,12 @@ select {
   background: rgba(255, 255, 255, 0.24);
 }
 
+.dock-playback {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .np-row {
   display: flex;
   align-items: center;
@@ -330,6 +337,7 @@ select {
 
 .np-controls {
   display: flex;
+  align-items: center;
   gap: 8px;
   margin-left: auto;
   flex: none;
@@ -343,14 +351,42 @@ select {
   background: rgba(255, 255, 255, 0.08);
   cursor: pointer;
   color: #fff;
-  display: grid;
-  place-items: center;
-  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.16s, border-color 0.16s, transform 0.1s;
+}
+
+.np-controls button svg {
+  display: block;
+}
+
+.np-controls button.np-play {
+  width: 40px;
+  height: 40px;
+  background: #fff;
+  color: #0b0d12;
+  border-color: transparent;
+}
+
+/* Le triangle "play" est optiquement decale vers la gauche : le recentrer. */
+.np-controls button.np-play svg:first-child {
+  margin-left: 1px;
 }
 
 .np-controls button:hover:not(:disabled) {
   border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.np-controls button.np-play:hover:not(:disabled) {
+  background: #fff;
+  transform: scale(1.04);
+}
+
+.np-controls button:active:not(:disabled) {
+  transform: scale(0.94);
 }
 
 .np-controls button:disabled {
@@ -362,7 +398,7 @@ select {
 .np-volrow {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .np-time {
@@ -373,21 +409,36 @@ select {
   width: 28px;
 }
 
-.np-seekrow .np-time:last-child {
+.np-time-end {
   text-align: right;
 }
 
 .np-seek,
 .np-vol {
-  height: 3px;
+  height: 4px;
+  border-radius: 4px;
+}
+
+.dock input.np-seek::-webkit-slider-thumb,
+.dock input.np-vol::-webkit-slider-thumb {
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.dock input.np-seek::-moz-range-thumb,
+.dock input.np-vol::-moz-range-thumb {
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 .np-vol-icon {
-  font-size: 10px;
   flex: none;
-  width: 16px;
-  text-align: center;
-  filter: grayscale(1) brightness(1.6);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .np-vol {

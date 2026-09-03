@@ -4,6 +4,7 @@ import type { AudioSourceController } from '../audio/useAudioSource'
 import type { SpotifyController } from '../spotify/useSpotify'
 import type { SpotifyTrack } from '../spotify/types'
 import { formatTime } from './controls'
+import { NextIcon, PauseIcon, PlayIcon, PrevIcon, SearchIcon, SpeakerIcon } from './icons'
 
 type Mode = 'spotify' | 'mic' | 'tab'
 
@@ -12,6 +13,12 @@ const MODES: Array<{ id: Mode; label: string }> = [
   { id: 'mic', label: 'Microphone' },
   { id: 'tab', label: 'Onglet' },
 ]
+
+/** Degrade "piste jouee / restante" pour un slider, dans le style Apple Music. */
+function trackGradient(pct: number): string {
+  const p = Math.max(0, Math.min(100, pct))
+  return `linear-gradient(to right, #fff ${p}%, rgba(255, 255, 255, 0.22) ${p}%)`
+}
 
 /**
  * Dock flottant, seule UI visible en production : choix de la source audio
@@ -101,6 +108,7 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
   const duration = snapshot.durationSec
   const position = seekDrag ?? Math.min(snapshot.positionSec, duration || snapshot.positionSec)
   const displayVolume = volumeDrag ?? volume
+  const seekPct = duration > 0 ? (position / duration) * 100 : 0
 
   const runSearch = async () => {
     const q = query.trim()
@@ -124,7 +132,7 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
   }
 
   return (
-    <div>
+    <div className="dock-playback">
       <div className="np-row">
         {cover && <img src={cover} alt="" />}
         <div className="np-text">
@@ -139,26 +147,23 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
             className={searchOpen ? 'np-search-active' : undefined}
             title="Chercher un morceau"
           >
-            {'🔍'}
+            <SearchIcon size={14} />
           </button>
           {track && (
             <>
-              <button
-                onClick={() => void spotify.previous()}
-                disabled={!deviceId}
-                title="Precedent"
-              >
-                {'⏮'}
+              <button onClick={() => void spotify.previous()} disabled={!deviceId} title="Precedent">
+                <PrevIcon size={13} />
               </button>
               <button
+                className="np-play"
                 onClick={() => void spotify.togglePlay()}
                 disabled={!deviceId}
                 title="Lecture / pause"
               >
-                {snapshot.playing ? '⏸' : '▶'}
+                {snapshot.playing ? <PauseIcon size={15} /> : <PlayIcon size={15} />}
               </button>
               <button onClick={() => void spotify.next()} disabled={!deviceId} title="Suivant">
-                {'⏭'}
+                <NextIcon size={13} />
               </button>
             </>
           )}
@@ -177,6 +182,7 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
               step={1}
               value={position}
               disabled={!deviceId || duration <= 0}
+              style={{ background: trackGradient(seekPct) }}
               onChange={(e) => setSeekDrag(Number(e.target.value))}
               onMouseUp={(e) => {
                 const v = Number((e.target as HTMLInputElement).value)
@@ -189,11 +195,13 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
                 void spotify.seek(v)
               }}
             />
-            <span className="np-time">{formatTime(duration)}</span>
+            <span className="np-time np-time-end">{formatTime(duration)}</span>
           </div>
 
           <div className="np-volrow">
-            <span className="np-vol-icon">{displayVolume === 0 ? '🔇' : '🔊'}</span>
+            <span className="np-vol-icon">
+              <SpeakerIcon size={16} muted={displayVolume === 0} />
+            </span>
             <input
               type="range"
               className="np-vol"
@@ -202,6 +210,7 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
               step={0.01}
               value={displayVolume}
               disabled={!deviceId}
+              style={{ background: trackGradient(displayVolume * 100) }}
               onChange={(e) => {
                 const v = Number(e.target.value)
                 setVolumeDrag(v)
