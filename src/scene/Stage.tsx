@@ -34,6 +34,21 @@ const CITY_SHEET_BAND_HEIGHT = 0.25
 const PODIUM_TOP = 0.54
 const PODIUM_Z = 4.6
 
+/**
+ * Sol reflechissant : cale sur l'empreinte reelle de la piece plutot qu'un
+ * carre arbitraire. Un sol plus grand que les murs debordait derriere le mur
+ * du fond et au-dela des murs lateraux ; le miroir y reflechissait quand meme
+ * le lisere neon du plafond (tres lumineux), qui apparaissait alors comme un
+ * trait flottant sans aucun mur pour l'expliquer des que la camera cadrait
+ * cette zone hors piece — visible sur les cotes en orbitant.
+ */
+const FLOOR_MARGIN = 1
+const FLOOR_FRONT_Z = 45
+const FLOOR_BACK_Z = BACK_Z + FLOOR_MARGIN
+const FLOOR_WIDTH = BACK_WIDTH - FLOOR_MARGIN * 2
+const FLOOR_DEPTH = FLOOR_FRONT_Z - FLOOR_BACK_Z
+const FLOOR_CENTER_Z = (FLOOR_FRONT_Z + FLOOR_BACK_Z) / 2
+
 /** Verre des baies : teinte nocturne froide, transmission quasi totale mais
  *  avec une legere absorption qui bleuit ce qu'on voit au travers — un vrai
  *  vitrage epais n'est jamais parfaitement neutre. */
@@ -97,8 +112,8 @@ export function Stage() {
       {/* Sol reflechissant. Mat cote PBR : la reflexion vient du miroir, pas du
           lobe speculaire, sinon chaque projecteur laisse une pastille brillante
           au milieu du plateau. */}
-      <mesh rotation-x={-Math.PI / 2} receiveShadow>
-        <planeGeometry args={[90, 90]} />
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0, FLOOR_CENTER_Z]} receiveShadow>
+        <planeGeometry args={[FLOOR_WIDTH, FLOOR_DEPTH]} />
         <MeshReflectorMaterial
           resolution={1024}
           mixBlur={1.6}
