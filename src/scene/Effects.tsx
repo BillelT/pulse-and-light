@@ -62,7 +62,14 @@ export function Effects() {
   })
 
   return (
-    <EffectComposer multisampling={0} frameBufferType={HalfFloatType}>
+    // multisampling>0 : le renderer tourne sans antialiasing (`gl.antialias:
+    // false` dans Scene.tsx, de toute facon sans effet une fois qu'on passe
+    // par ce composer) et les liseres neon (RoomTrim, StageEdge...) sont des
+    // aretes fines et tres lumineuses (toneMapped: false, multipliees). Sans
+    // MSAA, une arete vue presque de face/dans l'axe alias en un seul pixel
+    // a pleine intensite, que le bloom (mipmapBlur) etire alors en un trait
+    // lumineux parasite, visible en orbitant la camera.
+    <EffectComposer multisampling={4} frameBufferType={HalfFloatType}>
       <Bloom
         ref={bloomRef}
         intensity={bloom}
