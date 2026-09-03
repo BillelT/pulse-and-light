@@ -55,13 +55,22 @@ export function Dancer() {
   /** Enveloppe d'accent, relancee a chaque kick. */
   const accent = useRef(0)
   const lastOnset = useRef(0)
+  /** Presence de son, lissee : 0 = silence (pas de source, source en pause,
+   *  ou piste vide), 1 = du signal arrive. Sert a arreter completement la
+   *  danse au lieu de la laisser tourner a vide sur une amplitude plancher. */
+  const presence = useRef(0)
 
   useFrame((_, delta) => {
     const dt = Math.min(0.1, delta)
     const frame = engine.currentFrame
 
+    const hasSound = frame.level > 0.015 || frame.bpm > 0
+    presence.current += ((hasSound ? 1 : 0) - presence.current) * Math.min(1, dt / 0.4)
+
     const bpm = frame.bpm > 0 ? frame.bpm : 120
-    beatPhase.current += dt * (bpm / 60)
+    // La phase ne progresse que s'il y a du son : sinon le personnage reste
+    // fige au lieu de continuer a defiler les chorégraphies dans le vide.
+    beatPhase.current += dt * (bpm / 60) * presence.current
 
     if (frame.onsetCount !== lastOnset.current) {
       lastOnset.current = frame.onsetCount
@@ -69,9 +78,9 @@ export function Dancer() {
     }
     accent.current = Math.max(0, accent.current - dt * 4.5)
 
-    // Amplitude generale : le danseur se calme sur les passages faibles au lieu
-    // de s'agiter dans le vide.
-    const drive = 0.22 + Math.min(1, frame.level * 1.35) * 0.78
+    // Amplitude generale : le danseur se calme sur les passages faibles, et
+    // s'arrete net (drive nul) des qu'il n'y a plus de son du tout.
+    const drive = presence.current * (0.22 + Math.min(1, frame.level * 1.35) * 0.78)
     const p = beatPhase.current * Math.PI
     const half = beatPhase.current * Math.PI * 0.5
     const swing = Math.sin(half)
