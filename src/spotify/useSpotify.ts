@@ -134,13 +134,17 @@ export function useSpotify(): SpotifyController {
 
       // Spotify a ferme audio-features/audio-analysis a la plupart des nouvelles
       // apps : quand tempo est totalement inconnu, on va le chercher sur Deezer
-      // (catalogue public, sans auth) en matchant artiste + titre.
+      // (catalogue public, sans auth) en matchant artiste + titre. La base BPM
+      // de Deezer est loin d'etre exhaustive (bpm souvent null) : on recupere
+      // le gain independamment, meme quand le bpm manque.
       if (tempo <= 0 && artistName && trackTitle) {
         const deezer = await getDeezerFeatures(artistName, trackTitle)
         if (trackIdRef.current !== trackId) return
-        if (deezer.found && deezer.bpm) {
-          tempo = deezer.bpm
-          tempoSource = 'deezer'
+        if (deezer.found) {
+          if (deezer.bpm) {
+            tempo = deezer.bpm
+            tempoSource = 'deezer'
+          }
           if (deezer.gain !== null) loudness = deezer.gain
         }
       }
