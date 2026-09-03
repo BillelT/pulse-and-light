@@ -6,6 +6,10 @@
  * que leurs dimensions vivaient chacune dans leur coin.
  */
 
+/** Fond de la scene : un violet tres sombre. Partage entre `Scene` (fond du
+ *  Canvas) et `Stage` (sol de secours qui doit s'y fondre). */
+export const BACKGROUND = '#0a0714'
+
 /** Hauteur du centre des murs et hauteur totale de la baie vitree. */
 export const WALL_Y = 14
 export const WALL_HEIGHT = 34

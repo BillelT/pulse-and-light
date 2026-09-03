@@ -5,12 +5,10 @@ import { useStore } from '../state/store'
 import { AudioDriver } from './AudioDriver'
 import { CaissonWall } from './CaissonWall'
 import { Effects } from './Effects'
+import { BACKGROUND } from './roomLayout'
 import { CameraRig, DebugHelpers, Rig } from './Rig'
 import { Stage } from './Stage'
 import { SubCabinets } from './SubCabinets'
-
-/** Fond : un violet tres sombre. */
-const BACKGROUND = '#0a0714'
 
 export function Scene() {
   const fog = useStore((s) => s.visual.fog)
