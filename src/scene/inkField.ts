@@ -39,18 +39,22 @@ import { COLUMN_COUNT, type AudioFrame } from '../audio/types'
  */
 
 /** Tranches de frequence gravees dans la texture. */
-const SLOT_COUNT = 160
+export const SLOT_COUNT = 160
 
-/** Vitesse d'imbibition du papier, par seconde et a energie maximale. */
-const DEPOSIT = 0.85
-/** Constante de sechage du lavis, en secondes. */
-const DRY_TIME = 8
-/** Constante de resorption d'une goutte, en secondes. */
-const FLASH_TIME = 0.3
-/** Diffusion laterale du pigment, en tranches^2 par seconde. */
-const BLEED = 14
 /** Pas de diffusion maximal : au dela le schema explicite diverge (limite 0,5). */
 const BLEED_STEP = 0.24
+
+/** Reglages du modele de pigment, exposes dans l'onglet Ink. */
+export interface InkFieldSettings {
+  /** Vitesse d'imbibition du papier, par seconde et a energie maximale. */
+  deposit: number
+  /** Constante de sechage du lavis, en secondes. */
+  dryTime: number
+  /** Constante de resorption d'une goutte, en secondes. */
+  flashTime: number
+  /** Diffusion laterale du pigment, en tranches^2 par seconde. */
+  spread: number
+}
 
 function clampIndex(i: number): number {
   return i < 0 ? 0 : i > COLUMN_COUNT - 1 ? COLUMN_COUNT - 1 : i
@@ -63,11 +67,11 @@ function byte(v: number): number {
 
 export class InkField {
   /** Pigment depose a l'instant, par tranche. */
-  private readonly wet = new Float32Array(SLOT_COUNT)
+  private readonly wetBuf = new Float32Array(SLOT_COUNT)
   /** Pigment bu par le papier, par tranche. */
-  private readonly stain = new Float32Array(SLOT_COUNT)
+  private readonly stainBuf = new Float32Array(SLOT_COUNT)
   /** Goutte lachee sur transitoire, par tranche. */
-  private readonly flash = new Float32Array(SLOT_COUNT)
+  private readonly flashBuf = new Float32Array(SLOT_COUNT)
   /** Tampon de travail des passes de flou / diffusion. */
   private readonly scratch = new Float32Array(SLOT_COUNT)
 
@@ -89,23 +93,38 @@ export class InkField {
     this.texture = texture
   }
 
+  /** Lecture seule, pour le traceur de l'onglet Ink. */
+  get wet(): Readonly<Float32Array> {
+    return this.wetBuf
+  }
+  get stain(): Readonly<Float32Array> {
+    return this.stainBuf
+  }
+  get flash(): Readonly<Float32Array> {
+    return this.flashBuf
+  }
+
+  /** Rince la feuille : tout le pigment disparait immediatement. */
+  reset(): void {
+    this.wetBuf.fill(0)
+    this.stainBuf.fill(0)
+    this.flashBuf.fill(0)
+    this.publish()
+  }
+
   /**
    * Avance le pigment d'une frame. Aucune allocation : tous les tampons sont
    * alloues une fois, la boucle de rendu ne doit rien laisser au GC.
    */
-  update(frame: AudioFrame, dt: number): void {
+  update(frame: AudioFrame, dt: number, settings: InkFieldSettings): void {
     const d = dt < 1e-4 ? 1e-4 : dt > 0.05 ? 0.05 : dt
 
     this.resample(frame)
     this.blurWet()
-    this.soak(d)
-    this.drop(frame, d)
-    this.diffuse(d)
+    this.soak(d, settings)
+    this.drop(frame, d, settings)
+    this.diffuse(d, settings)
     this.publish()
-  }
-
-  dispose(): void {
-    this.texture.dispose()
   }
 
   /**
@@ -125,13 +144,13 @@ export class InkField {
       const f = c - i
       const a = cols[clampIndex(i)]
       const b = cols[clampIndex(i + 1)]
-      this.wet[j] = a + (b - a) * f
+      this.wetBuf[j] = a + (b - a) * f
     }
   }
 
   /** Le bord d'une zone humide n'est jamais net : deux passes de 1-2-1. */
   private blurWet(): void {
-    const src = this.wet
+    const src = this.wetBuf
     const dst = this.scratch
     for (let pass = 0; pass < 2; pass++) {
       for (let j = 0; j < SLOT_COUNT; j++) {
@@ -144,13 +163,13 @@ export class InkField {
   }
 
   /** Imbibition : depot superlineaire, sechage exponentiel. */
-  private soak(d: number): void {
-    const dry = Math.exp(-d / DRY_TIME)
-    const gain = DEPOSIT * d
+  private soak(d: number, settings: InkFieldSettings): void {
+    const dry = Math.exp(-d / Math.max(0.05, settings.dryTime))
+    const gain = settings.deposit * d
     for (let j = 0; j < SLOT_COUNT; j++) {
-      const w = this.wet[j]
-      const s = this.stain[j] * dry + w * w * gain
-      this.stain[j] = s > 1 ? 1 : s
+      const w = this.wetBuf[j]
+      const s = this.stainBuf[j] * dry + w * w * gain
+      this.stainBuf[j] = s > 1 ? 1 : s
     }
   }
 
@@ -159,17 +178,17 @@ export class InkField {
    * l'analyse tourne a 125 Hz et le rendu a 60, un booleen valable une seule
    * frame d'analyse serait rate une fois sur deux.
    */
-  private drop(frame: AudioFrame, d: number): void {
-    const decay = Math.exp(-d / FLASH_TIME)
-    for (let j = 0; j < SLOT_COUNT; j++) this.flash[j] *= decay
+  private drop(frame: AudioFrame, d: number, settings: InkFieldSettings): void {
+    const decay = Math.exp(-d / Math.max(0.02, settings.flashTime))
+    for (let j = 0; j < SLOT_COUNT; j++) this.flashBuf[j] *= decay
 
     if (frame.onsetCount === this.lastOnset) return
     this.lastOnset = frame.onsetCount
     for (let j = 0; j < SLOT_COUNT; j++) {
       // Une goutte tombe la ou l'energie est : un kick tache le grave, un
       // coup de charleston tache l'aigu.
-      const v = this.flash[j] + this.wet[j] * 0.9 + 0.08
-      this.flash[j] = v > 1 ? 1 : v
+      const v = this.flashBuf[j] + this.wetBuf[j] * 0.9 + 0.08
+      this.flashBuf[j] = v > 1 ? 1 : v
     }
   }
 
@@ -178,9 +197,9 @@ export class InkField {
    * ne sort de la feuille). Le pas est subdivise pour rester sous la limite de
    * stabilite quel que soit le framerate.
    */
-  private diffuse(d: number): void {
-    let remaining = BLEED * d
-    const src = this.stain
+  private diffuse(d: number, settings: InkFieldSettings): void {
+    let remaining = settings.spread * d
+    const src = this.stainBuf
     const dst = this.scratch
     while (remaining > 1e-6) {
       const k = remaining > BLEED_STEP ? BLEED_STEP : remaining
@@ -198,14 +217,24 @@ export class InkField {
     const data = this.data
     for (let j = 0; j < SLOT_COUNT; j++) {
       const o = j * 4
-      data[o] = byte(this.wet[j])
-      data[o + 1] = byte(this.stain[j])
-      data[o + 2] = byte(this.flash[j])
+      data[o] = byte(this.wetBuf[j])
+      data[o + 1] = byte(this.stainBuf[j])
+      data[o + 2] = byte(this.flashBuf[j])
       data[o + 3] = 255
     }
     this.texture.needsUpdate = true
   }
 }
+
+/**
+ * Instance unique, hors React — comme le moteur d'analyse.
+ *
+ * Elle est lue a 60 fps par le mur ET par le traceur de l'onglet Ink, et sa
+ * texture doit survivre au double montage de `StrictMode` : un champ possede
+ * par un composant serait detruit par le premier demontage, et le mur
+ * repartirait d'une feuille vierge a chaque rechargement a chaud.
+ */
+export const inkField = new InkField()
 
 /** Largeur de la rampe de pigments. */
 const PALETTE_SIZE = 128

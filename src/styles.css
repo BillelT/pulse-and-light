@@ -965,3 +965,61 @@ input[type='search']:focus {
     width: min(400px, 94vw);
   }
 }
+
+/* --- Onglet Ink : debugger du shader ------------------------------------- */
+
+/* Grille de vues : douze entrees, il faut qu'elles tiennent sans ascenseur et
+   qu'on voie d'un coup d'oeil laquelle est active. */
+.ink-views {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+}
+
+.ink-views button {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 5px 2px;
+  color: var(--ink-dim);
+  background: rgba(20, 18, 15, 0.04);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.ink-views button:hover {
+  color: var(--ink);
+  background: rgba(20, 18, 15, 0.09);
+}
+
+.ink-views button[data-active='true'] {
+  color: var(--ink);
+  background: rgba(20, 18, 15, 0.16);
+  border-color: rgba(20, 18, 15, 0.42);
+}
+
+.ink-scope {
+  margin-bottom: 8px;
+}
+
+.ink-scope canvas {
+  width: 224px;
+  height: 72px;
+  background: rgba(20, 18, 15, 0.03);
+}
+
+.ink-scope-legend,
+.ink-scope-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+  padding-top: 2px;
+}
+
+.ink-scope-legend {
+  gap: 8px;
+  justify-content: flex-start;
+}

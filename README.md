@@ -254,9 +254,36 @@ sortie change : **son → encre** au lieu de son → lumière.
 - **Silence = feuille blanche.** Aucun lavis de repos : tant qu'aucune source
   n'est branchée, il n'y a rien à peindre.
 
-Trois réglages dans le panneau *Light* : **Ink strokes** (le dessin lui-même),
-**Wash** (le halo autour des tracés — à garder bas, la page doit rester
-blanche) et **Bleed** (à quel point le papier est mouillé).
+### L'onglet *Ink* — le debugger du shader
+
+Le mur a une trentaine de réglages et trois relevés à lui : les mélanger aux
+réglages d'analyse rendait les deux illisibles, il a donc **son propre onglet**.
+La règle est qu'un contrôle = un uniform ou une constante du modèle de pigment,
+**dans l'ordre où la frame est calculée** — le son entre en haut, les pixels
+sortent en bas. Lire l'onglet de haut en bas, c'est lire le shader.
+
+- **Douze vues en fausses couleurs**, sorties telles quelles du shader :
+  `coverage`, `wet` / `stain` / `flash` (les trois états du pigment),
+  `load`, `blotch`, `wash`, `stroke` (l'alpha du trait seul, sans couleur ni
+  lavis), `warp` (de combien le papier déforme la lecture), `palette` (la rampe
+  fréquence → pigment, modèle court-circuité) et `grid` (les coordonnées
+  atelier, avec l'axe x 0 et la ligne d'horizon en rouge — c'est la vue qui sert
+  à régler `span` et `rise`).
+  La rampe est **volontairement très saturée sur toute sa longueur, zéro
+  compris** : `InkEffect` repeint en encre tout pixel sombre *et* désaturé, une
+  vue en niveaux de gris ressortirait en aplat noir uniforme.
+- **Freeze warp clock** arrête la déformation du papier sans arrêter la
+  musique : on peut regarder une flaque se former sans que le bruit ne glisse
+  dessous.
+- **Un oscilloscope** des trois états du pigment le long de l'axe fréquentiel,
+  lu directement dans le champ CPU — c'est le relevé qui montre *pourquoi* le
+  mur a cette tête : le shader ne peut dessiner que ce que cette courbe porte.
+  Avec, les descripteurs que le mur reçoit réellement (level, flux, brightness,
+  beat, bpm, pic de tache) et un bouton **Rinse the paper**.
+
+Les réglages sont dans leur propre tranche du store (`InkSettings`), avec leur
+propre *reset* — l'onglet *Light* ne garde que l'analyse, la DA du trait et la
+caméra.
 
 ---
 
@@ -357,7 +384,7 @@ src/
     api.ts                     Web API, dégradation propre sur 403
     useSpotify.ts              Web Playback SDK, horloge de lecture
   scene/
-    InkWall.tsx                le mur d'encre : le visualiseur
+    InkWall.tsx                le mur d'encre : le visualiseur (~30 uniforms)
     inkField.ts                modèle son -> pigment (dépôt, séchage, diffusion)
     Dancer.tsx                 l'operateur, rig hierarchique cale sur les temps
     SubCabinets.tsx            caissons de basses à membranes
@@ -369,6 +396,7 @@ src/
     ink.ts                     constantes de la DA encre
     layout.ts / palettes.ts    implantation et couleurs
   ui/                          HUD, analyseur, panneau de contrôle
+    InkTab.tsx                 debugger du shader : vues, oscilloscope, réglages
   state/store.ts               réglages et état de lecture (zustand)
 ```
 
