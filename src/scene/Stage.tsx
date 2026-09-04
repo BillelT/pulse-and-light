@@ -339,13 +339,13 @@ function useCitySheet(url: string): { texture: Texture; isSheet: boolean } {
         if (cancelled) return
         loaded.colorSpace = SRGBColorSpace
         loaded.anisotropy = 4
-        // Mipmaps desactives : chaque plan n'affiche qu'une bande fine (25% de
-        // la hauteur) via repeat/offset, mais les mipmaps se calculent sur
-        // l'image ENTIERE. Aux niveaux grossiers, les liserés blancs qui
-        // separent les bandes dans la feuille de sprites se mettaient a
-        // baver dans la bande affichee — un trait lumineux parasite, visible
-        // au loin sur les murs lateraux. Le plan est deja assez flou (brume,
-        // verre) pour que l'absence de mipmap ne cree pas de moire.
+        // Mipmaps disabled: each plane only shows a thin strip (25% of the
+        // height) via repeat/offset, but mipmaps are computed on the WHOLE
+        // image. At coarse levels, the white borders separating the strips
+        // in the sprite sheet started bleeding into the displayed strip —
+        // a stray bright line, visible from afar on the side walls. The
+        // plane is already blurry enough (fog, glass) that the lack of
+        // mipmaps doesn't create moiré.
         loaded.generateMipmaps = false
         loaded.minFilter = LinearFilter
         loaded.magFilter = LinearFilter

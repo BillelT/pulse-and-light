@@ -14,12 +14,12 @@ const TEMPO_SOURCE_LABEL: Record<PlaybackSnapshot['tempoSource'], string> = {
 }
 
 const SDK_LABEL: Record<string, string> = {
-  idle: 'inactif',
-  loading: 'connexion…',
-  ready: 'pret',
-  unsupported: 'non supporte',
-  'needs-premium': 'Premium requis',
-  error: 'erreur',
+  idle: 'idle',
+  loading: 'connecting…',
+  ready: 'ready',
+  unsupported: 'unsupported',
+  'needs-premium': 'Premium required',
+  error: 'error',
 }
 
 export function SpotifyTab({ spotify }: { spotify: SpotifyController }) {
@@ -40,20 +40,20 @@ export function SpotifyTab({ spotify }: { spotify: SpotifyController }) {
 
   if (!configured) {
     return (
-      <Section title="Configuration requise">
+      <Section title="Configuration required">
         <div className="note note-warn">
-          Aucun <code>VITE_SPOTIFY_CLIENT_ID</code> dans l&apos;environnement.
+          No <code>VITE_SPOTIFY_CLIENT_ID</code> in the environment.
           <br />
           <br />
-          1. Cree une app sur <b>developer.spotify.com/dashboard</b>.
+          1. Create an app on <b>developer.spotify.com/dashboard</b>.
           <br />
-          2. Ajoute la Redirect URI : <code>{redirectUri()}</code>
+          2. Add the Redirect URI: <code>{redirectUri()}</code>
           <br />
-          3. Copie <code>.env.example</code> en <code>.env</code>, colle le Client ID,
-          relance <code>npm run dev</code>.
+          3. Copy <code>.env.example</code> to <code>.env</code>, paste the Client ID,
+          restart <code>npm run dev</code>.
           <br />
           <br />
-          Aucun client secret n&apos;est necessaire : l&apos;app utilise le flow PKCE.
+          No client secret needed: the app uses the PKCE flow.
         </div>
       </Section>
     )
@@ -62,15 +62,15 @@ export function SpotifyTab({ spotify }: { spotify: SpotifyController }) {
   if (!token) {
     return (
       <>
-        <Section title="Compte">
+        <Section title="Account">
           <button className="btn btn-primary" onClick={spotify.login}>
-            Se connecter a Spotify
+            Connect to Spotify
           </button>
           <div className="field-hint" style={{ marginTop: 8 }}>
-            La lecture in-app demande un compte <b>Premium</b> (contrainte du Web Playback
-            SDK). Avec un compte gratuit, la connexion sert quand meme aux metadonnees :
-            lance la musique depuis l&apos;app Spotify et capture l&apos;audio de
-            l&apos;onglet ou du micro.
+            In-app playback requires a <b>Premium</b> account (a Web Playback SDK
+            constraint). With a free account, connecting is still useful for metadata:
+            play the music from the Spotify app and capture the tab's or the
+            microphone's audio.
           </div>
         </Section>
         {error && <div className="note note-error">{error}</div>}
@@ -91,58 +91,58 @@ export function SpotifyTab({ spotify }: { spotify: SpotifyController }) {
 
   return (
     <div>
-      <Section title="Compte">
-        <Kv k="Utilisateur" v={user?.display_name ?? user?.id ?? '—'} />
-        <Kv k="Abonnement" v={user?.product ?? '—'} />
-        <Kv k="Lecteur" v={SDK_LABEL[sdkStatus] ?? sdkStatus} />
+      <Section title="Account">
+        <Kv k="User" v={user?.display_name ?? user?.id ?? '—'} />
+        <Kv k="Subscription" v={user?.product ?? '—'} />
+        <Kv k="Player" v={SDK_LABEL[sdkStatus] ?? sdkStatus} />
         <Kv k="Device" v={deviceId ? deviceId.slice(0, 10) + '…' : '—'} />
         <button className="btn" style={{ marginTop: 8 }} onClick={spotify.logout}>
-          Deconnexion
+          Log out
         </button>
       </Section>
 
       {error && <div className="note note-error" style={{ marginBottom: 16 }}>{error}</div>}
 
-      <Section title="Piste en cours">
+      <Section title="Now playing">
         {snapshot.track ? (
           <>
-            <Kv k="Titre" v={snapshot.track.name} />
+            <Kv k="Title" v={snapshot.track.name} />
             <Kv
               k="Tempo"
               v={
                 snapshot.tempo > 0
                   ? `${snapshot.tempo.toFixed(1)} BPM${TEMPO_SOURCE_LABEL[snapshot.tempoSource]}`
-                  : 'inconnu'
+                  : 'unknown'
               }
             />
-            <Kv k="Tonalite" v={keyName(snapshot.key, snapshot.mode)} />
+            <Kv k="Key" v={keyName(snapshot.key, snapshot.mode)} />
             <Kv
               k="Audio Features"
-              v={featuresAvailable === null ? '—' : featuresAvailable ? 'disponible' : 'indisponible'}
+              v={featuresAvailable === null ? '—' : featuresAvailable ? 'available' : 'unavailable'}
             />
             <Kv
               k="Audio Analysis"
-              v={analysisAvailable === null ? '—' : analysisAvailable ? 'disponible' : 'indisponible'}
+              v={analysisAvailable === null ? '—' : analysisAvailable ? 'available' : 'unavailable'}
             />
             {analysisAvailable === false && (
               <div className="note note-warn" style={{ marginTop: 8 }}>
-                Spotify a restreint <code>/audio-features</code> et <code>/audio-analysis</code>
-                &nbsp;aux apps creees avant novembre 2024 : une nouvelle app recoit un 403.
-                Le tempo est alors recupere sur Deezer (catalogue public) quand le morceau y est
-                trouve ; sinon la scene bascule sur la grille rythmique par defaut — ou, mieux,
-                sur la capture de l&apos;audio de l&apos;onglet.
+                Spotify restricted <code>/audio-features</code> and <code>/audio-analysis</code>
+                &nbsp;to apps created before November 2024: a new app gets a 403.
+                The tempo then falls back to Deezer (public catalog) when the track is
+                found there; otherwise the scene falls back to the default rhythmic grid — or,
+                better, to capturing the tab's audio.
               </div>
             )}
           </>
         ) : (
-          <div className="field-hint">Rien en lecture sur ce device.</div>
+          <div className="field-hint">Nothing playing on this device.</div>
         )}
       </Section>
 
-      <Section title="Chercher un morceau">
+      <Section title="Search for a track">
         <input
           type="search"
-          placeholder="titre, artiste…"
+          placeholder="title, artist…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -155,7 +155,7 @@ export function SpotifyTab({ spotify }: { spotify: SpotifyController }) {
           onClick={() => void runSearch()}
           disabled={searching || !query.trim()}
         >
-          {searching ? 'Recherche…' : 'Rechercher'}
+          {searching ? 'Searching…' : 'Search'}
         </button>
         {results.length > 0 && (
           <div className="results">
@@ -165,7 +165,7 @@ export function SpotifyTab({ spotify }: { spotify: SpotifyController }) {
                 className="result"
                 onClick={() => void spotify.playTrack(track.uri)}
                 disabled={!deviceId}
-                title={deviceId ? 'Lancer sur ce device' : 'Lecteur Spotify indisponible'}
+                title={deviceId ? 'Play on this device' : 'Spotify player unavailable'}
               >
                 {track.album.images.at(-1)?.url && (
                   <img src={track.album.images.at(-1)!.url} alt="" />
@@ -185,10 +185,9 @@ export function SpotifyTab({ spotify }: { spotify: SpotifyController }) {
   )
 }
 
-const NOTES = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si']
+const NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 function keyName(key: number, mode: number): string {
-  if (key < 0 || key > 11) return 'inconnue'
+  if (key < 0 || key > 11) return 'unknown'
   return `${NOTES[key]} ${mode === 0 ? 'min' : 'maj'}`
 }
-

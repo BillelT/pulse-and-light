@@ -10,7 +10,7 @@ import { BlendedSpotifyProvider } from './sources/blendedSpotifyProvider'
 import { getItunesPreview } from '../spotify/itunesPreview'
 import { EMPTY_SNAPSHOT } from '../spotify/types'
 
-/** Morceau fictif du mode demo : 124 BPM, energie haute, tonalite La mineur. */
+/** Fictional demo-mode track: 124 BPM, high energy, key of A minor. */
 const DEMO_START = performance.now()
 const demoSnapshot = (): PlaybackSnapshot => ({
   ...EMPTY_SNAPSHOT,
@@ -30,15 +30,15 @@ export interface AudioSourceController {
   select: (kind: Exclude<SourceKind, 'none' | 'file'>) => Promise<void>
   selectFile: (file: File) => Promise<void>
   stop: () => void
-  /** Element <audio> de la source fichier, pour piloter la lecture depuis l'UI. */
+  /** <audio> element for the file source, to control playback from the UI. */
   fileElement: () => HTMLAudioElement | null
 }
 
 /**
- * Selection et cycle de vie de la source audio.
+ * Selection and lifecycle of the audio source.
  *
- * Une seule source est active a la fois : le moteur d'analyse dispose
- * automatiquement la precedente quand on lui en donne une nouvelle.
+ * Only one source is active at a time: the analysis engine automatically
+ * disposes of the previous one when given a new one.
  */
 export function useAudioSource(readSnapshot: () => PlaybackSnapshot): AudioSourceController {
   const setSource = useStore((s) => s.setSource)
@@ -69,37 +69,37 @@ export function useAudioSource(readSnapshot: () => PlaybackSnapshot): AudioSourc
           const p = await createMicSource()
           apply(p, 'mic', p.label)
         } else if (kind === 'demo') {
-          // Mode demo : la meme source procedurale, mais alimentee par une
-          // timeline fictive. Permet de voir la scene vivre sans credentials.
+          // Demo mode: the same procedural source, but fed by a fictional
+          // timeline. Lets you see the scene come alive without credentials.
           const p = new SpotifyTimelineProvider(demoSnapshot)
-          apply(p, 'demo', 'Demo procedurale — 124 BPM')
+          apply(p, 'demo', 'Procedural demo — 124 BPM')
         } else {
-          // Source procedurale : elle lit la timeline Spotify a chaque frame,
-          // donc elle doit interroger le snapshot vivant, pas une copie figee.
+          // Procedural source: it reads the Spotify timeline every frame,
+          // so it must query the live snapshot, not a frozen copy.
           const p = new SpotifyTimelineProvider(() => snapshotRef.current())
           apply(p, 'spotify', p.label)
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        // L'utilisateur qui ferme le selecteur de partage n'est pas une erreur.
+        // A user closing the share picker isn't an error.
         setAudioError(/permission|denied|dismissed|NotAllowed/i.test(message)
-          ? 'Capture refusee ou annulee.'
+          ? 'Capture refused or canceled.'
           : message)
       }
     },
     [apply, setAudioError],
   )
 
-  // --- Pivot iTunes preview : FFT reelle melangee a la procedurale ---------
+  // --- iTunes preview pivot: real FFT blended with the procedural one -----
   //
-  // A chaque changement de piste (tant que la source active est 'spotify'),
-  // on demarre sur un provider qui melange resynthese procedurale (rythme
-  // toujours cale sur le vrai tempo/la vraie position Spotify, zero latence)
-  // et — des qu'un extrait iTunes est trouve — la vraie FFT de cet extrait,
-  // plafonnee par l'energie du morceau et modulee par le volume choisi par
-  // l'utilisateur (cf. LIMITE_SYNCHRONISATION_ITUNES.md pour le pourquoi du
-  // melange plutot qu'un remplacement pur). Si rien n'est trouve, le
-  // melange reste 100% procedural — silencieusement.
+  // On each track change (as long as the active source is 'spotify'),
+  // we start with a provider that blends procedural resynthesis (rhythm
+  // always locked to the real Spotify tempo/position, zero latency)
+  // and — as soon as an iTunes preview is found — the real FFT of that
+  // preview, capped by the track's energy and modulated by the volume
+  // chosen by the user (see LIMITE_SYNCHRONISATION_ITUNES.md for why we
+  // blend rather than do a pure replacement). If nothing is found, the
+  // blend stays 100% procedural — silently.
   const sourceKind = useStore((s) => s.sourceKind)
   const trackId = useStore((s) => s.snapshot.track?.id ?? null)
   useEffect(() => {
@@ -137,7 +137,7 @@ export function useAudioSource(readSnapshot: () => PlaybackSnapshot): AudioSourc
           blended.attachReal(p)
           setSource('spotify', blended.label)
         } catch {
-          // Extrait trouve mais illisible (reseau, format) : on reste 100% procedural.
+          // Preview found but unplayable (network, format): stay 100% procedural.
         }
       })()
     }
@@ -165,7 +165,7 @@ export function useAudioSource(readSnapshot: () => PlaybackSnapshot): AudioSourc
   const stop = useCallback(() => {
     engine.setProvider(null)
     fileRef.current = null
-    setSource('none', 'Aucune source')
+    setSource('none', 'No source')
   }, [setSource])
 
   return { select, selectFile, stop, fileElement: () => fileRef.current?.element ?? null }

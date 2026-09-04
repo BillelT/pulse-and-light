@@ -11,20 +11,20 @@ type Mode = 'spotify' | 'mic' | 'tab'
 const MODES: Array<{ id: Mode; label: string }> = [
   { id: 'spotify', label: 'Spotify' },
   { id: 'mic', label: 'Microphone' },
-  { id: 'tab', label: 'Onglet' },
+  { id: 'tab', label: 'Tab' },
 ]
 
-/** Degrade "piste jouee / restante" pour un slider, dans le style Apple Music. */
+/** "Played / remaining" gradient for a slider, in the Apple Music style. */
 function trackGradient(pct: number): string {
   const p = Math.max(0, Math.min(100, pct))
   return `linear-gradient(to right, #fff ${p}%, rgba(255, 255, 255, 0.22) ${p}%)`
 }
 
 /**
- * Dock flottant, seule UI visible en production : choix de la source audio
- * (Spotify / micro / onglet) et ses reglages associes, en "liquid glass"
- * (le panneau lateral complet — reglages lumiere, debug — reste reserve au
- * developpement, cf. Panel).
+ * Floating dock, the only UI visible in production: audio source choice
+ * (Spotify / mic / tab) and its associated settings, in "liquid glass"
+ * style (the full side panel — light settings, debug — stays reserved for
+ * development, see Panel).
  */
 export function SourceDock({
   audio,
@@ -61,15 +61,15 @@ export function SourceDock({
         {mode === 'mic' && (
           <div className="dock-hint">
             {sourceKind === 'mic'
-              ? 'Micro actif — capte ce qui sort des enceintes.'
-              : 'Active le micro pour analyser le son de la piece.'}
+              ? 'Microphone active — captures what comes out of the speakers.'
+              : 'Enable the microphone to analyze the room’s sound.'}
           </div>
         )}
         {mode === 'tab' && (
           <div className="dock-hint">
             {sourceKind === 'tab'
-              ? "Audio de l'onglet actif."
-              : "Choisis l'onglet Spotify et coche « Partager l'audio de l'onglet » (Chrome / Edge)."}
+              ? 'Tab audio active.'
+              : 'Pick the Spotify tab and check "Share tab audio" (Chrome / Edge).'}
           </div>
         )}
       </div>
@@ -86,11 +86,11 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
   const track = snapshot.track
 
   const [seekDrag, setSeekDrag] = useState<number | null>(null)
-  // Position visee par un seek en cours, tant que le SDK n'a pas confirme le
-  // changement : sans elle, le relachement du curseur retombe brievement sur
-  // l'ancienne position (celle du dernier snapshot) avant de re-sauter sur la
-  // bonne des que `player_state_changed` arrive, quelques centaines de ms plus
-  // tard — un aller-retour visible et desagreable.
+  // Position targeted by an in-progress seek, until the SDK confirms the
+  // change: without this, releasing the slider briefly snaps back to the
+  // old position (the last snapshot's) before jumping to the right one
+  // once `player_state_changed` arrives, a few hundred ms later — a visible
+  // and unpleasant back-and-forth.
   const [pendingSeek, setPendingSeek] = useState<number | null>(null)
   const pendingSeekTimeout = useRef<number | null>(null)
   const [volume, setVolume] = useState(0.7)
@@ -102,10 +102,10 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
   const [searching, setSearching] = useState(false)
   const [searched, setSearched] = useState(false)
 
-  // Des que le snapshot confirme la nouvelle position (a 1.5s pres, le temps
-  // que le SDK republie l'etat), on peut lacher l'override optimiste. Doit
-  // rester avant le `return` anticipe ci-dessous : les hooks ne peuvent pas
-  // etre conditionnels.
+  // Once the snapshot confirms the new position (within 1.5s, the time it
+  // takes the SDK to republish state), the optimistic override can be
+  // dropped. Must stay before the early `return` below: hooks can't be
+  // conditional.
   useEffect(() => {
     if (pendingSeek !== null && Math.abs(snapshot.positionSec - pendingSeek) < 1.5) {
       setPendingSeek(null)
@@ -123,7 +123,7 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
     return (
       <div className="dock-hint">
         <button className="dock-connect" onClick={spotify.login}>
-          Se connecter a Spotify
+          Connect to Spotify
         </button>
       </div>
     )
@@ -133,7 +133,7 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
     setSeekDrag(null)
     setPendingSeek(v)
     if (pendingSeekTimeout.current) window.clearTimeout(pendingSeekTimeout.current)
-    // Filet de securite si l'evenement de confirmation n'arrive jamais.
+    // Safety net in case the confirmation event never arrives.
     pendingSeekTimeout.current = window.setTimeout(() => setPendingSeek(null), 2500)
     void spotify.seek(v)
   }
@@ -171,33 +171,33 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
       <div className="np-row">
         {cover && <img src={cover} alt="" />}
         <div className="np-text">
-          <div className="np-title">{track ? track.name : 'Rien en lecture'}</div>
+          <div className="np-title">{track ? track.name : 'Nothing playing'}</div>
           <div className="np-artist">
-            {track ? track.artists.map((a) => a.name).join(', ') : 'Cherche un morceau'}
+            {track ? track.artists.map((a) => a.name).join(', ') : 'Search for a track'}
           </div>
         </div>
         <div className="np-controls">
           <button
             onClick={toggleSearch}
             className={searchOpen ? 'np-search-active' : undefined}
-            title="Chercher un morceau"
+            title="Search for a track"
           >
             <SearchIcon size={14} />
           </button>
           {track && (
             <>
-              <button onClick={() => void spotify.previous()} disabled={!deviceId} title="Precedent">
+              <button onClick={() => void spotify.previous()} disabled={!deviceId} title="Previous">
                 <PrevIcon size={13} />
               </button>
               <button
                 className="np-play"
                 onClick={() => void spotify.togglePlay()}
                 disabled={!deviceId}
-                title="Lecture / pause"
+                title="Play / pause"
               >
                 {snapshot.playing ? <PauseIcon size={15} /> : <PlayIcon size={15} />}
               </button>
-              <button onClick={() => void spotify.next()} disabled={!deviceId} title="Suivant">
+              <button onClick={() => void spotify.next()} disabled={!deviceId} title="Next">
                 <NextIcon size={13} />
               </button>
             </>
@@ -260,7 +260,7 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
           <input
             type="search"
             autoFocus
-            placeholder="titre, artiste…"
+            placeholder="title, artist…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
@@ -275,14 +275,14 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
 
       {searchOpen && !deviceId && (
         <div className="np-search-note">
-          Lecteur Spotify indisponible — un compte Premium est requis pour lancer un morceau.
+          Spotify player unavailable — a Premium account is required to play a track.
         </div>
       )}
 
       {searchOpen && spotifyError && <div className="np-search-note np-search-note-error">{spotifyError}</div>}
 
       {searchOpen && searched && !searching && results.length === 0 && !spotifyError && (
-        <div className="np-search-note">Aucun resultat pour « {query.trim()} ».</div>
+        <div className="np-search-note">No results for "{query.trim()}".</div>
       )}
 
       {searchOpen && results.length > 0 && (
@@ -299,7 +299,7 @@ function SpotifyDock({ spotify }: { spotify: SpotifyController }) {
                 setSearched(false)
               }}
               disabled={!deviceId}
-              title={deviceId ? 'Lancer sur ce device' : 'Lecteur Spotify indisponible'}
+              title={deviceId ? 'Play on this device' : 'Spotify player unavailable'}
             >
               {t.album.images.at(-1)?.url && <img src={t.album.images.at(-1)!.url} alt="" />}
               <div className="np-search-result-text">

@@ -5,30 +5,30 @@ import type { StoredToken } from '../spotify/auth'
 
 export type SourceKind = 'none' | 'tab' | 'mic' | 'file' | 'spotify' | 'demo'
 
-/** Reglages purement scenographiques (le "playground" du lighting designer). */
+/** Purely scenographic settings (the lighting designer's "playground"). */
 export interface VisualSettings {
   paletteId: string
-  /** Intensite du bloom : c'est lui qui fait exister le neon. */
+  /** Bloom intensity: this is what makes the neon exist. */
   bloom: number
-  /** Poids de la teinte de bande sur la rampe verticale, 0..1. */
+  /** Weight of the band tint on the vertical ramp, 0..1. */
   bandTint: number
-  /** Poids de la teinte tonale de Scriabine, 0..1. */
+  /** Weight of Scriabin's tonal tint, 0..1. */
   keyTint: number
-  /** Densite de la brume volumetrique. */
+  /** Volumetric fog density. */
   fog: number
-  /** Amplitude du camera shake sur les kicks, 0..1. */
+  /** Camera shake amplitude on kicks, 0..1. */
   shake: number
-  /** Mouvement de camera automatique. */
+  /** Automatic camera movement. */
   autoCamera: boolean
-  /** Nombre de segments LED par caisson. */
+  /** Number of LED segments per light box. */
   segments: number
-  /** Aberration chromatique pilotee par les basses. */
+  /** Chromatic aberration driven by the bass. */
   chroma: number
-  /** Grain pilote par le flux spectral / timbre. */
+  /** Grain driven by spectral flux / timbre. */
   grain: number
-  /** Retient le pic de chaque colonne quelques instants (marqueur de VU-metre). */
+  /** Holds each column's peak for a few instants (VU-meter marker). */
   peakHold: boolean
-  /** Aplats de palette (true) ou degrade continu (false). */
+  /** Flat palette colors (true) or continuous gradient (false). */
   quantize: boolean
 }
 
@@ -47,7 +47,7 @@ export const DEFAULT_VISUAL: VisualSettings = {
   quantize: true,
 }
 
-/** Reglages du debuggeur de scene : lumieres, brouillard, aides visuelles. */
+/** Scene debugger settings: lights, fog, visual aids. */
 export interface DebugSettings {
   showAxes: boolean
   showGrid: boolean
@@ -79,16 +79,16 @@ export interface DebugSettings {
   spotDistance: number
   spotDecay: number
 
-  /** Debordement du sol sous les murs lateraux/du fond (negatif = sous les
-   *  murs, colle sans joint ; positif = en retrait, laisse un trou). */
+  /** Floor overflow under the side/back walls (negative = under the
+   *  walls, flush with no gap; positive = set back, leaves a hole). */
   floorMarginX: number
   floorMarginBack: number
-  /** Position Z du bord avant du sol (cote ouvert, face public). */
+  /** Z position of the floor's front edge (open side, facing the audience). */
   floorFrontZ: number
-  /** Contour du sol en fil de fer, pour voir ses bords exacts par-dessus le
-   *  miroir (qui ne peut pas etre affiche en wireframe). */
+  /** Wireframe outline of the floor, to see its exact edges over the
+   *  mirror (which can't be shown in wireframe). */
   floorShowOutline: boolean
-  /** Contour de l'empreinte des murs (au sol), pour comparer au sol. */
+  /** Outline of the walls' footprint (on the floor), to compare with the floor. */
   floorShowWallOutline: boolean
 }
 
@@ -159,13 +159,13 @@ interface AppState {
   sdkStatus: SdkStatus
   spotifyError: string | null
   snapshot: PlaybackSnapshot
-  /** Volume choisi par l'utilisateur (0..1) — lu par le moteur audio pour moduler
-   *  l'intensite du mur sur ce qu'il entend vraiment, pas juste sur le contenu spectral. */
+  /** Volume chosen by the user (0..1) — read by the audio engine to modulate
+   *  the wall's intensity on what it actually hears, not just the spectral content. */
   spotifyVolume: number
   setSpotifyVolume: (v: number) => void
-  /** true si l'endpoint Audio Analysis a repondu pour la piste courante. */
+  /** true if the Audio Analysis endpoint responded for the current track. */
   analysisAvailable: boolean | null
-  /** true si l'endpoint Audio Features a repondu pour la piste courante. */
+  /** true if the Audio Features endpoint responded for the current track. */
   featuresAvailable: boolean | null
   setToken: (token: StoredToken | null) => void
   setUser: (user: SpotifyUser | null) => void
@@ -191,7 +191,7 @@ export const useStore = create<AppState>((set) => ({
     set({ analysis: { ...DEFAULT_ANALYSIS }, visual: { ...DEFAULT_VISUAL }, debug: { ...DEFAULT_DEBUG } }),
 
   sourceKind: 'none',
-  sourceLabel: 'Aucune source',
+  sourceLabel: 'No source',
   audioError: null,
   setSource: (sourceKind, sourceLabel) => set({ sourceKind, sourceLabel, audioError: null }),
   setAudioError: (audioError) => set({ audioError }),

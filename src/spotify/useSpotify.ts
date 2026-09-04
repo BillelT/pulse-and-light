@@ -19,7 +19,7 @@ const PLAYER_NAME = 'PULSE & LIGHT'
 
 let sdkPromise: Promise<typeof Spotify> | null = null
 
-/** Charge le script du Web Playback SDK une seule fois par page. */
+/** Loads the Web Playback SDK script only once per page. */
 function loadSdk(): Promise<typeof Spotify> {
   if (sdkPromise) return sdkPromise
   sdkPromise = new Promise((resolve, reject) => {
@@ -29,18 +29,18 @@ function loadSdk(): Promise<typeof Spotify> {
     }
     window.onSpotifyWebPlaybackSDKReady = () => {
       if (window.Spotify) resolve(window.Spotify)
-      else reject(new Error('SDK Spotify charge mais indisponible.'))
+      else reject(new Error('Spotify SDK loaded but unavailable.'))
     }
     const script = document.createElement('script')
     script.src = SDK_SRC
     script.async = true
-    script.onerror = () => reject(new Error('Impossible de charger le SDK Spotify.'))
+    script.onerror = () => reject(new Error('Could not load the Spotify SDK.'))
     document.head.appendChild(script)
   })
   return sdkPromise
 }
 
-/** Horloge de lecture : le SDK ne publie un etat que sur evenement, pas a 60 fps. */
+/** Playback clock: the SDK only publishes state on events, not at 60 fps. */
 interface Clock {
   positionMs: number
   updatedAt: number
@@ -57,7 +57,7 @@ export interface SpotifyController {
   setVolume: (v: number) => Promise<void>
   search: (q: string) => Promise<SpotifyTrack[]>
   playTrack: (uri: string) => Promise<void>
-  /** Snapshot vivant, lu a chaque frame sans re-render. */
+  /** Live snapshot, read every frame without re-rendering. */
   readSnapshot: () => PlaybackSnapshot
   busy: boolean
 }
@@ -82,10 +82,10 @@ export function useSpotify(): SpotifyController {
   const trackIdRef = useRef<string | null>(null)
   const analysisRef = useRef<AudioAnalysis | null>(null)
 
-  /** Token frais a la demande — utilise par le SDK et par tous les appels API. */
+  /** Fresh token on demand — used by the SDK and by every API call. */
   const freshToken = useCallback(async (): Promise<string> => {
     const current = tokenRef.current
-    if (!current) throw new Error('Non connecte a Spotify.')
+    if (!current) throw new Error('Not connected to Spotify.')
     const next = await ensureFresh(current)
     if (next !== current) {
       tokenRef.current = next
@@ -94,7 +94,7 @@ export function useSpotify(): SpotifyController {
     return next.accessToken
   }, [setToken])
 
-  /** Recopie l'etat interne dans le store (pour l'UI React). */
+  /** Copies internal state back into the store (for the React UI). */
   const publish = useCallback(
     (patch: Partial<PlaybackSnapshot>) => {
       snapshotRef.current = { ...snapshotRef.current, ...patch }
@@ -103,7 +103,7 @@ export function useSpotify(): SpotifyController {
     [setSnapshot],
   )
 
-  /** Charge les metadonnees analytiques d'une piste (best effort). */
+  /** Loads a track's analytical metadata (best effort). */
   const loadTrackAnalysis = useCallback(
     async (trackId: string | null, artistName: string, trackTitle: string) => {
       analysisRef.current = null
@@ -124,13 +124,13 @@ export function useSpotify(): SpotifyController {
           api.getTrackIsrc(token, trackId),
         ])
       } catch {
-        // Endpoints deprecies / restreints : on continue quand meme sur le fallback Deezer.
+        // Deprecated / restricted endpoints: fall back to the Deezer path anyway.
       }
       if (trackIdRef.current !== trackId) return
       analysisRef.current = analysis
-      // L'ISRC arrive apres coup (le SDK ne le fournit pas) : on patch la
-      // piste deja publiee, utilise par la source iTunes preview pour matcher
-      // le master exact plutot qu'une recherche artiste/titre approximative.
+      // The ISRC arrives after the fact (the SDK doesn't provide it): patch
+      // the already-published track, used by the iTunes preview source to
+      // match the exact master rather than an approximate artist/title search.
       if (isrc && snapshotRef.current.track?.id === trackId) {
         publish({ track: { ...snapshotRef.current.track, isrc } })
       }
@@ -150,11 +150,11 @@ export function useSpotify(): SpotifyController {
       let timeSignature = features?.time_signature ?? analysis?.track.time_signature ?? null
       let tempoSource: PlaybackSnapshot['tempoSource'] = tempo > 0 ? (features ? 'features' : 'analysis') : 'inconnu'
 
-      // Spotify a ferme audio-features/audio-analysis a la plupart des nouvelles
-      // apps : quand tempo est totalement inconnu, on va le chercher ailleurs.
-      // ReccoBeats reconstruit le meme schema de features a partir de l'ID
-      // Spotify (le plus complet quand il trouve le morceau) ; Deezer, en
-      // secours, n'a que tempo/loudness mais couvre plus de morceaux.
+      // Spotify closed off audio-features/audio-analysis to most new apps:
+      // when tempo is completely unknown, we look for it elsewhere.
+      // ReccoBeats reconstructs the same features schema from the Spotify ID
+      // (the most complete when it finds the track); Deezer, as a fallback,
+      // only has tempo/loudness but covers more tracks.
       if (tempo <= 0) {
         const alt = await getTrackFeatures(trackId, artistName, trackTitle)
         if (trackIdRef.current !== trackId) return
@@ -228,10 +228,10 @@ export function useSpotify(): SpotifyController {
         trackIdRef.current = t.id
         void loadTrackAnalysis(t.id, t.artists[0]?.name ?? '', t.name)
       }
-      // Pre-analyse (zero latence) : des que le SDK annonce la piste suivante,
-      // on prechauffe le cache d'extrait iTunes en arriere-plan. Sans ISRC (le
-      // SDK ne le fournit pas), mais la recherche artiste/titre suffit a
-      // remplir le cache avant que la piste ne devienne active.
+      // Pre-analysis (zero latency): as soon as the SDK announces the next
+      // track, warm up the iTunes preview cache in the background. Without
+      // an ISRC (the SDK doesn't provide one), but the artist/title search
+      // is enough to fill the cache before the track becomes active.
       const next = state.track_window.next_tracks[0]
       if (next?.id) {
         void getItunesPreview(next.id, null, next.artists[0]?.name ?? '', next.name, next.duration_ms)
@@ -240,7 +240,7 @@ export function useSpotify(): SpotifyController {
     [loadTrackAnalysis, publish],
   )
 
-  // --- Recuperation du token au montage (retour de redirection ou storage) ---
+  // --- Token retrieval on mount (redirect return or storage) ---
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -264,7 +264,7 @@ export function useSpotify(): SpotifyController {
         if (me && me.product !== 'premium') {
           setSdkStatus('needs-premium')
           setSpotifyError(
-            'Le Web Playback SDK exige un compte Spotify Premium. La connexion reste utile pour lire les metadonnees, mais la lecture doit se faire depuis une autre app.',
+            'The Web Playback SDK requires a Spotify Premium account. Connecting is still useful for reading metadata, but playback must happen from another app.',
           )
         }
       } catch (err) {
@@ -281,7 +281,7 @@ export function useSpotify(): SpotifyController {
     }
   }, [setSdkStatus, setSpotifyError, setToken, setUser])
 
-  // --- Initialisation du lecteur une fois le token en place ---
+  // --- Player initialization once the token is in place ---
   const token = useStore((s) => s.token)
   const user = useStore((s) => s.user)
   useEffect(() => {
@@ -306,7 +306,7 @@ export function useSpotify(): SpotifyController {
           setDeviceId(device_id)
           setSdkStatus('ready')
           publish({ connected: true })
-          // Transfert sans lancer la lecture : l'utilisateur garde la main.
+          // Transfer without starting playback: the user stays in control.
           void freshToken()
             .then((t) => api.transferPlayback(t, device_id, false))
             .catch(() => {})
@@ -323,18 +323,18 @@ export function useSpotify(): SpotifyController {
         })
         player.addListener('authentication_error', (e) => {
           setSdkStatus('error')
-          setSpotifyError(`Authentification refusee : ${e.message}`)
+          setSpotifyError(`Authentication refused: ${e.message}`)
         })
         player.addListener('account_error', () => {
           setSdkStatus('needs-premium')
-          setSpotifyError('Compte non Premium : la lecture in-app est indisponible.')
+          setSpotifyError('Non-Premium account: in-app playback is unavailable.')
         })
         player.addListener('playback_error', (e) => setSpotifyError(e.message))
 
         const ok = await player.connect()
         if (!ok && !disposed) {
           setSdkStatus('error')
-          setSpotifyError('Le lecteur Spotify n’a pas pu se connecter.')
+          setSpotifyError('The Spotify player could not connect.')
         }
         playerRef.current = player
       } catch (err) {
@@ -352,7 +352,7 @@ export function useSpotify(): SpotifyController {
     }
   }, [token, user, freshToken, onPlayerState, publish, setDeviceId, setSdkStatus, setSpotifyError])
 
-  // --- Extrapolation de la position entre deux evenements du SDK ---
+  // --- Position extrapolation between two SDK events ---
   useEffect(() => {
     const id = window.setInterval(() => {
       const clock = clockRef.current
@@ -385,7 +385,7 @@ export function useSpotify(): SpotifyController {
     const base = snapshotRef.current
     if (!clock.playing) return base
     const elapsed = (performance.now() - clock.updatedAt) / 1000
-    // On ne remplace que la position : l'objet reste stable pour le reste.
+    // Only the position is replaced: the rest of the object stays stable.
     return { ...base, positionSec: clock.positionMs / 1000 + elapsed, analysis: analysisRef.current }
   }, [])
 
@@ -417,8 +417,8 @@ export function useSpotify(): SpotifyController {
     togglePlay: () =>
       guard(async () => {
         const player = playerRef.current
-        if (!player) throw new Error('Lecteur indisponible.')
-        // Requis par les politiques d'autoplay : lie la lecture a un geste.
+        if (!player) throw new Error('Player unavailable.')
+        // Required by autoplay policies: ties playback to a user gesture.
         await player.activateElement().catch(() => {})
         await player.togglePlay()
       }),
@@ -441,7 +441,7 @@ export function useSpotify(): SpotifyController {
     playTrack: (uri: string) =>
       guard(async () => {
         const device = deviceRef.current
-        if (!device) throw new Error('Aucun device Spotify actif.')
+        if (!device) throw new Error('No active Spotify device.')
         await playerRef.current?.activateElement().catch(() => {})
         const t = await freshToken()
         await api.play(t, device, [uri])

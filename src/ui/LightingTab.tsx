@@ -6,8 +6,8 @@ const ms = (v: number) => `${(v * 1000).toFixed(0)} ms`
 const pct = (v: number) => `${(v * 100).toFixed(0)}%`
 
 /**
- * Le "playground" de la PARTIE 3 du brief : tout ce que la science ne tranche
- * pas est expose ici comme reglage de lighting designer.
+ * The "playground" for PART 3 of the brief: anything the science doesn't
+ * settle is exposed here as a lighting-designer setting.
  */
 export function LightingTab() {
   const analysis = useStore((s) => s.analysis)
@@ -18,7 +18,7 @@ export function LightingTab() {
 
   return (
     <div>
-      <Section title="Seuils (3.3)">
+      <Section title="Thresholds (3.3)">
         <Slider
           label="Gain K"
           value={analysis.gain}
@@ -27,10 +27,10 @@ export function LightingTab() {
           step={1}
           format={(v) => v.toFixed(0)}
           onChange={(gain) => setAnalysis({ gain })}
-          hint="Facteur K de I = log10(1 + A·K) / log10(1 + K). Monte-le sur un mix discret."
+          hint="Factor K in I = log10(1 + A·K) / log10(1 + K). Raise it on a subtle mix."
         />
         <Slider
-          label="Plancher (noise floor)"
+          label="Floor (noise floor)"
           value={analysis.noiseFloor}
           min={0}
           max={0.6}
@@ -39,10 +39,10 @@ export function LightingTab() {
           onChange={(noiseFloor) =>
             setAnalysis({ noiseFloor: Math.min(noiseFloor, analysis.ceiling - 0.05) })
           }
-          hint="En dessous, c'est du bruit : les LED restent eteintes."
+          hint="Below this, it's noise: the LEDs stay off."
         />
         <Slider
-          label="Plafond (clipping)"
+          label="Ceiling (clipping)"
           value={analysis.ceiling}
           min={0.3}
           max={1}
@@ -51,20 +51,20 @@ export function LightingTab() {
           onChange={(ceiling) =>
             setAnalysis({ ceiling: Math.max(ceiling, analysis.noiseFloor + 0.05) })
           }
-          hint="Baisse-le sur un master ecrase pour retrouver de la dynamique."
+          hint="Lower it on a squashed master to regain dynamic range."
         />
       </Section>
 
-      <Section title="Amortissement (3.2)">
+      <Section title="Damping (3.2)">
         <Slider
-          label="Attaque"
+          label="Attack"
           value={analysis.attack}
           min={0.002}
           max={0.3}
           step={0.002}
           format={ms}
           onChange={(attack) => setAnalysis({ attack })}
-          hint="Constante de montee. Court = percussif, long = mou."
+          hint="Rise time constant. Short = percussive, long = soft."
         />
         <Slider
           label="Decay"
@@ -74,26 +74,26 @@ export function LightingTab() {
           step={0.01}
           format={ms}
           onChange={(decay) => setAnalysis({ decay })}
-          hint="Constante de descente. C'est elle qui empeche l'effet stroboscopique."
+          hint="Fall time constant. This is what prevents the strobe effect."
         />
         <Slider
-          label="Sensibilite kick"
+          label="Kick sensitivity"
           value={analysis.beatSensitivity}
           min={0.4}
           max={4}
           step={0.05}
           onChange={(beatSensitivity) => setAnalysis({ beatSensitivity })}
-          hint="Seuil en ecarts-types au dessus de la montee d'energie moyenne. Bas = plus de kicks detectes."
+          hint="Threshold in standard deviations above the average energy rise. Lower = more kicks detected."
         />
         <Slider
-          label="Refractaire kick"
+          label="Kick refractory"
           value={analysis.beatCooldown}
           min={0.05}
           max={0.6}
           step={0.01}
           format={ms}
           onChange={(beatCooldown) => setAnalysis({ beatCooldown })}
-          hint="Duree minimale entre deux declenchements."
+          hint="Minimum duration between two triggers."
         />
       </Section>
 
@@ -111,29 +111,29 @@ export function LightingTab() {
         </div>
         <div style={{ marginTop: 12 }}>
           <Slider
-            label="Couleur par frequence"
+            label="Color by frequency"
             value={visual.bandTint}
             min={0}
             max={1}
             step={0.01}
             format={pct}
             onChange={(bandTint) => setVisual({ bandTint })}
-            hint="100% = la colonne prend la couleur de la bande qu'elle mesure (tableau du brief). 0% = seule la rampe de niveau du VU-metre colore les cellules."
+            hint="100% = the column takes the color of the band it measures (table in the brief). 0% = only the VU-meter level ramp colors the cells."
           />
           <Slider
-            label="Teinte tonale (Scriabine)"
+            label="Key tint (Scriabin)"
             value={visual.keyTint}
             min={0}
             max={1}
             step={0.01}
             format={pct}
             onChange={(keyTint) => setVisual({ keyTint })}
-            hint="Teinte globale liee a la tonalite du morceau, si Spotify la donne."
+            hint="Global tint tied to the track's key, when Spotify provides it."
           />
         </div>
       </Section>
 
-      <Section title="Rendu">
+      <Section title="Rendering">
         <Slider
           label="Bloom"
           value={visual.bloom}
@@ -141,16 +141,16 @@ export function LightingTab() {
           max={3}
           step={0.02}
           onChange={(bloom) => setVisual({ bloom })}
-          hint="Le halo neon. Sans lui les LED redeviennent des boites."
+          hint="The neon glow. Without it the LEDs turn back into boxes."
         />
         <Slider
-          label="Aberration chromatique"
+          label="Chromatic aberration"
           value={visual.chroma}
           min={0}
           max={2}
           step={0.02}
           onChange={(chroma) => setVisual({ chroma })}
-          hint="Pilotee par les sub-basses."
+          hint="Driven by the sub-bass."
         />
         <Slider
           label="Grain (timbre, 3.4)"
@@ -159,17 +159,17 @@ export function LightingTab() {
           max={1.5}
           step={0.02}
           onChange={(grain) => setVisual({ grain })}
-          hint="Augmente avec le flux spectral et la brillance."
+          hint="Increases with spectral flux and brightness."
         />
         <Slider
-          label="Brume"
+          label="Fog"
           value={visual.fog}
           min={0}
           max={0.05}
           step={0.0005}
           format={(v) => v.toFixed(4)}
           onChange={(fog) => setVisual({ fog })}
-          hint="Au dela de ~0.03 les caissons du fond disparaissent des qu'on recule."
+          hint="Beyond ~0.03 the back light boxes disappear as soon as you back away."
         />
         <Slider
           label="Camera shake"
@@ -178,20 +178,20 @@ export function LightingTab() {
           max={1.5}
           step={0.02}
           onChange={(shake) => setVisual({ shake })}
-          hint="Impulsion sur chaque transitoire detectee."
+          hint="Impulse on each transient detected."
         />
         <Slider
-          label="Cellules par caisson"
+          label="Cells per light box"
           value={visual.segments}
           min={8}
           max={40}
           step={1}
           format={(v) => v.toFixed(0)}
           onChange={(segments) => setVisual({ segments })}
-          hint="Nombre de cellules de la colonne la plus haute ; le pas est ensuite constant sur tout le mur."
+          hint="Number of cells in the tallest column; the pitch is then constant across the whole wall."
         />
         <Toggle
-          label="Aplats de palette"
+          label="Flat palette colors"
           checked={visual.quantize}
           onChange={(quantize) => setVisual({ quantize })}
         />
@@ -201,17 +201,17 @@ export function LightingTab() {
           onChange={(peakHold) => setVisual({ peakHold })}
         />
         <Toggle
-          label="Camera automatique"
+          label="Auto camera"
           checked={visual.autoCamera}
           onChange={(autoCamera) => setVisual({ autoCamera })}
         />
       </Section>
 
       <button className="btn" onClick={reset}>
-        Reinitialiser les reglages
+        Reset settings
       </button>
       <div className="field-hint" style={{ marginTop: 10 }}>
-        Glisser = orbiter · molette = zoom
+        Drag = orbit · scroll = zoom
       </div>
     </div>
   )

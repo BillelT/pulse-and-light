@@ -2,10 +2,10 @@ import { useStore } from '../state/store'
 import { ColorField, Section, Slider, Toggle, Vec3Field } from './controls'
 
 /**
- * Debuggeur de scene : lumieres, brouillard, aides visuelles (axes/grille).
- * Tout ce qui n'est pas deja dans l'onglet Lumiere (le "playground" du
- * lighting designer) et qui sert plutot a inspecter/regler la geometrie et
- * l'eclairage bruts de la scene R3F.
+ * Scene debugger: lights, fog, visual aids (axes/grid).
+ * Anything not already in the Light tab (the lighting designer's
+ * "playground") that instead serves to inspect/tune the scene's raw
+ * geometry and R3F lighting.
  */
 export function DebugTab() {
   const debug = useStore((s) => s.debug)
@@ -14,56 +14,56 @@ export function DebugTab() {
 
   return (
     <div>
-      <Section title="Aides visuelles">
+      <Section title="Visual aids">
         <Toggle
-          label="Axes du monde (X rouge, Y vert, Z bleu)"
+          label="World axes (X red, Y green, Z blue)"
           checked={debug.showAxes}
           onChange={(showAxes) => setDebug({ showAxes })}
         />
         <Toggle
-          label="Grille au sol"
+          label="Ground grid"
           checked={debug.showGrid}
           onChange={(showGrid) => setDebug({ showGrid })}
         />
       </Section>
 
-      <Section title="Sol">
+      <Section title="Floor">
         <Toggle
-          label="Contour du sol (rouge)"
+          label="Floor outline (red)"
           checked={debug.floorShowOutline}
           onChange={(floorShowOutline) => setDebug({ floorShowOutline })}
         />
         <Toggle
-          label="Contour des murs (cyan)"
+          label="Wall outline (cyan)"
           checked={debug.floorShowWallOutline}
           onChange={(floorShowWallOutline) => setDebug({ floorShowWallOutline })}
         />
         <div className="field-hint">
-          Active les deux pour comparer : le rouge doit coller au cyan (ou
-          legerement mordre dessous), jamais rester en retrait.
+          Enable both to compare: the red should hug the cyan (or slightly
+          overlap it), never sit set back from it.
         </div>
         <Slider
-          label="Marge lateraux (X)"
+          label="Side margin (X)"
           value={debug.floorMarginX}
           min={-5}
           max={5}
           step={0.1}
           format={(v) => v.toFixed(1)}
-          hint="Negatif = le sol mord sous les murs lateraux. Positif = en retrait (trou)."
+          hint="Negative = the floor extends under the side walls. Positive = set back (gap)."
           onChange={(floorMarginX) => setDebug({ floorMarginX })}
         />
         <Slider
-          label="Marge fond (Z)"
+          label="Back margin (Z)"
           value={debug.floorMarginBack}
           min={-5}
           max={5}
           step={0.1}
           format={(v) => v.toFixed(1)}
-          hint="Negatif = le sol mord sous le renfoncement du fond. Positif = en retrait (trou)."
+          hint="Negative = the floor extends under the back recess. Positive = set back (gap)."
           onChange={(floorMarginBack) => setDebug({ floorMarginBack })}
         />
         <Slider
-          label="Bord avant (Z)"
+          label="Front edge (Z)"
           value={debug.floorFrontZ}
           min={20}
           max={80}
@@ -73,20 +73,20 @@ export function DebugTab() {
         />
       </Section>
 
-      <Section title="Brouillard">
+      <Section title="Fog">
         <ColorField
-          label="Couleur du brouillard"
+          label="Fog color"
           value={debug.fogColor}
           onChange={(fogColor) => setDebug({ fogColor })}
         />
         <div className="field-hint">
-          La densite se regle dans l&apos;onglet Lumiere (reglage &quot;Brume&quot;).
+          Density is set in the Light tab (the "Fog" setting).
         </div>
       </Section>
 
-      <Section title="Ambiante">
+      <Section title="Ambient">
         <Slider
-          label="Intensite"
+          label="Intensity"
           value={debug.ambientIntensity}
           min={0}
           max={3}
@@ -94,7 +94,7 @@ export function DebugTab() {
           onChange={(ambientIntensity) => setDebug({ ambientIntensity })}
         />
         <ColorField
-          label="Couleur"
+          label="Color"
           value={debug.ambientColor}
           onChange={(ambientColor) => setDebug({ ambientColor })}
         />
@@ -102,7 +102,7 @@ export function DebugTab() {
 
       <Section title="Hemisphere">
         <Slider
-          label="Intensite"
+          label="Intensity"
           value={debug.hemiIntensity}
           min={0}
           max={3}
@@ -110,20 +110,20 @@ export function DebugTab() {
           onChange={(hemiIntensity) => setDebug({ hemiIntensity })}
         />
         <ColorField
-          label="Couleur ciel"
+          label="Sky color"
           value={debug.hemiSkyColor}
           onChange={(hemiSkyColor) => setDebug({ hemiSkyColor })}
         />
         <ColorField
-          label="Couleur sol"
+          label="Ground color"
           value={debug.hemiGroundColor}
           onChange={(hemiGroundColor) => setDebug({ hemiGroundColor })}
         />
       </Section>
 
-      <Section title="Directionnelle (soleil + ombres)">
+      <Section title="Directional (sun + shadows)">
         <Slider
-          label="Intensite"
+          label="Intensity"
           value={debug.dirIntensity}
           min={0}
           max={5}
@@ -131,7 +131,7 @@ export function DebugTab() {
           onChange={(dirIntensity) => setDebug({ dirIntensity })}
         />
         <ColorField
-          label="Couleur"
+          label="Color"
           value={debug.dirColor}
           onChange={(dirColor) => setDebug({ dirColor })}
         />
@@ -145,9 +145,9 @@ export function DebugTab() {
         />
       </Section>
 
-      <Section title="Ponctuelle">
+      <Section title="Point">
         <Slider
-          label="Intensite"
+          label="Intensity"
           value={debug.pointIntensity}
           min={0}
           max={150}
@@ -156,7 +156,7 @@ export function DebugTab() {
           onChange={(pointIntensity) => setDebug({ pointIntensity })}
         />
         <ColorField
-          label="Couleur"
+          label="Color"
           value={debug.pointColor}
           onChange={(pointColor) => setDebug({ pointColor })}
         />
@@ -189,7 +189,7 @@ export function DebugTab() {
 
       <Section title="Spot">
         <Slider
-          label="Intensite"
+          label="Intensity"
           value={debug.spotIntensity}
           min={0}
           max={60}
@@ -197,7 +197,7 @@ export function DebugTab() {
           onChange={(spotIntensity) => setDebug({ spotIntensity })}
         />
         <ColorField
-          label="Couleur"
+          label="Color"
           value={debug.spotColor}
           onChange={(spotColor) => setDebug({ spotColor })}
         />
@@ -245,7 +245,7 @@ export function DebugTab() {
       </Section>
 
       <button className="btn" onClick={reset}>
-        Reinitialiser (lumiere, analyse, debug)
+        Reset (light, analysis, debug)
       </button>
     </div>
   )

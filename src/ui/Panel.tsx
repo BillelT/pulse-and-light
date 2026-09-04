@@ -12,7 +12,7 @@ type Tab = 'source' | 'spotify' | 'light' | 'debug'
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'source', label: 'Source' },
   { id: 'spotify', label: 'Spotify' },
-  { id: 'light', label: 'Lumiere' },
+  { id: 'light', label: 'Light' },
   { id: 'debug', label: 'Debug' },
 ]
 

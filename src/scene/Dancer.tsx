@@ -5,21 +5,19 @@ import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
 
 /**
- * L'operateur derriere la regie.
+ * The operator behind the mixing desk.
  *
- * Vrai rig hierarchique — bassin > taille > buste > tete, epaule > coude >
- * poignet, hanche > genou — plutot qu'un tas de primitives independantes :
- * c'est ce qui permet qu'une rotation de bassin entraine tout le haut du
- * corps, et donc qu'une danse tienne debout au lieu de ressembler a des
- * morceaux qui vibrent.
+ * A real hierarchical rig — pelvis > waist > chest > head, shoulder > elbow >
+ * wrist, hip > knee — rather than a pile of independent primitives: this is
+ * what lets a pelvis rotation carry the whole upper body along, so a dance
+ * holds together instead of looking like separate parts vibrating.
  *
- * Le mouvement est cale sur la GRILLE RYTHMIQUE, pas sur l'horloge : la phase
- * avance en battements par seconde (BPM/60), donc le rebond tombe sur le temps
- * quel que soit le tempo du morceau.
+ * The movement is locked to the RHYTHMIC GRID, not the clock: the phase
+ * advances in beats per second (BPM/60), so the bounce lands on the beat
+ * regardless of the track's tempo.
  *
- * Plusieurs chorégraphies ("moves") se relaient toutes les CYCLE_BEATS
- * mesures, avec un fondu d'une pulsation entre deux : la danse ne tourne pas
- * en boucle sur un seul motif.
+ * Several choreographies ("moves") take turns every CYCLE_BEATS bars, with a
+ * one-beat crossfade between them: the dance doesn't loop on a single motif.
  */
 
 const SKIN = '#dba179'
@@ -50,14 +48,14 @@ export function Dancer() {
   const shinL = useRef<Group>(null)
   const shinR = useRef<Group>(null)
 
-  /** Phase en battements. 1.0 = un temps ecoule. */
+  /** Phase in beats. 1.0 = one beat elapsed. */
   const beatPhase = useRef(0)
-  /** Enveloppe d'accent, relancee a chaque kick. */
+  /** Accent envelope, retriggered on each kick. */
   const accent = useRef(0)
   const lastOnset = useRef(0)
-  /** Presence de son, lissee : 0 = silence (pas de source, source en pause,
-   *  ou piste vide), 1 = du signal arrive. Sert a arreter completement la
-   *  danse au lieu de la laisser tourner a vide sur une amplitude plancher. */
+  /** Sound presence, smoothed: 0 = silence (no source, source paused,
+   *  or empty track), 1 = signal is coming in. Used to fully stop the
+   *  dance instead of letting it idle at a floor amplitude. */
   const presence = useRef(0)
 
   useFrame((_, delta) => {
@@ -68,8 +66,8 @@ export function Dancer() {
     presence.current += ((hasSound ? 1 : 0) - presence.current) * Math.min(1, dt / 0.4)
 
     const bpm = frame.bpm > 0 ? frame.bpm : 120
-    // La phase ne progresse que s'il y a du son : sinon le personnage reste
-    // fige au lieu de continuer a defiler les chorégraphies dans le vide.
+    // The phase only advances if there's sound: otherwise the character
+    // stays frozen instead of continuing to cycle through choreographies in the void.
     beatPhase.current += dt * (bpm / 60) * presence.current
 
     if (frame.onsetCount !== lastOnset.current) {
@@ -78,8 +76,8 @@ export function Dancer() {
     }
     accent.current = Math.max(0, accent.current - dt * 4.5)
 
-    // Amplitude generale : le danseur se calme sur les passages faibles, et
-    // s'arrete net (drive nul) des qu'il n'y a plus de son du tout.
+    // Overall amplitude: the dancer calms down on quiet passages, and
+    // stops dead (zero drive) as soon as there's no sound at all.
     const drive = presence.current * (0.22 + Math.min(1, frame.level * 1.35) * 0.78)
     const p = beatPhase.current * Math.PI
     const half = beatPhase.current * Math.PI * 0.5
@@ -92,9 +90,9 @@ export function Dancer() {
 
     const ctx: MoveCtx = { p, half, swing, bounce, drive, raise, accent: accent.current }
 
-    // Choix de la chorégraphie : un motif tourne pendant CYCLE_BEATS temps,
-    // avec un fondu d'un temps vers le suivant en fin de phrase — sinon le
-    // changement de motif se voit comme un a-coup.
+    // Choreography selection: a motif runs for CYCLE_BEATS beats, with a
+    // one-beat crossfade to the next at the end of the phrase — otherwise
+    // the motif change shows as a jolt.
     const cyclePos = beatPhase.current % CYCLE_BEATS
     const moveIndex = Math.floor(beatPhase.current / CYCLE_BEATS) % MOVE_COUNT
     const nextIndex = (moveIndex + 1) % MOVE_COUNT
@@ -117,8 +115,8 @@ export function Dancer() {
 
         <group ref={spine} position={[0, 0.14, 0]}>
           <group ref={chest}>
-            {/* Buste en deux volumes : la cage plus large que la taille. Un seul
-                cube donnait une silhouette de bloc, sans lecture des epaules. */}
+            {/* Chest as two volumes: the rib cage wider than the waist. A single
+                cube gave a blocky silhouette, with no read on the shoulders. */}
             <mesh position={[0, 0.14, 0]} castShadow>
               <boxGeometry args={[0.36, 0.26, 0.23]} />
               <meshStandardMaterial color={HOODIE} roughness={0.92} metalness={0.02} />
@@ -127,26 +125,26 @@ export function Dancer() {
               <boxGeometry args={[0.46, 0.3, 0.28]} />
               <meshStandardMaterial color={HOODIE} roughness={0.92} metalness={0.02} />
             </mesh>
-            {/* Epaules : sans ces boules, les bras semblent decroches du buste. */}
+            {/* Shoulders: without these spheres, the arms look detached from the chest. */}
             {[-0.25, 0.25].map((x) => (
               <mesh key={x} position={[x, 0.45, 0]} castShadow>
                 <sphereGeometry args={[0.085, 14, 12]} />
                 <meshStandardMaterial color={HOODIE} roughness={0.92} metalness={0.02} />
               </mesh>
             ))}
-            {/* Capuche rabattue dans le dos. */}
+            {/* Hood folded down on the back. */}
             <mesh position={[0, 0.5, -0.11]} castShadow>
               <boxGeometry args={[0.3, 0.16, 0.13]} />
               <meshStandardMaterial color={HOODIE} roughness={0.92} metalness={0.02} />
             </mesh>
-            {/* Cordons de la capuche, sur le torse. */}
+            {/* Hood drawstrings, on the torso. */}
             {[-0.045, 0.045].map((x) => (
               <mesh key={x} position={[x, 0.36, 0.115]} castShadow>
                 <cylinderGeometry args={[0.008, 0.008, 0.16, 6]} />
                 <meshStandardMaterial color={HOODIE_DARK} roughness={0.8} metalness={0.02} />
               </mesh>
             ))}
-            {/* Cou. */}
+            {/* Neck. */}
             <mesh position={[0, 0.55, 0]} castShadow>
               <cylinderGeometry args={[0.055, 0.065, 0.11, 12]} />
               <meshStandardMaterial color={SKIN} roughness={0.85} metalness={0.02} />
@@ -177,7 +175,7 @@ function Limb({ args, color }: { args: [number, number, number]; color: string }
   )
 }
 
-/** Tete : visage, casquette, casque — le trio qui vend le look "DJ" de la reference. */
+/** Head: face, cap, headphones — the trio that sells the reference's "DJ" look. */
 function Head() {
   return (
     <>
@@ -186,8 +184,8 @@ function Head() {
         <meshStandardMaterial color={SKIN} roughness={0.85} metalness={0.02} />
       </mesh>
 
-      {/* Sourcils, yeux, bouche : juste assez de traits pour lire une expression
-          de face, sans cherecher un visage detaille inutile a cette distance. */}
+      {/* Brows, eyes, mouth: just enough marks to read an expression head-on,
+          without chasing a detailed face that's pointless at this distance. */}
       {[-0.045, 0.045].map((x) => (
         <mesh key={`brow-${x}`} position={[x, 0.155, 0.093]} rotation-z={x < 0 ? 0.12 : -0.12} castShadow>
           <boxGeometry args={[0.05, 0.012, 0.012]} />
@@ -205,8 +203,8 @@ function Head() {
         <meshStandardMaterial color="#7a4638" roughness={0.7} metalness={0.02} />
       </mesh>
 
-      {/* Casquette : dome + visiere, portee legerement en arriere pour laisser
-          voir le visage et poser le casque par dessus, comme sur la reference. */}
+      {/* Cap: dome + brim, worn slightly tilted back to keep the face visible
+          and let the headphones sit over it, as in the reference. */}
       <mesh position={[0, 0.185, -0.006]} castShadow>
         <sphereGeometry args={[0.107, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62]} />
         <meshStandardMaterial color={CAP} roughness={0.75} metalness={0.05} />
@@ -216,7 +214,7 @@ function Head() {
         <meshStandardMaterial color={CAP_BRIM} roughness={0.55} metalness={0.08} />
       </mesh>
 
-      {/* Casque : arceau + oreillettes, par dessus la casquette. */}
+      {/* Headphones: headband + ear cups, over the cap. */}
       <mesh position={[0, 0.2, 0]} rotation-x={Math.PI / 2} castShadow>
         <torusGeometry args={[0.118, 0.02, 8, 20, Math.PI]} />
         <meshStandardMaterial color={DARK} roughness={0.6} metalness={0.25} />
@@ -231,7 +229,7 @@ function Head() {
   )
 }
 
-/** Epaule > coude > poignet > main. Le pivot de chaque groupe est sur l'articulation. */
+/** Shoulder > elbow > wrist > hand. Each group's pivot sits on the joint. */
 function Arm({
   groupRef,
   foreRef,
@@ -265,7 +263,7 @@ function Arm({
   )
 }
 
-/** Hanche > genou > pied. */
+/** Hip > knee > foot. */
 function Leg({
   groupRef,
   shinRef,
@@ -296,7 +294,7 @@ function Leg({
 }
 
 /* ---------------------------------------------------------------------- */
-/* Choregraphie                                                            */
+/* Choreography                                                           */
 /* ---------------------------------------------------------------------- */
 
 interface MoveCtx {
@@ -309,8 +307,8 @@ interface MoveCtx {
   accent: number
 }
 
-/** Toutes les valeurs pilotees par la choregraphie, a plat pour permettre un
- *  lerp generique entre deux motifs sans dupliquer la logique de fondu. */
+/** All values driven by the choreography, flattened to allow a generic
+ *  lerp between two motifs without duplicating the crossfade logic. */
 interface Pose {
   rootY: number
   rootX: number
@@ -367,8 +365,8 @@ function lerpPose(a: Pose, b: Pose, t: number): Pose {
   return out
 }
 
-/** Mouvement de base commun a toutes les jambes : elles restent au sol, seuls
- *  les genoux plient, en opposition de phase. */
+/** Base movement shared by both legs: they stay on the ground, only the
+ *  knees bend, in phase opposition. */
 function legPose(p: number, drive: number) {
   const s = Math.sin(p)
   return {
@@ -378,8 +376,8 @@ function legPose(p: number, drive: number) {
   }
 }
 
-/** Motif par defaut : le groove d'origine — dehanche, contre-rotation du
- *  buste, bras qui montent avec l'energie. */
+/** Default motif: the original groove — hip sway, chest counter-rotation,
+ *  arms rising with the energy. */
 function grooveMove(ctx: MoveCtx): Pose {
   const { p, half, swing, bounce, drive, raise, accent } = ctx
   const legL = legPose(p, drive)
@@ -419,7 +417,7 @@ function grooveMove(ctx: MoveCtx): Pose {
   }
 }
 
-/** Bras leves, mains en l'air sur chaque temps fort — le geste "hype" de foule. */
+/** Arms raised, hands in the air on each strong beat — the crowd-hype gesture. */
 function armsUpMove(ctx: MoveCtx): Pose {
   const pose = grooveMove(ctx)
   const { p, drive, accent } = ctx
@@ -437,7 +435,7 @@ function armsUpMove(ctx: MoveCtx): Pose {
   return pose
 }
 
-/** Point alterne vers la foule, avec un leger deplacement lateral (strut). */
+/** Alternating point toward the crowd, with a slight lateral shift (strut). */
 function pointMove(ctx: MoveCtx): Pose {
   const pose = grooveMove(ctx)
   const { p, half, drive, accent } = ctx
@@ -456,8 +454,8 @@ function pointMove(ctx: MoveCtx): Pose {
   return pose
 }
 
-/** Motif centre sur la tete : hochements marques, epaules qui roulent, pas
- *  resserre — l'oppose du groove ample. */
+/** Head-centered motif: pronounced nods, rolling shoulders, tighter
+ *  footwork — the opposite of the loose groove. */
 function headbangMove(ctx: MoveCtx): Pose {
   const pose = grooveMove(ctx)
   const { p, drive, accent } = ctx
@@ -474,8 +472,8 @@ function headbangMove(ctx: MoveCtx): Pose {
   return pose
 }
 
-/** Penche sur la table, une main scratche (rotation de poignet rapide),
- *  l'autre reste posee — colle au contexte "DJ derriere la regie". */
+/** Leaning over the deck, one hand scratches (fast wrist rotation),
+ *  the other stays resting — fits the "DJ at the mixing desk" context. */
 function scratchMove(ctx: MoveCtx): Pose {
   const pose = grooveMove(ctx)
   const { p, drive, accent } = ctx
@@ -526,10 +524,10 @@ interface DancerRefs {
 }
 
 /**
- * `side` vaut -1 a gauche et +1 a droite dans le rig d'origine : une rotation
- * Z positive amene le bras vers +x, donc la pose du bras gauche est deja
- * l'inverse de celle du bras droit — c'est directement code dans chaque
- * motif ci-dessus plutot que factorise, pour rester lisible motif par motif.
+ * `side` is -1 on the left and +1 on the right in the original rig: a
+ * positive Z rotation moves the arm toward +x, so the left arm's pose is
+ * already the mirror of the right arm's — this is coded directly in each
+ * motif above rather than factored out, to stay readable motif by motif.
  */
 function applyPose(refs: DancerRefs, pose: Pose) {
   if (refs.root.current) {

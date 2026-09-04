@@ -2,45 +2,45 @@ import type { PlaybackSnapshot } from '../../spotify/types'
 import { AnalyserProvider, makeContext } from './analyserProvider'
 
 /**
- * Les extraits iTunes sont masterises tres fort (loudness quasi 0 dBFS,
- * typique d'un extrait promo). Sans attenuation, la quasi-totalite du
- * spectre tape en permanence le plafond de l'AnalyserNode (`maxDecibels`),
- * meme quand le morceau "sonne" calme sur Spotify — d'ou un mur qui reste
- * scotche en haut. Le GainNode ramene le niveau dans une plage comparable a
- * une capture d'onglet/micro, pour lesquelles le reste du moteur est calibre.
+ * iTunes previews are mastered very hot (loudness near 0 dBFS, typical of a
+ * promo clip). Without attenuation, nearly the entire spectrum permanently
+ * hits the AnalyserNode's ceiling (`maxDecibels`), even when the track
+ * "sounds" quiet on Spotify — hence a wall that stays stuck at the top. The
+ * GainNode brings the level into a range comparable to a tab/mic capture,
+ * for which the rest of the engine is calibrated.
  */
 const PREVIEW_ATTENUATION = 0.4
 
-/** Duree du fondu applique en debut/fin de piste, en secondes. */
+/** Duration of the fade applied at the start/end of the track, in seconds. */
 const FADE_SEC = 4
 
 /**
- * Vraie FFT sur un extrait iTunes (30s, meme master, libre de DRM) — le pivot
- * decrit dans le document de decision : remplace la resynthese procedurale
- * par un signal reel quand un extrait est trouve (cf. `useAudioSource.ts`
- * pour le routage source-reelle / fallback procedural).
+ * Real FFT on an iTunes preview (30s, same master, DRM-free) — the pivot
+ * described in the decision document: replaces the procedural resynthesis
+ * with a real signal when a preview is found (see `useAudioSource.ts` for
+ * the real-source / procedural-fallback routing).
  *
- * L'extrait n'est JAMAIS routé vers les enceintes (`ctx.destination`) : le
- * son que l'utilisateur entend reste celui du Web Playback SDK Spotify. On ne
- * se sert du <audio> que comme fournisseur de signal pour l'AnalyserNode.
+ * The preview is NEVER routed to the speakers (`ctx.destination`): the
+ * sound the user hears stays that of the Spotify Web Playback SDK. The
+ * <audio> element is only used as a signal source for the AnalyserNode.
  *
- * Deux limites structurelles de l'extrait bouclé, compensées ici du mieux
- * possible avec ce qu'on connaît de vrai (position/durée Spotify) :
+ * Two structural limitations of the looped preview, compensated here as
+ * best as possible with what's actually known to be real (Spotify
+ * position/duration):
  *
- *  - L'extrait tourne en boucle sur son propre timer, sans lien natif avec
- *    l'état play/pause de Spotify : `read()` synchronise donc l'élément à
- *    chaque frame (pause/lecture), et renvoie un spectre nul quand Spotify
- *    est en pause.
- *  - L'extrait ne correspond à AUCUNE position précise dans le morceau réel
- *    (souvent un passage fort, joué en boucle) : au début/à la fin de la
- *    piste, la vraie lecture Spotify monte/descend en volume alors que
- *    l'extrait bouclé peut très bien être ailleurs dans son propre cycle. On
- *    applique donc un fondu artificiel calé sur `positionSec`/`durationSec`
- *    (des données Spotify réelles et fiables, contrairement au contenu
- *    spectral instant par instant) pour éviter un mur plein volume sur une
- *    intro/outro qui doit être calme. Les transitions AU MILIEU du morceau
- *    restent en revanche non corrigibles sans signal réel — c'est la limite
- *    de fond de cette approche.
+ *  - The preview loops on its own timer, with no native link to Spotify's
+ *    play/pause state: `read()` therefore syncs the element every frame
+ *    (pause/play), and returns a null spectrum when Spotify is paused.
+ *  - The preview doesn't correspond to ANY precise position in the real
+ *    track (often a strong passage, played on loop): at the start/end of
+ *    the track, the real Spotify playback ramps volume up/down while the
+ *    looped preview could very well be elsewhere in its own cycle. An
+ *    artificial fade is therefore applied, keyed to `positionSec`/
+ *    `durationSec` (real and reliable Spotify data, unlike the
+ *    instant-by-instant spectral content) to avoid a full-volume wall on
+ *    an intro/outro that should be calm. Transitions in the MIDDLE of the
+ *    track remain, however, uncorrectable without a real signal — that's
+ *    the fundamental limit of this approach.
  */
 export class ItunesPreviewProvider extends AnalyserProvider {
   constructor(
@@ -99,8 +99,8 @@ export async function createItunesPreviewSource(
   const gain = ctx.createGain()
   gain.gain.value = PREVIEW_ATTENUATION
   source.connect(gain)
-  // Volontairement pas de connexion vers ctx.destination : extrait analyse en
-  // silence, jamais entendu (Spotify fournit deja le vrai son a l'utilisateur).
+  // Deliberately no connection to ctx.destination: the preview is analyzed
+  // silently, never heard (Spotify already provides the real sound to the user).
 
   const provider = new ItunesPreviewProvider(ctx, gain, element, label, getSnapshot)
   provider.onDispose(() => {

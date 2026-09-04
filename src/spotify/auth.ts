@@ -57,10 +57,10 @@ export function logout() {
   sessionStorage.removeItem(STATE_KEY)
 }
 
-/** Redirige vers l'ecran de consentement Spotify. */
+/** Redirects to the Spotify consent screen. */
 export async function beginLogin(): Promise<void> {
   const id = clientId()
-  if (!id) throw new Error('VITE_SPOTIFY_CLIENT_ID manquant : renseigne ton .env.')
+  if (!id) throw new Error('Missing VITE_SPOTIFY_CLIENT_ID: set it in your .env.')
 
   const verifier = randomString(96)
   const state = randomString(24)
@@ -90,7 +90,7 @@ function toStored(res: TokenResponse, previousRefresh: string | null): StoredTok
   return {
     accessToken: res.access_token,
     refreshToken: res.refresh_token ?? previousRefresh,
-    // Marge de 60 s : on rafraichit avant que le token ne soit reellement mort.
+    // 60s margin: refresh before the token is actually dead.
     expiresAt: Date.now() + (res.expires_in - 60) * 1000,
     scope: res.scope,
   }
@@ -111,8 +111,8 @@ async function postToken(body: URLSearchParams): Promise<TokenResponse> {
 }
 
 /**
- * Consomme `?code=` apres le retour de Spotify.
- * Renvoie null si l'URL courante n'est pas un retour d'auth.
+ * Consumes `?code=` after Spotify redirects back.
+ * Returns null if the current URL isn't an auth callback.
  */
 export async function consumeRedirect(): Promise<StoredToken | null> {
   const url = new URL(window.location.href)
@@ -125,10 +125,10 @@ export async function consumeRedirect(): Promise<StoredToken | null> {
   const verifier = sessionStorage.getItem(VERIFIER_KEY)
   cleanUrl()
 
-  if (error) throw new Error(`Spotify a refuse la connexion : ${error}`)
-  if (!verifier) throw new Error('Verifier PKCE introuvable. Relance la connexion.')
+  if (error) throw new Error(`Spotify refused the connection: ${error}`)
+  if (!verifier) throw new Error('PKCE verifier not found. Try connecting again.')
   if (expectedState && state !== expectedState) {
-    throw new Error('State OAuth invalide : tentative de rejeu ignoree.')
+    throw new Error('Invalid OAuth state: replay attempt ignored.')
   }
 
   const res = await postToken(
@@ -149,7 +149,7 @@ export async function consumeRedirect(): Promise<StoredToken | null> {
 }
 
 export async function refreshToken(token: StoredToken): Promise<StoredToken> {
-  if (!token.refreshToken) throw new Error('Pas de refresh token : reconnecte-toi.')
+  if (!token.refreshToken) throw new Error('No refresh token: please reconnect.')
   const res = await postToken(
     new URLSearchParams({
       grant_type: 'refresh_token',
@@ -162,13 +162,13 @@ export async function refreshToken(token: StoredToken): Promise<StoredToken> {
   return next
 }
 
-/** Renvoie un token valide, en le rafraichissant si besoin. */
+/** Returns a valid token, refreshing it if needed. */
 export async function ensureFresh(token: StoredToken): Promise<StoredToken> {
   if (Date.now() < token.expiresAt) return token
   return refreshToken(token)
 }
 
-/** Retire code/state/error de l'URL pour ne pas les laisser dans l'historique. */
+/** Strips code/state/error from the URL so they don't stay in history. */
 function cleanUrl() {
   const clean = `${window.location.origin}${window.location.pathname.replace(/\/callback$/, '/')}`
   window.history.replaceState({}, document.title, clean)

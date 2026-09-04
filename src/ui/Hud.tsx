@@ -15,8 +15,8 @@ export function Hud() {
           <button
             className="icon-btn"
             onClick={togglePanel}
-            title={panelOpen ? 'Masquer le panneau debug' : 'Afficher le panneau debug'}
-            aria-label={panelOpen ? 'Masquer le panneau debug' : 'Afficher le panneau debug'}
+            title={panelOpen ? 'Hide debug panel' : 'Show debug panel'}
+            aria-label={panelOpen ? 'Hide debug panel' : 'Show debug panel'}
           >
             {panelOpen ? <CloseIcon size={13} /> : <MoreIcon size={13} />}
           </button>
