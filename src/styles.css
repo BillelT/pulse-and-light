@@ -1055,6 +1055,17 @@ body.ink .analyzer * {
   color: var(--ink);
 }
 
+/* ...sauf les icones. Elles sont tracees en `fill: currentColor`, donc
+   repeindre le sous-arbre entier leur donnait la couleur de l'encre y compris
+   a l'interieur du bouton play, dont le fond EST l'encre : un rond noir vide.
+   `inherit` leur rend la couleur de leur bouton, quelle qu'elle soit. */
+body.ink .dock svg,
+body.ink .dock svg *,
+body.ink .analyzer svg,
+body.ink .analyzer svg * {
+  color: inherit;
+}
+
 /* Second niveau de lecture : les informations secondaires restent en gris
    d'encre, comme une annotation au crayon a cote du trait principal. */
 body.ink .np-artist,
@@ -1155,11 +1166,15 @@ body.ink .np-controls button.np-play svg:first-child {
   fill: currentColor;
 }
 
-/* Curseurs : rail au trait, poignee pleine. */
+/* Curseurs : rail au trait, poignee pleine. Le rail est le seul element de
+   l'interface qui n'a pas de contour propre — a 14% d'opacite il disparaissait
+   simplement du dessin, ne laissant que la poignee flotter. */
 body.ink .np-seek,
 body.ink .np-vol,
 body.ink input[type='range'] {
-  background: rgba(20, 18, 15, 0.14);
+  background: rgba(20, 18, 15, 0.16);
+  border: 1px solid rgba(20, 18, 15, 0.42);
+  height: 5px;
 }
 body.ink .dock input.np-seek::-webkit-slider-thumb,
 body.ink .dock input.np-vol::-webkit-slider-thumb {

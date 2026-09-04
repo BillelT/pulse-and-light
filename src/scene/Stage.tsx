@@ -15,7 +15,7 @@ import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
 import { useStore } from '../state/store'
 import { Dancer } from './Dancer'
-import { INK_STROKE } from './ink'
+import { INK_SURFACE } from './ink'
 import { paletteById } from './palettes'
 import { BACK_WIDTH, BACK_Z, SIDE_LEN, SIDE_X, SIDE_Z, WALL_HEIGHT, WALL_TOP, WALL_Y } from './roomLayout'
 import {
@@ -132,11 +132,8 @@ export function Stage() {
 
   return (
     <group>
-      {/* Sol : en mode encre, il n'existe pas. Le brief demande un sol sans
-          delimitation, qui se fond dans le blanc — un plan, meme blanc, se
-          trahirait par sa silhouette et par la ligne d'horizon que le trait en
-          tirerait. Seules quelques touches sous les equipements le suggerent. */}
-      {ink && <InkGroundStrokes />}
+      {/* Sol de la DA encre : la dalle de la terrasse. */}
+      {ink && <InkTerrace />}
 
       {/* Sol reflechissant. Mat cote PBR : la reflexion vient du miroir, pas du
           lobe speculaire, sinon chaque projecteur laisse une pastille brillante
@@ -425,17 +422,27 @@ const BACKDROP_SIDE_SIZE: [number, number] = [90, 56]
 /**
  * Cadrage de la ville en DA "ink".
  *
- * Les plans sont bien plus grands, bien plus loin, et surtout leur bord BAS
- * descend sous le plateau (`INK_BACKDROP_Y - hauteur / 2` est negatif) : les
- * tours n'ont donc pas de base visible, elles traversent le cadre de bout en
- * bout. C'est la seule facon de dire qu'on est en hauteur — des immeubles qui
- * commencent en l'air se lisent comme une frise posee sur l'horizon.
+ * La scenographie est posee sur une TERRASSE : une dalle finie, dont les trois
+ * bords (fond, gauche, droite) portent exactement les trois plans de ville.
+ * Les tours partent donc du bord de la dalle — meme base que le sol — et le
+ * regard bascule sans couture du plateau a la ville.
+ *
+ * Leur hauteur reste modeste par rapport a la distance : une tour qui deborde
+ * du cadre se lit comme un immeuble tout proche, pas comme un immeuble loin.
+ * C'est le rapport hauteur / distance qui porte l'echelle, rien d'autre.
  */
-const INK_BACKDROP_BACK_SIZE: [number, number] = [320, 170]
-const INK_BACKDROP_SIDE_SIZE: [number, number] = [280, 170]
-const INK_BACKDROP_Y = 42
-const INK_BACKDROP_BACK_Z = BACK_Z - 62
-const INK_BACKDROP_SIDE_X = SIDE_X + 44
+const INK_TERRACE_X = 78
+const INK_TERRACE_BACK_Z = BACK_Z - 70
+const INK_TERRACE_FRONT_Z = 70
+const INK_TERRACE_THICKNESS = 0.8
+const INK_CITY_HEIGHT = 52
+const INK_BACKDROP_BACK_SIZE: [number, number] = [INK_TERRACE_X * 2, INK_CITY_HEIGHT]
+const INK_BACKDROP_SIDE_SIZE: [number, number] = [
+  INK_TERRACE_FRONT_Z - INK_TERRACE_BACK_Z,
+  INK_CITY_HEIGHT,
+]
+/** Bord bas des plans de ville exactement au niveau du sol. */
+const INK_BACKDROP_Y = INK_CITY_HEIGHT / 2
 
 /**
  * Ville de nuit derriere les trois baies (fond, gauche, droite) : trois plans
@@ -486,8 +493,11 @@ function CityBackdrop() {
   const backSize = ink ? INK_BACKDROP_BACK_SIZE : BACKDROP_BACK_SIZE
   const sideSize = ink ? INK_BACKDROP_SIDE_SIZE : BACKDROP_SIDE_SIZE
   const y = ink ? INK_BACKDROP_Y : WALL_TOP * 0.75
-  const backZ = ink ? INK_BACKDROP_BACK_Z : BACK_Z - 16
-  const sideX = ink ? INK_BACKDROP_SIDE_X : SIDE_X + 16
+  const backZ = ink ? INK_TERRACE_BACK_Z : BACK_Z - 16
+  const sideX = ink ? INK_TERRACE_X : SIDE_X + 16
+  // Les plans lateraux sont centres sur la profondeur de la terrasse, pour
+  // que leurs quatre coins tombent pile sur ceux de la dalle.
+  const sideZ = ink ? (INK_TERRACE_FRONT_Z + INK_TERRACE_BACK_Z) / 2 : SIDE_Z
 
   return (
     <>
@@ -495,11 +505,11 @@ function CityBackdrop() {
         <planeGeometry args={backSize} />
         {material(backTex)}
       </mesh>
-      <mesh position={[-sideX, y, SIDE_Z]} rotation-y={Math.PI / 2} renderOrder={-1}>
+      <mesh position={[-sideX, y, sideZ]} rotation-y={Math.PI / 2} renderOrder={-1}>
         <planeGeometry args={sideSize} />
         {material(leftTex)}
       </mesh>
-      <mesh position={[sideX, y, SIDE_Z]} rotation-y={-Math.PI / 2} renderOrder={-1}>
+      <mesh position={[sideX, y, sideZ]} rotation-y={-Math.PI / 2} renderOrder={-1}>
         <planeGeometry args={sideSize} />
         {material(rightTex)}
       </mesh>
@@ -508,42 +518,22 @@ function CityBackdrop() {
 }
 
 /**
- * Traits de sol.
+ * La dalle sur laquelle tout repose.
  *
- * Le brief interdit un sol delimite : la scenographie doit poser sur du blanc.
- * Quelques traits horizontaux sous les equipements suffisent a ancrer les
- * objets — c'est exactement ce que fait un croquis, une ombre portee au trait
- * plutot qu'un plan. Ce sont de vraies geometries (des lames tres plates
- * couchees au sol), donc elles suivent la perspective de la camera.
+ * Une VRAIE dalle, pas un plan infini : ses trois bords arriere coincident
+ * exactement avec les trois plans de ville, si bien que les tours partent du
+ * bord du sol au lieu de flotter. Son epaisseur est visible sur la tranche
+ * avant — c'est elle qui dit qu'on est sur une terrasse en hauteur, et non sur
+ * un sol qui continuerait a l'infini.
  */
-function InkGroundStrokes() {
-  // [x, z, longueur, epaisseur]
-  const strokes: Array<[number, number, number, number]> = [
-    [-10.6, 0.35, 5.2, 0.09],
-    [10.6, 0.35, 5.2, 0.09],
-    [-9.2, 1.5, 3.0, 0.06],
-    [9.2, 1.5, 3.0, 0.06],
-    [0, 7.5, 7.4, 0.09],
-    [0, 8.4, 4.2, 0.06],
-    [-4.6, 6.9, 2.4, 0.05],
-    [4.6, 6.9, 2.4, 0.05],
-  ]
-
+function InkTerrace() {
+  const depth = INK_TERRACE_FRONT_Z - INK_TERRACE_BACK_Z
+  const centerZ = (INK_TERRACE_FRONT_Z + INK_TERRACE_BACK_Z) / 2
   return (
-    <group>
-      {strokes.map(([x, z, length, thickness]) => (
-        <mesh key={`${x}:${z}`} position={[x, 0.012, z]} rotation-x={-Math.PI / 2}>
-          <planeGeometry args={[length, thickness]} />
-          <meshBasicMaterial
-            color={INK_STROKE}
-            toneMapped={false}
-            fog={false}
-            depthWrite={false}
-            userData={{ inkKeep: true }}
-          />
-        </mesh>
-      ))}
-    </group>
+    <mesh position={[0, -INK_TERRACE_THICKNESS / 2, centerZ]}>
+      <boxGeometry args={[INK_TERRACE_X * 2, INK_TERRACE_THICKNESS, depth]} />
+      <meshBasicMaterial color={INK_SURFACE} fog={false} />
+    </mesh>
   )
 }
 

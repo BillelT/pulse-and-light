@@ -205,18 +205,25 @@ Rien n'est stylisé « par-dessus » une image colorée : l'image est *redessin�
 - **Ce qui disparaît** : brume, bloom, aberration chromatique, vignettage, sol
   réfléchissant, murs de verre, plafond, liserés néon du décor — et les ombres
   portées, que plus aucun matériau ne reçoit.
-- **Ce qui reste du sol** : quelques traits horizontaux sous les équipements. Le
-  brief interdit un sol délimité ; un plan, même blanc, se trahirait par sa
-  silhouette et par la ligne d'horizon que le trait en tirerait.
+- **Le sol est une terrasse** : une dalle finie, pas un plan infini. Ses trois
+  bords arrière coïncident exactement avec les trois plans de ville, si bien que
+  les tours partent du bord du sol au lieu de flotter, et son épaisseur visible
+  sur la tranche dit qu'on est en hauteur.
 - **Les hachures sont coupées par défaut** : la page doit rester blanche. Le
   réglage existe encore (Lumière › *Hatching*), mais à zéro — sur une surface
   vue en incidence rasante, elles n'apparaissaient que sous certains angles de
   caméra, ce qui faisait "respirer" l'estrade sans raison.
-- **La ville plonge sous le plateau** : les plans de fond sont trois fois plus
-  grands et bien plus loin, et leur bord bas passe sous le sol. Aucune base
-  d'immeuble n'est visible, les tours traversent le cadre de bout en bout —
-  c'est ce qui dit qu'on regarde la ville depuis un étage élevé. Des immeubles
-  qui commencent en l'air se lisaient comme une frise posée sur l'horizon.
+- **La ville est dessinée en trois rangées**, chacune par-dessus la précédente,
+  **remplissage blanc compris** : c'est l'occlusion qui rend la profondeur
+  lisible — sans le remplissage, les trois plans se traversaient et ne
+  donnaient qu'une nappe de traits enchevêtrés. Un plan lointain est plus
+  petit, plus clair *et* moins détaillé que celui devant lui ; les trois
+  varient ensemble, la taille seule se lisant comme un immeuble bas plutôt que
+  comme un immeuble loin. Les traits sont volontairement épais : la texture est
+  vue très réduite, et le mipmapping moyenne chaque trait fin avec le blanc —
+  un trait de 2 px sortait deux fois plus clair que sa couleur. Même logique
+  pour les gris, choisis dans une plage étroite parce que la passe encre
+  travaille en linéaire, où un gris sRGB clair est déjà presque blanc.
 - **Le personnage est réduit à des volumes simples** : une capsule pour le
   buste, une sphère pour la tête, des capsules pour les membres. Ni visage, ni
   casquette, ni casque : haut de deux pouces à l'écran, chaque détail
@@ -225,7 +232,12 @@ Rien n'est stylisé « par-dessus » une image colorée : l'image est *redessin�
   intacts.
 - **Le HUD suit la même DA** : papier, contours fins, aucune lueur, analyseur en
   niveaux de gris. Une classe `ink` sur `<body>` suffit, la feuille de style est
-  écrite autour de variables.
+  écrite autour de variables. Deux pièges y sont traités explicitement : le
+  sous-arbre du dock est repeint en bloc (toute sa typographie était écrite en
+  blanc), mais **les icônes en sont exclues** — tracées en `fill: currentColor`,
+  elles prenaient sinon la couleur de l'encre jusque dans le bouton play, dont
+  le fond *est* l'encre ; et les rails de curseurs reçoivent un contour, faute
+  de quoi ils disparaissent du dessin en ne laissant flotter que la poignée.
 
 Le mode se coupe depuis *Lumière › Ink art direction* (la scénographie néon
 d'origine est intacte), avec réglages du trait, du tremblement, des contours,
