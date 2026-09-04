@@ -20,6 +20,14 @@ const CABINETS = [
 ]
 
 /**
+ * Seuil de pression a partir duquel les stacks se mettent a vibrer, et
+ * amplitude maximale du tremblement en unites monde (quelques centimetres :
+ * au dela, le caisson ne tremble plus, il flotte).
+ */
+const SHAKE_THRESHOLD = 0.55
+const SHAKE_AMPLITUDE = 0.055
+
+/**
  * Rangee de caissons de basses (point 3.1 du brief) : les membranes avancent
  * physiquement sur les frequences < 100 Hz. C'est le seul element de la scene
  * qui bouge en translation — tout le reste ne fait que changer de lumiere,
@@ -31,6 +39,7 @@ export function SubCabinets() {
   const ink = useStore((s) => s.visual.ink)
 
   const conesRef = useRef<Group[]>([])
+  const stacksRef = useRef<(Group | null)[]>([])
   const badgeMaterial = useMemo(
     () => new MeshBasicMaterial({ toneMapped: false, color: new Color(palette.bands[0]) }),
     [palette],
@@ -42,6 +51,32 @@ export function SubCabinets() {
     // parce qu'un kick reel deborde toujours au dessus de 60 Hz.
     const push = frame.bands[Band.Sub] * 0.75 + frame.bands[Band.Bass] * 0.25
     const t = state.clock.elapsedTime
+
+    // Tremblement des stacks.
+    //
+    // Il ne demarre qu'AU DELA d'un seuil de pression : un caisson qui vibre
+    // en permanence se lit comme un defaut de rendu, alors qu'un caisson
+    // parfaitement immobile qui se met a trembler dans un gros passage se lit
+    // comme de la puissance. La vibration est rapide et non harmonique (deux
+    // frequences elevees et premieres entre elles), sinon elle oscille au lieu
+    // de vibrer.
+    const excess = Math.max(0, push - SHAKE_THRESHOLD) / (1 - SHAKE_THRESHOLD)
+    const amp = excess * excess * SHAKE_AMPLITUDE
+    for (let i = 0; i < stacksRef.current.length; i++) {
+      const stack = stacksRef.current[i]
+      if (!stack) continue
+      const cab = CABINETS[i]
+      if (amp < 1e-4) {
+        stack.position.set(cab.x, cab.y, cab.z)
+        continue
+      }
+      const phase = cab.phase * 7.3
+      stack.position.set(
+        cab.x + Math.sin(t * 71 + phase) * amp,
+        cab.y + Math.sin(t * 53 + phase * 1.7) * amp * 0.65,
+        cab.z + Math.sin(t * 61 + phase * 2.3) * amp * 0.45,
+      )
+    }
 
     for (let i = 0; i < conesRef.current.length; i++) {
       const cone = conesRef.current[i]
@@ -61,6 +96,9 @@ export function SubCabinets() {
       {CABINETS.map((cab, index) => (
         <group
           key={`${cab.x}:${cab.y}`}
+          ref={(node) => {
+            stacksRef.current[index] = node
+          }}
           position={[cab.x, cab.y, cab.z]}
           rotation-y={cab.rotationY}
         >

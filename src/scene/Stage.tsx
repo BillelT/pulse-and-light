@@ -452,13 +452,40 @@ const INK_CITY_BOTTOM_Y = -20
 const INK_BACKDROP_Y = INK_CITY_BOTTOM_Y + INK_CITY_HEIGHT / 2
 
 /**
+ * Les trois plans de ville ne portent pas trois dessins : ils portent trois
+ * TRONCONS d'un seul panorama, deroule le long du perimetre de la terrasse
+ * (cote gauche, puis fond, puis cote droit). Chacun ne montre que sa part de
+ * l'image, dans l'ordre et a l'echelle exacte de sa longueur.
+ *
+ * C'est la seule facon d'obtenir des jointures propres : avec trois cadrages
+ * independants, deux immeubles differents se rencontraient dans l'angle et la
+ * couture se voyait comme un decoupage. Ici un immeuble a cheval sur un coin
+ * se poursuit d'un plan a l'autre sans rupture.
+ *
+ * L'orientation joue en notre faveur : une rotation Y de +90 deg envoie le +X
+ * local du plan gauche vers l'arriere, et -90 deg envoie celui du plan droit
+ * vers l'avant — les U progressent donc bien dans le sens du parcours.
+ */
+const INK_CITY_SIDE_LEN = INK_TERRACE_FRONT_Z - INK_TERRACE_BACK_Z
+const INK_CITY_BACK_LEN = INK_TERRACE_X * 2
+const INK_CITY_PERIMETER = INK_CITY_SIDE_LEN * 2 + INK_CITY_BACK_LEN
+const INK_CITY_ASPECT = INK_CITY_PERIMETER / INK_CITY_HEIGHT
+
+/** Decoupe le tronçon [start, start + span] du panorama sur une texture. */
+function fitCityStrip(tex: Texture, start: number, span: number) {
+  tex.repeat.set(span / INK_CITY_PERIMETER, 1)
+  tex.offset.set(start / INK_CITY_PERIMETER, 0)
+  tex.needsUpdate = true
+}
+
+/**
  * Ville de nuit derriere les trois baies (fond, gauche, droite) : trois plans
  * texture, immobiles, chacun montrant la bande correspondante de la feuille
  * de sprites (ou la skyline generee tant qu'elle n'est pas fournie).
  */
 function CityBackdrop() {
   const ink = useStore((s) => s.visual.ink)
-  const sketch = useMemo(() => (ink ? makeCitySketchTexture() : null), [ink])
+  const sketch = useMemo(() => (ink ? makeCitySketchTexture(INK_CITY_ASPECT) : null), [ink])
   const { texture: photo, isSheet: photoIsSheet } = useCitySheet(CITY_SHEET_URL)
   const base = sketch ?? photo
   const isSheet = sketch ? false : photoIsSheet
@@ -469,17 +496,20 @@ function CityBackdrop() {
   const rightTex = useMemo(() => base.clone(), [base])
 
   useEffect(() => {
-    if (isSheet) fitSheetBand(backTex, 'front', BACKDROP_BACK_SIZE[0] / BACKDROP_BACK_SIZE[1])
+    if (ink) fitCityStrip(backTex, INK_CITY_SIDE_LEN, INK_CITY_BACK_LEN)
+    else if (isSheet) fitSheetBand(backTex, 'front', BACKDROP_BACK_SIZE[0] / BACKDROP_BACK_SIZE[1])
     else fitFallback(backTex)
-  }, [backTex, isSheet])
+  }, [backTex, isSheet, ink])
   useEffect(() => {
-    if (isSheet) fitSheetBand(leftTex, 'left', BACKDROP_SIDE_SIZE[0] / BACKDROP_SIDE_SIZE[1])
+    if (ink) fitCityStrip(leftTex, 0, INK_CITY_SIDE_LEN)
+    else if (isSheet) fitSheetBand(leftTex, 'left', BACKDROP_SIDE_SIZE[0] / BACKDROP_SIDE_SIZE[1])
     else fitFallback(leftTex)
-  }, [leftTex, isSheet])
+  }, [leftTex, isSheet, ink])
   useEffect(() => {
-    if (isSheet) fitSheetBand(rightTex, 'right', BACKDROP_SIDE_SIZE[0] / BACKDROP_SIDE_SIZE[1])
+    if (ink) fitCityStrip(rightTex, INK_CITY_SIDE_LEN + INK_CITY_BACK_LEN, INK_CITY_SIDE_LEN)
+    else if (isSheet) fitSheetBand(rightTex, 'right', BACKDROP_SIDE_SIZE[0] / BACKDROP_SIDE_SIZE[1])
     else fitFallback(rightTex)
-  }, [rightTex, isSheet])
+  }, [rightTex, isSheet, ink])
 
   // En encre, les plans de fond n'ecrivent PAS la profondeur : sinon le trait
   // cernerait le rectangle du plan lui-meme, et une bordure franche

@@ -65,7 +65,10 @@ export function Dancer() {
     const dt = Math.min(0.1, delta)
     const frame = engine.currentFrame
 
-    const hasSound = frame.level > 0.015 || frame.bpm > 0
+    // Le tempo n'est pas un signe de presence : le moteur conserve sa derniere
+    // estimation quand la source s'arrete, et le personnage continuait donc a
+    // danser dans le silence. Seul le niveau fait foi.
+    const hasSound = frame.level > 0.015
     presence.current += ((hasSound ? 1 : 0) - presence.current) * Math.min(1, dt / 0.4)
 
     const bpm = frame.bpm > 0 ? frame.bpm : 120

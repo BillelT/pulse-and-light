@@ -4,6 +4,7 @@ import { AdaptiveDpr, Preload } from '@react-three/drei'
 import { useStore } from '../state/store'
 import { AudioDriver } from './AudioDriver'
 import { CaissonWall } from './CaissonWall'
+import { Crowd } from './Crowd'
 import { Effects } from './Effects'
 import { INK_PAPER } from './ink'
 import { InkSurfaces } from './InkSurfaces'
@@ -48,6 +49,7 @@ export function Scene() {
         <Stage />
         <CaissonWall />
         <SubCabinets />
+        <Crowd />
         <Preload all />
       </Suspense>
 

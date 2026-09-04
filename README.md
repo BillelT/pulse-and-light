@@ -166,6 +166,22 @@ soit trois *draw calls*, ce qui laisse le budget au bloom.
   volontairement réduit à des volumes simples (capsules, une sphère pour la
   tête, aucun visage) : à sa taille à l'écran, le détail se lit comme de la
   salissure, pas comme un personnage.
+- **Le public** entre en marchant depuis l'arrière de la caméra, rejoint une
+  place sur la piste, y danse, et repart par le même chemin quand la musique
+  s'arrête (`Crowd.tsx`). Le remplissage est une **intégrale**, pas un seuil :
+  plus le son dure, plus la piste se garnit, et le silence la vide au même
+  rythme tranquille — un comptage instantané (n personnes = f(niveau)) ferait
+  clignoter la foule à chaque baisse de niveau. Personne n'apparaît sur place :
+  un « pop » à l'endroit exact où quelqu'un va danser trahit immédiatement le
+  dispositif, alors qu'une marche, même sommaire, le rend invisible.
+- **Le tempo n'est pas un signe de présence.** Le moteur conserve sa dernière
+  estimation de BPM après l'arrêt de la source : tester `bpm > 0` laissait le
+  DJ danser dans le silence et la piste pleine à jamais. Seul le niveau fait
+  foi.
+- **Les stacks de basses tremblent** au-delà d'un seuil de pression, jamais en
+  dessous : un caisson qui vibre en permanence se lit comme un défaut de rendu,
+  alors qu'un caisson parfaitement immobile qui se met à trembler dans un gros
+  passage se lit comme de la puissance.
 - **Caméra** maison plutôt qu'`OrbitControls`, pour pouvoir superposer un
   mouvement automatique et un *shake* sur les kicks sans que le contrôleur ne
   les écrase. Glisser = orbiter, molette = zoom.
@@ -225,6 +241,12 @@ Rien n'est stylisé « par-dessus » une image colorée : l'image est *redessin�
   sans jamais s'y terminer — le trait reste continu, et c'est ce recouvrement
   qui donne la profondeur ; une base posée pile sur la ligne d'horizon se lit
   comme un décor découpé et collé dessus.
+- **Les trois plans de ville portent un seul panorama**, déroulé le long du
+  périmètre de la terrasse (côté gauche, puis fond, puis côté droit) ; chacun
+  n'en montre que son tronçon, à l'échelle exacte de sa longueur. Avec trois
+  cadrages indépendants, deux immeubles différents se rencontraient dans
+  l'angle et la couture se lisait comme un découpage ; ici un immeuble à cheval
+  sur un coin se poursuit d'un plan à l'autre.
 - **La ville est dessinée en trois rangées**, chacune par-dessus la précédente,
   **remplissage blanc compris** : c'est l'occlusion qui rend la profondeur
   lisible — sans le remplissage, les trois plans se traversaient et ne
