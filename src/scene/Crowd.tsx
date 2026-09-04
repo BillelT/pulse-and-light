@@ -38,7 +38,7 @@ const FADE = 0.35
  * `body.position.y = rebond` ecrasait le decalage pose au montage et faisait
  * tomber buste, tete et bras a hauteur de cheville, imbriques dans les jambes.
  */
-const BODY_Y = 0.9
+const BODY_Y = 0.7
 
 interface Walker {
   active: boolean
@@ -306,12 +306,6 @@ function Member({ refs }: { refs: MemberRefs }) {
   return (
     <group ref={refs.root} visible={false}>
       <group ref={refs.body} position={[0, BODY_Y, 0]}>
-        {/* Bassin : assez large pour coiffer les deux cuisses, assez court
-            pour ne pas les avaler — c'est lui qui doit se terminer AU DESSUS
-            de l'entrejambe, sinon la silhouette se lit comme une cloche. */}
-        <mesh material={materials.bottom}>
-          <capsuleGeometry args={[0.125, 0.06, 4, 10]} />
-        </mesh>
         {/* Buste. */}
         <mesh position={[0, 0.36, 0]} material={materials.top}>
           <capsuleGeometry args={[0.17, 0.24, 5, 12]} />
