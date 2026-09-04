@@ -15,6 +15,7 @@ import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
 import { useStore } from '../state/store'
 import { Dancer } from './Dancer'
+import { INK_SURFACE } from './ink'
 import { paletteById } from './palettes'
 import { BACK_WIDTH, BACK_Z, SIDE_LEN, SIDE_X, SIDE_Z, WALL_HEIGHT, WALL_TOP, WALL_Y } from './roomLayout'
 import { makeCityTexture, makeGratingTexture, makeTileTexture } from './textures'
@@ -76,6 +77,7 @@ function GlassMaterial() {
 export function Stage() {
   const paletteId = useStore((s) => s.visual.paletteId)
   const palette = useMemo(() => paletteById(paletteId), [paletteId])
+  const ink = useStore((s) => s.visual.ink)
 
   const floorMarginX = useStore((s) => s.debug.floorMarginX)
   const floorMarginBack = useStore((s) => s.debug.floorMarginBack)
@@ -125,9 +127,13 @@ export function Stage() {
 
   return (
     <group>
+      {/* Sol de la DA encre : la dalle de la terrasse. */}
+      {ink && <InkTerrace />}
+
       {/* Sol reflechissant. Mat cote PBR : la reflexion vient du miroir, pas du
           lobe speculaire, sinon chaque projecteur laisse une pastille brillante
           au milieu du plateau. */}
+      {!ink && (
       <mesh rotation-x={-Math.PI / 2} position={[0, 0, floorCenterZ]} receiveShadow>
         <planeGeometry args={[floorWidth, floorDepth]} />
         <MeshReflectorMaterial
@@ -145,6 +151,7 @@ export function Stage() {
           roughnessMap={tiles}
         />
       </mesh>
+      )}
 
       {/* Contour du sol reglable, en fil de fer : le miroir ne peut pas
           s'afficher en wireframe, ce contour donne quand meme ses bords
@@ -173,28 +180,37 @@ export function Stage() {
           les baies vitrees. Decor de fond, jamais de vraie geometrie. */}
       <CityBackdrop />
 
-      {/* Murs en verre : la transmission laisse voir le fond/la brume au
-          travers (plus de noir absolu quand la camera orbite devant la
-          scene) tout en gardant un effet de vitre, avec reflets et fresnel. */}
-      <mesh position={[0, WALL_Y, BACK_Z]}>
-        <boxGeometry args={[BACK_WIDTH, WALL_HEIGHT, 0.25]} />
-        <GlassMaterial />
-      </mesh>
-      {[-SIDE_X, SIDE_X].map((x) => (
-        <mesh key={x} position={[x, WALL_Y, SIDE_Z]} rotation-y={(x < 0 ? 1 : -1) * (Math.PI / 2)}>
-          <boxGeometry args={[SIDE_LEN, WALL_HEIGHT, 0.25]} />
-          <GlassMaterial />
-        </mesh>
-      ))}
+      {/* Murs en verre, lisere neon et plafond : toute la boite disparait en
+          mode encre. Le croquis de reference ne montre aucune piece — la
+          scenographie flotte dans le blanc, devant la skyline. Les limites de
+          camera, elles, restent celles de la piece. */}
+      {!ink && (
+        <>
+          <mesh position={[0, WALL_Y, BACK_Z]}>
+            <boxGeometry args={[BACK_WIDTH, WALL_HEIGHT, 0.25]} />
+            <GlassMaterial />
+          </mesh>
+          {[-SIDE_X, SIDE_X].map((x) => (
+            <mesh
+              key={x}
+              position={[x, WALL_Y, SIDE_Z]}
+              rotation-y={(x < 0 ? 1 : -1) * (Math.PI / 2)}
+            >
+              <boxGeometry args={[SIDE_LEN, WALL_HEIGHT, 0.25]} />
+              <GlassMaterial />
+            </mesh>
+          ))}
 
-      <RoomTrim />
+          <RoomTrim />
 
-      {/* Plafond : plan mat sombre, juste assez pour fermer la piece — la
-          reference ne montre jamais sa texture, seul le lisere neon compte. */}
-      <mesh position={[0, WALL_TOP + 0.3, SIDE_Z]} rotation-x={Math.PI / 2}>
-        <planeGeometry args={[BACK_WIDTH + 4, SIDE_LEN + 4]} />
-        <meshStandardMaterial color="#050408" roughness={1} metalness={0} side={DoubleSide} />
-      </mesh>
+          {/* Plafond : plan mat sombre, juste assez pour fermer la piece — la
+              reference ne montre jamais sa texture, seul le lisere neon compte. */}
+          <mesh position={[0, WALL_TOP + 0.3, SIDE_Z]} rotation-x={Math.PI / 2}>
+            <planeGeometry args={[BACK_WIDTH + 4, SIDE_LEN + 4]} />
+            <meshStandardMaterial color="#050408" roughness={1} metalness={0} side={DoubleSide} />
+          </mesh>
+        </>
+      )}
 
       {/* Estrade des caissons. */}
       <mesh position={[0, 0.12, -5.5]} receiveShadow castShadow>
@@ -207,7 +223,7 @@ export function Stage() {
         />
       </mesh>
 
-      <StageEdge stripMaterial={stripMaterial} grating={grating} />
+      <StageEdge stripMaterial={stripMaterial} grating={grating} ink={ink} />
 
       {/* Podium de la regie. */}
       <mesh position={[0, 0.26, PODIUM_Z]} castShadow receiveShadow>
@@ -224,10 +240,14 @@ export function Stage() {
         />
       </mesh>
       {/* Lisere du podium, sur la tranche : une bague posee a plat sur le
-          plateau disparaissait en une ligne aliasee vue de face. */}
-      <mesh position={[0, 0.42, PODIUM_Z]} material={rimMaterial}>
-        <cylinderGeometry args={[2.62, 2.62, 0.06, 48, 1, true]} />
-      </mesh>
+          plateau disparaissait en une ligne aliasee vue de face.
+          En encre, tous les liseres lumineux du decor tombent : la seule
+          couleur autorisee est celle des colonnes. */}
+      {!ink && (
+        <mesh position={[0, 0.42, PODIUM_Z]} material={rimMaterial}>
+          <cylinderGeometry args={[2.62, 2.62, 0.06, 48, 1, true]} />
+        </mesh>
+      )}
 
       <DjBooth />
     </group>
@@ -245,9 +265,11 @@ export function Stage() {
 function StageEdge({
   stripMaterial,
   grating,
+  ink,
 }: {
   stripMaterial: MeshBasicMaterial
   grating: ReturnType<typeof makeGratingTexture>
+  ink: boolean
 }) {
   return (
     <group position={[0, 0, 0.55]}>
@@ -261,9 +283,11 @@ function StageEdge({
         />
       </mesh>
       {/* Bandeau encastre dans la face avant de la marche. */}
-      <mesh position={[0, 0.115, 0.552]} material={stripMaterial}>
-        <boxGeometry args={[23.4, 0.075, 0.02]} />
-      </mesh>
+      {!ink && (
+        <mesh position={[0, 0.115, 0.552]} material={stripMaterial}>
+          <boxGeometry args={[23.4, 0.075, 0.02]} />
+        </mesh>
+      )}
     </group>
   )
 }
@@ -272,6 +296,7 @@ function StageEdge({
 function DjBooth() {
   const paletteId = useStore((s) => s.visual.paletteId)
   const palette = useMemo(() => paletteById(paletteId), [paletteId])
+  const ink = useStore((s) => s.visual.ink)
   const ledsMaterial = useMemo(
     () => new MeshBasicMaterial({ toneMapped: false, color: new Color(palette.bands[3]) }),
     [palette],
@@ -306,9 +331,11 @@ function DjBooth() {
         <boxGeometry args={[1.5, 0.1, 0.56]} />
         <meshStandardMaterial color="#2e2d3d" roughness={0.78} metalness={0.16} />
       </mesh>
-      <mesh position={[0, 1.163, -0.15]} material={ledsMaterial}>
-        <boxGeometry args={[1.3, 0.014, 0.05]} />
-      </mesh>
+      {!ink && (
+        <mesh position={[0, 1.163, -0.15]} material={ledsMaterial}>
+          <boxGeometry args={[1.3, 0.014, 0.05]} />
+        </mesh>
+      )}
 
       <group position={[0, 0, -0.72]}>
         <Dancer />
@@ -388,11 +415,25 @@ const BACKDROP_BACK_SIZE: [number, number] = [110, 56]
 const BACKDROP_SIDE_SIZE: [number, number] = [90, 56]
 
 /**
+ * La terrasse de la DA "ink".
+ *
+ * La scenographie est posee sur une dalle finie, qui flotte dans le blanc :
+ * ni murs, ni ville, ni horizon dessine. C'est le parti pris de la DA — le
+ * decor tient dans ce que la scene elle-meme raconte, tout le reste est du
+ * papier.
+ */
+const INK_TERRACE_X = 78
+const INK_TERRACE_BACK_Z = BACK_Z - 70
+const INK_TERRACE_FRONT_Z = 70
+const INK_TERRACE_THICKNESS = 0.8
+
+/**
  * Ville de nuit derriere les trois baies (fond, gauche, droite) : trois plans
  * texture, immobiles, chacun montrant la bande correspondante de la feuille
  * de sprites (ou la skyline generee tant qu'elle n'est pas fournie).
  */
 function CityBackdrop() {
+  const ink = useStore((s) => s.visual.ink)
   const { texture: base, isSheet } = useCitySheet(CITY_SHEET_URL)
   // Trois plans, trois cadrages : chacun a besoin de son propre repeat/offset,
   // donc de son propre clone plutot que de partager l'instance de texture.
@@ -413,21 +454,48 @@ function CityBackdrop() {
     else fitFallback(rightTex)
   }, [rightTex, isSheet])
 
+  // En DA encre, il n'y a pas de ville : la scenographie flotte dans le blanc.
+  // Les hooks au dessus tournent quand meme — ils ne coutent rien et evitent de
+  // rendre le composant conditionnel a l'appelant.
+  if (ink) return null
+
+  const y = WALL_TOP * 0.75
+
   return (
     <>
-      <mesh position={[0, WALL_TOP * 0.75, BACK_Z - 16]}>
+      <mesh position={[0, y, BACK_Z - 16]}>
         <planeGeometry args={BACKDROP_BACK_SIZE} />
         <meshBasicMaterial map={backTex} toneMapped fog />
       </mesh>
-      <mesh position={[-(SIDE_X + 16), WALL_TOP * 0.75, SIDE_Z]} rotation-y={Math.PI / 2}>
+      <mesh position={[-(SIDE_X + 16), y, SIDE_Z]} rotation-y={Math.PI / 2}>
         <planeGeometry args={BACKDROP_SIDE_SIZE} />
         <meshBasicMaterial map={leftTex} toneMapped fog />
       </mesh>
-      <mesh position={[SIDE_X + 16, WALL_TOP * 0.75, SIDE_Z]} rotation-y={-Math.PI / 2}>
+      <mesh position={[SIDE_X + 16, y, SIDE_Z]} rotation-y={-Math.PI / 2}>
         <planeGeometry args={BACKDROP_SIDE_SIZE} />
         <meshBasicMaterial map={rightTex} toneMapped fog />
       </mesh>
     </>
+  )
+}
+
+/**
+ * La dalle sur laquelle tout repose.
+ *
+ * Une VRAIE dalle, pas un plan infini : ses trois bords arriere coincident
+ * exactement avec les trois plans de ville, si bien que les tours partent du
+ * bord du sol au lieu de flotter. Son epaisseur est visible sur la tranche
+ * avant — c'est elle qui dit qu'on est sur une terrasse en hauteur, et non sur
+ * un sol qui continuerait a l'infini.
+ */
+function InkTerrace() {
+  const depth = INK_TERRACE_FRONT_Z - INK_TERRACE_BACK_Z
+  const centerZ = (INK_TERRACE_FRONT_Z + INK_TERRACE_BACK_Z) / 2
+  return (
+    <mesh position={[0, -INK_TERRACE_THICKNESS / 2, centerZ]}>
+      <boxGeometry args={[INK_TERRACE_X * 2, INK_TERRACE_THICKNESS, depth]} />
+      <meshBasicMaterial color={INK_SURFACE} fog={false} />
+    </mesh>
   )
 }
 

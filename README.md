@@ -117,6 +117,12 @@ tempo détecté à ±1 BPM.
 Trois `InstancedMesh` seulement pour tout le mur — cellules LED, corps, châssis —
 soit trois *draw calls*, ce qui laisse le budget au bloom.
 
+- **Volume englobant calculé sur les instances.** three cullerait sinon un
+  `InstancedMesh` sur la sphère englobante de sa géométrie source — ici une
+  boîte unitaire posée à l'origine. Dès que la caméra s'approchait du mur,
+  cette petite sphère sortait du frustum : les corps et les châssis
+  disparaissaient d'un bloc, ne laissant flotter que les cellules, seules à
+  avoir une sphère correcte.
 - **Colonnes LED.** Le pas des cellules est constant sur tout le mur : les
   colonnes hautes en contiennent simplement davantage, comme sur la référence.
   Une cellule éteinte est **gris foncé neutre**, jamais teintée : la couleur
@@ -156,10 +162,95 @@ soit trois *draw calls*, ce qui laisse le budget au bloom.
   rotation de bassin entraîne tout le haut du corps. Sa phase de danse avance en
   **battements par seconde** (BPM/60), donc le rebond tombe sur le temps quel que
   soit le tempo. Il descend sur le kick plutôt que de monter : un rebond vers le
-  haut se lit comme un sursaut, pas comme une danse.
+  haut se lit comme un sursaut, pas comme une danse. Son **corps**, lui, est
+  volontairement réduit à des volumes simples (capsules, une sphère pour la
+  tête, aucun visage) : à sa taille à l'écran, le détail se lit comme de la
+  salissure, pas comme un personnage.
+- **Le public** — bassin distinct et jambes écartées : accrochées au même point
+  que le buste et serrées sur l'axe, les cuisses sortaient du ventre dès
+  qu'elles pivotaient et la silhouette n'avait plus de jambes du tout. C'est le
+  vide entre les deux jambes qui les fait exister au trait. Le public entre en
+  marchant depuis l'arrière de la caméra, rejoint une
+  place sur la piste, y danse, et repart par le même chemin quand la musique
+  s'arrête (`Crowd.tsx`). Le remplissage est une **intégrale**, pas un seuil :
+  plus le son dure, plus la piste se garnit, et le silence la vide au même
+  rythme tranquille — un comptage instantané (n personnes = f(niveau)) ferait
+  clignoter la foule à chaque baisse de niveau. Personne n'apparaît sur place :
+  un « pop » à l'endroit exact où quelqu'un va danser trahit immédiatement le
+  dispositif, alors qu'une marche, même sommaire, le rend invisible.
+- **Le tempo n'est pas un signe de présence.** Le moteur conserve sa dernière
+  estimation de BPM après l'arrêt de la source : tester `bpm > 0` laissait le
+  DJ danser dans le silence et la piste pleine à jamais. Seul le niveau fait
+  foi.
+- **Les stacks de basses tremblent** au-delà d'un seuil de pression, jamais en
+  dessous : un caisson qui vibre en permanence se lit comme un défaut de rendu,
+  alors qu'un caisson parfaitement immobile qui se met à trembler dans un gros
+  passage se lit comme de la puissance.
 - **Caméra** maison plutôt qu'`OrbitControls`, pour pouvoir superposer un
   mouvement automatique et un *shake* sur les kicks sans que le contrôleur ne
   les écrase. Glisser = orbiter, molette = zoom.
+
+---
+
+## La DA « ink » (mode par défaut)
+
+La scène est redessinée comme un croquis à l'encre : papier blanc, trait fin,
+presque aucun aplat. **La seule couleur de l'image est celle qu'émettent les
+cellules LED** — ce qui est coloré, c'est ce qui sonne.
+
+Rien n'est stylisé « par-dessus » une image colorée : l'image est *redessinée*.
+
+- **Toutes les surfaces sont aplaties en blanc** (`InkSurfaces.tsx`), sans
+  lumière ni ombre. Un croquis n'a qu'un remplissage, le papier ; dupliquer
+  chaque matériau du décor en version encre (le danseur seul en compte une
+  vingtaine) n'aurait servi à rien. Deux exceptions, marquées par
+  `material.userData.inkKeep` : les cellules LED, et les textures qui peignent
+  déjà de l'encre.
+- **Le trait est déduit de la profondeur et des normales** (`InkEffect.tsx`) :
+  un saut de profondeur donne une silhouette, un saut de normale une arête —
+  y compris quand les deux faces sont à la même distance de la caméra. Sa
+  largeur est constante **en pixels** : un stylo ne s'affine pas parce que
+  l'objet est loin. Les points d'échantillonnage sont décalés par un bruit
+  lisse, ce qui suffit à casser l'aspect vectoriel.
+  La sensibilité aux normales est volontairement basse : une surface *courbe*
+  (membrane, épaule du danseur) fait varier sa normale continûment et se
+  noircissait de traits jointifs, alors qu'une arête franche passe largement le
+  seuil.
+- **Le critère de contour est la courbure rapportée à la pente**, pas le
+  gradient de profondeur. Un gradient dépend de tout — distance, angle
+  d'incidence, amplitude du saut : deux colonnes séparées de 80 cm passaient le
+  seuil de face et le rataient de trois quarts, d'où des traits qui
+  apparaissaient et disparaissaient pendant un mouvement de caméra, tandis
+  qu'une simple surface inclinée (l'estrade vue d'en bas) se couvrait de
+  hachures parasites. Le rapport courbure / pente vaut ~1 sur *toute*
+  discontinuité et ~0 sur une surface lisse, même vue en incidence rasante.
+- **Trois règles de couleur, dans cet ordre** : pixel saturé → c'est une LED, on
+  garde sa teinte ; pixel sombre et désaturé → c'est de l'encre peinte dans la
+  scène ; sinon → papier. Corollaire utile : dessiner
+  en gris moyen suffit à reculer un élément sans changer l'épaisseur du trait.
+- **Ce qui disparaît** : brume, bloom, aberration chromatique, vignettage, sol
+  réfléchissant, murs de verre, plafond, liserés néon du décor — et les ombres
+  portées, que plus aucun matériau ne reçoit.
+- **Le sol est une terrasse** : une dalle finie, pas un plan infini, dont
+  l'épaisseur se voit sur la tranche. Ni murs, ni ville, ni horizon dessiné —
+  la scénographie flotte dans le blanc, et le décor tient dans ce qu'elle
+  raconte elle-même.
+- **Les hachures sont coupées par défaut** : la page doit rester blanche. Le
+  réglage existe encore (Lumière › *Hatching*), mais à zéro — sur une surface
+  vue en incidence rasante, elles n'apparaissaient que sous certains angles de
+  caméra, ce qui faisait "respirer" l'estrade sans raison.
+- **Le HUD suit la même DA** : papier, contours fins, aucune lueur, analyseur en
+  niveaux de gris. Une classe `ink` sur `<body>` suffit, la feuille de style est
+  écrite autour de variables. Deux pièges y sont traités explicitement : le
+  sous-arbre du dock est repeint en bloc (toute sa typographie était écrite en
+  blanc), mais **les icônes en sont exclues** — tracées en `fill: currentColor`,
+  elles prenaient sinon la couleur de l'encre jusque dans le bouton play, dont
+  le fond *est* l'encre ; et les rails de curseurs reçoivent un contour, faute
+  de quoi ils disparaissent du dessin en ne laissant flotter que la poignée.
+
+Le mode se coupe depuis *Lumière › Ink art direction* (la scénographie néon
+d'origine est intacte), avec réglages du trait, du tremblement, des contours,
+des hachures et de l'intensité du lavis coloré.
 
 ---
 
@@ -199,7 +290,10 @@ src/
     SubCabinets.tsx            caissons de basses à membranes
     Stage.tsx                  sol, podium, régie
     Rig.tsx                    caméra + éclairage
-    Effects.tsx                chaîne de post-processing
+    Effects.tsx                chaîne de post-processing (néon ou encre)
+    InkEffect.tsx              passe encre : trait, hachures, lavis coloré
+    InkSurfaces.tsx            aplatissement des matériaux en blanc
+    ink.ts                     constantes de la DA encre
     layout.ts / palettes.ts    implantation et couleurs
   ui/                          HUD, analyseur, panneau de contrôle
   state/store.ts               réglages et état de lecture (zustand)

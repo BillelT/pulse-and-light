@@ -13,6 +13,7 @@ import { engine } from '../audio/engine'
 import { columnCenterHz } from '../audio/columns'
 import { COLUMN_COUNT } from '../audio/types'
 import { readState, useStore } from '../state/store'
+import { INK_LED_OFF } from './ink'
 import {
   frequencyColor,
   keyTint,
@@ -102,6 +103,9 @@ export function CaissonWall() {
         // toneMapped: false laisse passer les valeurs > 1 vers le bloom.
         toneMapped: false,
         color: 0xffffff,
+        // Seul materiau que la DA "ink" laisse en couleur : les cellules sont
+        // la lumiere emise, tout le reste du dessin est en noir et blanc.
+        userData: { inkKeep: true },
       }),
     [],
   )
@@ -212,7 +216,17 @@ export function CaissonWall() {
     leds.instanceMatrix.needsUpdate = true
     bodies.instanceMatrix.needsUpdate = true
     bezels.instanceMatrix.needsUpdate = true
+
+    // Volume englobant recalcule sur les INSTANCES, pour les trois maillages.
+    // Sans ca, three culle un InstancedMesh sur la sphere englobante de sa
+    // geometrie source — ici une boite unitaire posee a l'origine. Des que la
+    // camera s'approchait du mur, cette petite sphere sortait du frustum et
+    // les corps ET les chassis disparaissaient d'un coup, ne laissant que les
+    // cellules (les seules dont la sphere etait, elle, correcte) flotter dans
+    // le vide.
     leds.computeBoundingSphere()
+    bodies.computeBoundingSphere()
+    bezels.computeBoundingSphere()
   }, [runtime])
 
   // --- Etat persistant entre frames (peak-hold, flash) ---
@@ -285,7 +299,9 @@ export function CaissonWall() {
           intensity = 0.07 + partial * litGain
         } else {
           // Cellule eteinte : gris fonce pur, sans aucune teinte residuelle.
-          _color.copy(OFF_COLOR)
+          // En encre, elle doit au contraire disparaitre dans le papier : la
+          // case vide d'un VU-metre dessine n'est qu'un cadre.
+          _color.copy(visual.ink ? INK_LED_OFF : OFF_COLOR)
           intensity = 1
         }
 
