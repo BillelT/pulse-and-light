@@ -283,39 +283,59 @@ function Member({ refs }: { refs: MemberRefs }) {
     [],
   )
 
+  // Proportions calees sur celles du DJ, avec un BASSIN distinct.
+  //
+  // La version precedente accrochait les jambes au meme point que le buste :
+  // la cuisse partait alors du milieu du torse, et des qu'elle pivotait elle
+  // en sortait a mi-hauteur — au trait, on lisait une jambe plantee dans le
+  // ventre. Le bassin (0.78 -> 1.02) couvre le haut des cuisses quelle que
+  // soit leur rotation, et le buste s'appuie dessus sans le recouvrir.
   return (
     <group ref={refs.root} visible={false}>
-      <group ref={refs.body} position={[0, 0.94, 0]}>
-        <mesh position={[0, 0.26, 0]} material={materials.top}>
-          <capsuleGeometry args={[0.17, 0.26, 5, 12]} />
+      <group ref={refs.body} position={[0, 0.9, 0]}>
+        {/* Bassin : assez large pour coiffer les deux cuisses, assez court
+            pour ne pas les avaler — c'est lui qui doit se terminer AU DESSUS
+            de l'entrejambe, sinon la silhouette se lit comme une cloche. */}
+        <mesh material={materials.bottom}>
+          <capsuleGeometry args={[0.125, 0.06, 4, 10]} />
         </mesh>
-        <mesh position={[0, 0.55, 0]} material={materials.skin}>
+        {/* Buste. */}
+        <mesh position={[0, 0.36, 0]} material={materials.top}>
+          <capsuleGeometry args={[0.17, 0.24, 5, 12]} />
+        </mesh>
+        <mesh position={[0, 0.63, 0]} material={materials.skin}>
           <cylinderGeometry args={[0.048, 0.055, 0.09, 10]} />
         </mesh>
-        <mesh position={[0, 0.68, 0]} material={materials.skin}>
-          <sphereGeometry args={[0.108, 16, 12]} />
+        <mesh position={[0, 0.76, 0]} material={materials.skin}>
+          <sphereGeometry args={[0.105, 16, 12]} />
         </mesh>
 
-        <group ref={refs.armL} position={[-0.18, 0.45, 0]}>
-          <mesh position={[0, -0.22, 0]} material={materials.top}>
-            <capsuleGeometry args={[0.05, 0.34, 4, 10]} />
+        {/* Epaules a la hauteur du haut du buste, sur son flanc. */}
+        <group ref={refs.armL} position={[-0.185, 0.52, 0]}>
+          <mesh position={[0, -0.21, 0]} material={materials.top}>
+            <capsuleGeometry args={[0.05, 0.32, 4, 10]} />
           </mesh>
         </group>
-        <group ref={refs.armR} position={[0.18, 0.45, 0]}>
-          <mesh position={[0, -0.22, 0]} material={materials.top}>
-            <capsuleGeometry args={[0.05, 0.34, 4, 10]} />
+        <group ref={refs.armR} position={[0.185, 0.52, 0]}>
+          <mesh position={[0, -0.21, 0]} material={materials.top}>
+            <capsuleGeometry args={[0.05, 0.32, 4, 10]} />
           </mesh>
         </group>
       </group>
 
-      <group ref={refs.legL} position={[-0.1, 0.94, 0]}>
-        <mesh position={[0, -0.5, 0]} material={materials.bottom}>
-          <capsuleGeometry args={[0.07, 0.64, 4, 10]} />
+      {/* Hanches : pivot sous le bassin, jamais dans le buste. L'ecartement
+          compte autant que la longueur — deux jambes collees a l'axe restent
+          dans l'ombre du bassin et la silhouette n'a plus de jambes du tout.
+          A +/- 0.115 avec un rayon de 0.062, il reste un vide net entre les
+          deux, et c'est ce vide qui les fait exister au trait. */}
+      <group ref={refs.legL} position={[-0.115, 0.86, 0]}>
+        <mesh position={[0, -0.42, 0]} material={materials.bottom}>
+          <capsuleGeometry args={[0.062, 0.6, 4, 10]} />
         </mesh>
       </group>
-      <group ref={refs.legR} position={[0.1, 0.94, 0]}>
-        <mesh position={[0, -0.5, 0]} material={materials.bottom}>
-          <capsuleGeometry args={[0.07, 0.64, 4, 10]} />
+      <group ref={refs.legR} position={[0.115, 0.86, 0]}>
+        <mesh position={[0, -0.42, 0]} material={materials.bottom}>
+          <capsuleGeometry args={[0.062, 0.6, 4, 10]} />
         </mesh>
       </group>
     </group>

@@ -166,7 +166,11 @@ soit trois *draw calls*, ce qui laisse le budget au bloom.
   volontairement réduit à des volumes simples (capsules, une sphère pour la
   tête, aucun visage) : à sa taille à l'écran, le détail se lit comme de la
   salissure, pas comme un personnage.
-- **Le public** entre en marchant depuis l'arrière de la caméra, rejoint une
+- **Le public** — bassin distinct et jambes écartées : accrochées au même point
+  que le buste et serrées sur l'axe, les cuisses sortaient du ventre dès
+  qu'elles pivotaient et la silhouette n'avait plus de jambes du tout. C'est le
+  vide entre les deux jambes qui les fait exister au trait. Le public entre en
+  marchant depuis l'arrière de la caméra, rejoint une
   place sur la piste, y danse, et repart par le même chemin quand la musique
   s'arrête (`Crowd.tsx`). Le remplissage est une **intégrale**, pas un seuil :
   plus le son dure, plus la piste se garnit, et le silence la vide au même
@@ -222,48 +226,19 @@ Rien n'est stylisé « par-dessus » une image colorée : l'image est *redessin�
   discontinuité et ~0 sur une surface lisse, même vue en incidence rasante.
 - **Trois règles de couleur, dans cet ordre** : pixel saturé → c'est une LED, on
   garde sa teinte ; pixel sombre et désaturé → c'est de l'encre peinte dans la
-  scène (skyline, traits de sol) ; sinon → papier. Corollaire utile : dessiner
+  scène ; sinon → papier. Corollaire utile : dessiner
   en gris moyen suffit à reculer un élément sans changer l'épaisseur du trait.
 - **Ce qui disparaît** : brume, bloom, aberration chromatique, vignettage, sol
   réfléchissant, murs de verre, plafond, liserés néon du décor — et les ombres
   portées, que plus aucun matériau ne reçoit.
-- **Le sol est une terrasse** : une dalle finie, pas un plan infini. Ses trois
-  bords arrière coïncident exactement avec les trois plans de ville, si bien que
-  les tours partent du bord du sol au lieu de flotter, et son épaisseur visible
-  sur la tranche dit qu'on est en hauteur.
+- **Le sol est une terrasse** : une dalle finie, pas un plan infini, dont
+  l'épaisseur se voit sur la tranche. Ni murs, ni ville, ni horizon dessiné —
+  la scénographie flotte dans le blanc, et le décor tient dans ce qu'elle
+  raconte elle-même.
 - **Les hachures sont coupées par défaut** : la page doit rester blanche. Le
   réglage existe encore (Lumière › *Hatching*), mais à zéro — sur une surface
   vue en incidence rasante, elles n'apparaissaient que sous certains angles de
   caméra, ce qui faisait "respirer" l'estrade sans raison.
-- **La ville démarre sous le niveau du sol** : le bas des plans passe vingt
-  unités sous la dalle, qui est opaque et plus proche, donc mange la partie
-  immergée. Les montants des tours arrivent derrière le bord de la terrasse
-  sans jamais s'y terminer — le trait reste continu, et c'est ce recouvrement
-  qui donne la profondeur ; une base posée pile sur la ligne d'horizon se lit
-  comme un décor découpé et collé dessus.
-- **Les trois plans de ville portent un seul panorama**, déroulé le long du
-  périmètre de la terrasse (côté gauche, puis fond, puis côté droit) ; chacun
-  n'en montre que son tronçon, à l'échelle exacte de sa longueur. Avec trois
-  cadrages indépendants, deux immeubles différents se rencontraient dans
-  l'angle et la couture se lisait comme un découpage ; ici un immeuble à cheval
-  sur un coin se poursuit d'un plan à l'autre.
-- **La ville est dessinée en trois rangées**, chacune par-dessus la précédente,
-  **remplissage blanc compris** : c'est l'occlusion qui rend la profondeur
-  lisible — sans le remplissage, les trois plans se traversaient et ne
-  donnaient qu'une nappe de traits enchevêtrés. Un plan lointain est plus
-  petit, plus clair *et* moins détaillé que celui devant lui ; les trois
-  varient ensemble, la taille seule se lisant comme un immeuble bas plutôt que
-  comme un immeuble loin. Les traits sont volontairement épais : la texture est
-  vue très réduite, et le mipmapping moyenne chaque trait fin avec le blanc —
-  un trait de 2 px sortait deux fois plus clair que sa couleur. Même logique
-  pour les gris, choisis dans une plage étroite parce que la passe encre
-  travaille en linéaire, où un gris sRGB clair est déjà presque blanc.
-- **Le personnage est réduit à des volumes simples** : une capsule pour le
-  buste, une sphère pour la tête, des capsules pour les membres. Ni visage, ni
-  casquette, ni casque : haut de deux pouces à l'écran, chaque détail
-  supplémentaire devenait un nœud de micro-arêtes que la passe encre ne pouvait
-  résoudre qu'en pâté noir. Le rig hiérarchique et les chorégraphies, eux, sont
-  intacts.
 - **Le HUD suit la même DA** : papier, contours fins, aucune lueur, analyseur en
   niveaux de gris. Une classe `ink` sur `<body>` suffit, la feuille de style est
   écrite autour de variables. Deux pièges y sont traités explicitement : le

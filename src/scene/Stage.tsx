@@ -18,12 +18,7 @@ import { Dancer } from './Dancer'
 import { INK_SURFACE } from './ink'
 import { paletteById } from './palettes'
 import { BACK_WIDTH, BACK_Z, SIDE_LEN, SIDE_X, SIDE_Z, WALL_HEIGHT, WALL_TOP, WALL_Y } from './roomLayout'
-import {
-  makeCitySketchTexture,
-  makeCityTexture,
-  makeGratingTexture,
-  makeTileTexture,
-} from './textures'
+import { makeCityTexture, makeGratingTexture, makeTileTexture } from './textures'
 
 /**
  * Feuille de sprites ville de nuit, optionnelle : 4 bandes empilees (FRONT,
@@ -420,63 +415,17 @@ const BACKDROP_BACK_SIZE: [number, number] = [110, 56]
 const BACKDROP_SIDE_SIZE: [number, number] = [90, 56]
 
 /**
- * Cadrage de la ville en DA "ink".
+ * La terrasse de la DA "ink".
  *
- * La scenographie est posee sur une TERRASSE : une dalle finie, dont les trois
- * bords (fond, gauche, droite) portent exactement les trois plans de ville.
- * Les tours partent donc du bord de la dalle — meme base que le sol — et le
- * regard bascule sans couture du plateau a la ville.
- *
- * Leur hauteur reste modeste par rapport a la distance : une tour qui deborde
- * du cadre se lit comme un immeuble tout proche, pas comme un immeuble loin.
- * C'est le rapport hauteur / distance qui porte l'echelle, rien d'autre.
+ * La scenographie est posee sur une dalle finie, qui flotte dans le blanc :
+ * ni murs, ni ville, ni horizon dessine. C'est le parti pris de la DA — le
+ * decor tient dans ce que la scene elle-meme raconte, tout le reste est du
+ * papier.
  */
 const INK_TERRACE_X = 78
 const INK_TERRACE_BACK_Z = BACK_Z - 70
 const INK_TERRACE_FRONT_Z = 70
 const INK_TERRACE_THICKNESS = 0.8
-const INK_CITY_HEIGHT = 70
-const INK_BACKDROP_BACK_SIZE: [number, number] = [INK_TERRACE_X * 2, INK_CITY_HEIGHT]
-const INK_BACKDROP_SIDE_SIZE: [number, number] = [
-  INK_TERRACE_FRONT_Z - INK_TERRACE_BACK_Z,
-  INK_CITY_HEIGHT,
-]
-/**
- * Le bas des plans de ville passe SOUS le niveau du sol : la dalle, opaque et
- * plus proche, mange la partie immergee. Les montants des tours arrivent donc
- * derriere le bord de la terrasse sans jamais s'y terminer — le trait reste
- * continu, et c'est ce recouvrement qui donne la profondeur. Une base posee
- * pile sur la ligne d'horizon se lit comme un decor decoupe et colle dessus.
- */
-const INK_CITY_BOTTOM_Y = -20
-const INK_BACKDROP_Y = INK_CITY_BOTTOM_Y + INK_CITY_HEIGHT / 2
-
-/**
- * Les trois plans de ville ne portent pas trois dessins : ils portent trois
- * TRONCONS d'un seul panorama, deroule le long du perimetre de la terrasse
- * (cote gauche, puis fond, puis cote droit). Chacun ne montre que sa part de
- * l'image, dans l'ordre et a l'echelle exacte de sa longueur.
- *
- * C'est la seule facon d'obtenir des jointures propres : avec trois cadrages
- * independants, deux immeubles differents se rencontraient dans l'angle et la
- * couture se voyait comme un decoupage. Ici un immeuble a cheval sur un coin
- * se poursuit d'un plan a l'autre sans rupture.
- *
- * L'orientation joue en notre faveur : une rotation Y de +90 deg envoie le +X
- * local du plan gauche vers l'arriere, et -90 deg envoie celui du plan droit
- * vers l'avant — les U progressent donc bien dans le sens du parcours.
- */
-const INK_CITY_SIDE_LEN = INK_TERRACE_FRONT_Z - INK_TERRACE_BACK_Z
-const INK_CITY_BACK_LEN = INK_TERRACE_X * 2
-const INK_CITY_PERIMETER = INK_CITY_SIDE_LEN * 2 + INK_CITY_BACK_LEN
-const INK_CITY_ASPECT = INK_CITY_PERIMETER / INK_CITY_HEIGHT
-
-/** Decoupe le tronçon [start, start + span] du panorama sur une texture. */
-function fitCityStrip(tex: Texture, start: number, span: number) {
-  tex.repeat.set(span / INK_CITY_PERIMETER, 1)
-  tex.offset.set(start / INK_CITY_PERIMETER, 0)
-  tex.needsUpdate = true
-}
 
 /**
  * Ville de nuit derriere les trois baies (fond, gauche, droite) : trois plans
@@ -485,10 +434,7 @@ function fitCityStrip(tex: Texture, start: number, span: number) {
  */
 function CityBackdrop() {
   const ink = useStore((s) => s.visual.ink)
-  const sketch = useMemo(() => (ink ? makeCitySketchTexture(INK_CITY_ASPECT) : null), [ink])
-  const { texture: photo, isSheet: photoIsSheet } = useCitySheet(CITY_SHEET_URL)
-  const base = sketch ?? photo
-  const isSheet = sketch ? false : photoIsSheet
+  const { texture: base, isSheet } = useCitySheet(CITY_SHEET_URL)
   // Trois plans, trois cadrages : chacun a besoin de son propre repeat/offset,
   // donc de son propre clone plutot que de partager l'instance de texture.
   const backTex = useMemo(() => base.clone(), [base])
@@ -496,59 +442,38 @@ function CityBackdrop() {
   const rightTex = useMemo(() => base.clone(), [base])
 
   useEffect(() => {
-    if (ink) fitCityStrip(backTex, INK_CITY_SIDE_LEN, INK_CITY_BACK_LEN)
-    else if (isSheet) fitSheetBand(backTex, 'front', BACKDROP_BACK_SIZE[0] / BACKDROP_BACK_SIZE[1])
+    if (isSheet) fitSheetBand(backTex, 'front', BACKDROP_BACK_SIZE[0] / BACKDROP_BACK_SIZE[1])
     else fitFallback(backTex)
-  }, [backTex, isSheet, ink])
+  }, [backTex, isSheet])
   useEffect(() => {
-    if (ink) fitCityStrip(leftTex, 0, INK_CITY_SIDE_LEN)
-    else if (isSheet) fitSheetBand(leftTex, 'left', BACKDROP_SIDE_SIZE[0] / BACKDROP_SIDE_SIZE[1])
+    if (isSheet) fitSheetBand(leftTex, 'left', BACKDROP_SIDE_SIZE[0] / BACKDROP_SIDE_SIZE[1])
     else fitFallback(leftTex)
-  }, [leftTex, isSheet, ink])
+  }, [leftTex, isSheet])
   useEffect(() => {
-    if (ink) fitCityStrip(rightTex, INK_CITY_SIDE_LEN + INK_CITY_BACK_LEN, INK_CITY_SIDE_LEN)
-    else if (isSheet) fitSheetBand(rightTex, 'right', BACKDROP_SIDE_SIZE[0] / BACKDROP_SIDE_SIZE[1])
+    if (isSheet) fitSheetBand(rightTex, 'right', BACKDROP_SIDE_SIZE[0] / BACKDROP_SIDE_SIZE[1])
     else fitFallback(rightTex)
-  }, [rightTex, isSheet, ink])
+  }, [rightTex, isSheet])
 
-  // En encre, les plans de fond n'ecrivent PAS la profondeur : sinon le trait
-  // cernerait le rectangle du plan lui-meme, et une bordure franche
-  // apparaitrait en plein ciel. Seul le dessin qu'ils portent doit exister.
-  const material = (map: Texture) =>
-    ink ? (
-      <meshBasicMaterial
-        map={map}
-        toneMapped={false}
-        fog={false}
-        depthWrite={false}
-        userData={{ inkKeep: true }}
-      />
-    ) : (
-      <meshBasicMaterial map={map} toneMapped fog />
-    )
+  // En DA encre, il n'y a pas de ville : la scenographie flotte dans le blanc.
+  // Les hooks au dessus tournent quand meme — ils ne coutent rien et evitent de
+  // rendre le composant conditionnel a l'appelant.
+  if (ink) return null
 
-  const backSize = ink ? INK_BACKDROP_BACK_SIZE : BACKDROP_BACK_SIZE
-  const sideSize = ink ? INK_BACKDROP_SIDE_SIZE : BACKDROP_SIDE_SIZE
-  const y = ink ? INK_BACKDROP_Y : WALL_TOP * 0.75
-  const backZ = ink ? INK_TERRACE_BACK_Z : BACK_Z - 16
-  const sideX = ink ? INK_TERRACE_X : SIDE_X + 16
-  // Les plans lateraux sont centres sur la profondeur de la terrasse, pour
-  // que leurs quatre coins tombent pile sur ceux de la dalle.
-  const sideZ = ink ? (INK_TERRACE_FRONT_Z + INK_TERRACE_BACK_Z) / 2 : SIDE_Z
+  const y = WALL_TOP * 0.75
 
   return (
     <>
-      <mesh position={[0, y, backZ]} renderOrder={-1}>
-        <planeGeometry args={backSize} />
-        {material(backTex)}
+      <mesh position={[0, y, BACK_Z - 16]}>
+        <planeGeometry args={BACKDROP_BACK_SIZE} />
+        <meshBasicMaterial map={backTex} toneMapped fog />
       </mesh>
-      <mesh position={[-sideX, y, sideZ]} rotation-y={Math.PI / 2} renderOrder={-1}>
-        <planeGeometry args={sideSize} />
-        {material(leftTex)}
+      <mesh position={[-(SIDE_X + 16), y, SIDE_Z]} rotation-y={Math.PI / 2}>
+        <planeGeometry args={BACKDROP_SIDE_SIZE} />
+        <meshBasicMaterial map={leftTex} toneMapped fog />
       </mesh>
-      <mesh position={[sideX, y, sideZ]} rotation-y={-Math.PI / 2} renderOrder={-1}>
-        <planeGeometry args={sideSize} />
-        {material(rightTex)}
+      <mesh position={[SIDE_X + 16, y, SIDE_Z]} rotation-y={-Math.PI / 2}>
+        <planeGeometry args={BACKDROP_SIDE_SIZE} />
+        <meshBasicMaterial map={rightTex} toneMapped fog />
       </mesh>
     </>
   )
