@@ -232,8 +232,13 @@ export function Crowd() {
         legR.rotation.x = -s * 0.55
         armL.rotation.x = -s * 0.42
         armR.rotation.x = s * 0.42
-        armL.rotation.z = 0.08
-        armR.rotation.z = -0.08
+        // Une rotation Z POSITIVE emmene le bras vers +x, donc vers
+        // l'interieur pour le bras gauche : les signes sont ceux du miroir,
+        // pas ceux du cote. Inverses, les deux bras rentraient dans le buste
+        // et ressortaient plus bas — on lisait des membres plantes dans le
+        // corps.
+        armL.rotation.z = -0.08
+        armR.rotation.z = 0.08
         body.position.y = Math.abs(c) * 0.045
         body.rotation.z = s * 0.03
         body.rotation.x = 0.04
@@ -250,8 +255,8 @@ export function Crowd() {
         legL.rotation.x = Math.sin(p) * 0.12 * drive
         legR.rotation.x = -Math.sin(p) * 0.12 * drive
         const lift = 0.3 + raise * 1.9 + Math.sin(p + w.seed * 5) * 0.25 * drive
-        armL.rotation.z = lift
-        armR.rotation.z = -lift
+        armL.rotation.z = -lift
+        armR.rotation.z = lift
         armL.rotation.x = Math.sin(p - 1) * 0.3 * drive
         armR.rotation.x = Math.sin(p + 1) * 0.3 * drive
       }
