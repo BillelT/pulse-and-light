@@ -31,6 +31,14 @@ const FILL_RATE = 0.06
 const EMPTY_RATE = 0.17
 /** Duree du fondu d'echelle a l'apparition, en secondes. */
 const FADE = 0.35
+/**
+ * Hauteur du bassin, donc origine de tout le haut du corps.
+ *
+ * Le rebond s'AJOUTE a cette hauteur, il ne la remplace pas : ecrire
+ * `body.position.y = rebond` ecrasait le decalage pose au montage et faisait
+ * tomber buste, tete et bras a hauteur de cheville, imbriques dans les jambes.
+ */
+const BODY_Y = 0.9
 
 interface Walker {
   active: boolean
@@ -239,7 +247,7 @@ export function Crowd() {
         // corps.
         armL.rotation.z = -0.08
         armR.rotation.z = 0.08
-        body.position.y = Math.abs(c) * 0.045
+        body.position.y = BODY_Y + Math.abs(c) * 0.045
         body.rotation.z = s * 0.03
         body.rotation.x = 0.04
       } else {
@@ -249,7 +257,7 @@ export function Crowd() {
         const bounce = Math.abs(Math.sin(p))
         const raise = Math.min(1, frame.bands[Band.HighMid] * 0.9 + level * 0.9)
         const drive = 0.35 + level * 0.65
-        body.position.y = -bounce * 0.075 * drive
+        body.position.y = BODY_Y - bounce * 0.075 * drive
         body.rotation.z = Math.sin(p * 0.5 + w.seed * 6) * 0.09 * drive
         body.rotation.x = 0.03 + Math.sin(p + 1) * 0.05 * drive
         legL.rotation.x = Math.sin(p) * 0.12 * drive
@@ -297,7 +305,7 @@ function Member({ refs }: { refs: MemberRefs }) {
   // soit leur rotation, et le buste s'appuie dessus sans le recouvrir.
   return (
     <group ref={refs.root} visible={false}>
-      <group ref={refs.body} position={[0, 0.9, 0]}>
+      <group ref={refs.body} position={[0, BODY_Y, 0]}>
         {/* Bassin : assez large pour coiffer les deux cuisses, assez court
             pour ne pas les avaler — c'est lui qui doit se terminer AU DESSUS
             de l'entrejambe, sinon la silhouette se lit comme une cloche. */}
