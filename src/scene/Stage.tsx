@@ -435,14 +435,21 @@ const INK_TERRACE_X = 78
 const INK_TERRACE_BACK_Z = BACK_Z - 70
 const INK_TERRACE_FRONT_Z = 70
 const INK_TERRACE_THICKNESS = 0.8
-const INK_CITY_HEIGHT = 52
+const INK_CITY_HEIGHT = 70
 const INK_BACKDROP_BACK_SIZE: [number, number] = [INK_TERRACE_X * 2, INK_CITY_HEIGHT]
 const INK_BACKDROP_SIDE_SIZE: [number, number] = [
   INK_TERRACE_FRONT_Z - INK_TERRACE_BACK_Z,
   INK_CITY_HEIGHT,
 ]
-/** Bord bas des plans de ville exactement au niveau du sol. */
-const INK_BACKDROP_Y = INK_CITY_HEIGHT / 2
+/**
+ * Le bas des plans de ville passe SOUS le niveau du sol : la dalle, opaque et
+ * plus proche, mange la partie immergee. Les montants des tours arrivent donc
+ * derriere le bord de la terrasse sans jamais s'y terminer — le trait reste
+ * continu, et c'est ce recouvrement qui donne la profondeur. Une base posee
+ * pile sur la ligne d'horizon se lit comme un decor decoupe et colle dessus.
+ */
+const INK_CITY_BOTTOM_Y = -20
+const INK_BACKDROP_Y = INK_CITY_BOTTOM_Y + INK_CITY_HEIGHT / 2
 
 /**
  * Ville de nuit derriere les trois baies (fond, gauche, droite) : trois plans

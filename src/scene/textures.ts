@@ -181,6 +181,10 @@ export function makeCitySketchTexture(): Texture {
   // Trois rangees, de la plus lointaine a la plus proche. Chacune est dessinee
   // PAR DESSUS la precedente, remplissage blanc compris : c'est l'ordre de
   // dessin qui fait l'occlusion, donc la profondeur.
+  //
+  // Les hauteurs sont exprimees en fraction de l'image ENTIERE, dont le tiers
+  // bas passe sous le niveau du sol et disparait derriere la terrasse : une
+  // tour a 0.40 ne montre donc qu'un peu plus de la moitie de son trace.
   const planes = [
     // Gris et epaisseurs ne sont pas des valeurs "au trait" naives :
     //  - `InkEffect` convertit un pixel sombre en encre sur une plage etroite,
@@ -192,11 +196,11 @@ export function makeCitySketchTexture(): Texture {
     // D'ou des traits volontairement epais, dont la valeur A L'ECRAN donne le
     // gris clair / moyen / soutenu attendu.
     // Loin : petites silhouettes claires, serrees, presque sans detail.
-    { shade: '#b0b0b0', lw: 3.2, minH: 0.14, maxH: 0.38, minW: 34, maxW: 78, gap: 6, detail: 0 },
+    { shade: '#b0b0b0', lw: 3.2, minH: 0.3, maxH: 0.44, minW: 34, maxW: 78, gap: 6, detail: 0 },
     // Distance moyenne.
-    { shade: '#949494', lw: 4.0, minH: 0.22, maxH: 0.6, minW: 46, maxW: 104, gap: 18, detail: 1 },
+    { shade: '#949494', lw: 4.0, minH: 0.34, maxH: 0.6, minW: 46, maxW: 104, gap: 18, detail: 1 },
     // Premier plan de la ville : les seules tours vraiment dessinees.
-    { shade: '#6f6f6f', lw: 5.0, minH: 0.3, maxH: 0.95, minW: 62, maxW: 150, gap: 34, detail: 2 },
+    { shade: '#6f6f6f', lw: 5.0, minH: 0.4, maxH: 0.78, minW: 62, maxW: 150, gap: 34, detail: 2 },
   ]
 
   for (const plane of planes) {

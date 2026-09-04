@@ -216,7 +216,17 @@ export function CaissonWall() {
     leds.instanceMatrix.needsUpdate = true
     bodies.instanceMatrix.needsUpdate = true
     bezels.instanceMatrix.needsUpdate = true
+
+    // Volume englobant recalcule sur les INSTANCES, pour les trois maillages.
+    // Sans ca, three culle un InstancedMesh sur la sphere englobante de sa
+    // geometrie source — ici une boite unitaire posee a l'origine. Des que la
+    // camera s'approchait du mur, cette petite sphere sortait du frustum et
+    // les corps ET les chassis disparaissaient d'un coup, ne laissant que les
+    // cellules (les seules dont la sphere etait, elle, correcte) flotter dans
+    // le vide.
     leds.computeBoundingSphere()
+    bodies.computeBoundingSphere()
+    bezels.computeBoundingSphere()
   }, [runtime])
 
   // --- Etat persistant entre frames (peak-hold, flash) ---

@@ -117,6 +117,12 @@ tempo détecté à ±1 BPM.
 Trois `InstancedMesh` seulement pour tout le mur — cellules LED, corps, châssis —
 soit trois *draw calls*, ce qui laisse le budget au bloom.
 
+- **Volume englobant calculé sur les instances.** three cullerait sinon un
+  `InstancedMesh` sur la sphère englobante de sa géométrie source — ici une
+  boîte unitaire posée à l'origine. Dès que la caméra s'approchait du mur,
+  cette petite sphère sortait du frustum : les corps et les châssis
+  disparaissaient d'un bloc, ne laissant flotter que les cellules, seules à
+  avoir une sphère correcte.
 - **Colonnes LED.** Le pas des cellules est constant sur tout le mur : les
   colonnes hautes en contiennent simplement davantage, comme sur la référence.
   Une cellule éteinte est **gris foncé neutre**, jamais teintée : la couleur
@@ -213,6 +219,12 @@ Rien n'est stylisé « par-dessus » une image colorée : l'image est *redessin�
   réglage existe encore (Lumière › *Hatching*), mais à zéro — sur une surface
   vue en incidence rasante, elles n'apparaissaient que sous certains angles de
   caméra, ce qui faisait "respirer" l'estrade sans raison.
+- **La ville démarre sous le niveau du sol** : le bas des plans passe vingt
+  unités sous la dalle, qui est opaque et plus proche, donc mange la partie
+  immergée. Les montants des tours arrivent derrière le bord de la terrasse
+  sans jamais s'y terminer — le trait reste continu, et c'est ce recouvrement
+  qui donne la profondeur ; une base posée pile sur la ligne d'horizon se lit
+  comme un décor découpé et collé dessus.
 - **La ville est dessinée en trois rangées**, chacune par-dessus la précédente,
   **remplissage blanc compris** : c'est l'occlusion qui rend la profondeur
   lisible — sans le remplissage, les trois plans se traversaient et ne
