@@ -37,149 +37,21 @@ export const DEFAULT_VISUAL: VisualSettings = {
 }
 
 /**
- * Ink wall settings — everything the sound-to-pigment shader is made of.
+ * Ink wall settings.
  *
- * Kept in its own slice rather than folded into `VisualSettings`: the wall is
- * the visualizer, it has its own debugger tab, and every field here maps to
- * exactly one uniform or one constant of the pigment model. Nothing else in
- * the app reads them.
+ * Le shader du mur est en cours de reconstruction : on repart d'une base
+ * minimale et on rajoute les briques une par une. Ce slice va se remplir au
+ * fur et a mesure que des reglages seront exposes ; pour l'instant il ne
+ * contient qu'un placeholder pour garder le plumbing (setInk, resetInk,
+ * onglet Ink) en place et pret a accueillir la suite.
  */
-/**
- * Vues du debugger, DANS L'ORDRE : l'index d'une vue dans ce tableau est la
- * valeur passee a l'uniforme `uView` du shader. Ajouter une vue = ajouter une
- * entree ici ET la brancher dans `InkWall.tsx` sur le meme index.
- */
-export const INK_VIEWS = [
-  'off',
-  'coverage',
-  'wet',
-  'stain',
-  'flash',
-  'load',
-  'blotch',
-  'wash',
-  'stroke',
-  'warp',
-  'palette',
-  'grid',
-] as const
-
-export type InkView = (typeof INK_VIEWS)[number]
-
 export interface InkSettings {
-  // --- Sound to pigment (CPU model, see inkField.ts) ---
-  /** How fast the paper soaks up pigment, per second at full energy. */
-  deposit: number
-  /** Wash drying time constant, in seconds. Long = the track leaves a trail. */
-  dryTime: number
-  /** How long a transient drop takes to resorb, in seconds. */
-  flashTime: number
-  /** Lateral migration of pigment, in frequency slots² per second. */
-  spread: number
-
-  // --- How the three pigment states add up ---
-  weightStain: number
-  weightWet: number
-  weightFlash: number
-  /** Extra load a kick briefly adds. */
-  beatLift: number
-
-  // --- Layout, in world units ---
-  /** Half-width of the painted window. */
-  span: number
-  /** Reference height of the wash climb. */
-  rise: number
-  /** Climb at zero pigment, then how much a full load adds (in `rise` units). */
-  reachBase: number
-  reachGain: number
-  /** Vertical falloff exponent. Higher = denser at the horizon, whiter above. */
-  falloff: number
-  /** How far below the horizon the ink is allowed to run, in `rise` units. */
-  sink: number
-  /** Where the lateral dissolve into white starts, in `span` units. */
-  sideFade: number
-
-  // --- Wet paper (domain warp) ---
-  bleed: number
-  /** How much the spectral flux and the kick amplify the warp. */
-  fluxWarp: number
-  beatWarp: number
-
-  // --- Wash (the halo) ---
-  wash: number
-  /** Blotch thresholds. Narrow = holes of white paper inside the stain. */
-  blotchLow: number
-  blotchHigh: number
-  /** Wet-edge accumulation at the rim of a puddle. */
-  rim: number
-
-  // --- Strokes (the drawing) ---
-  stroke: number
-  /** Pigment concentration of a stroke, at rest and at full load. */
-  strokeInk: number
-  strokeInkGain: number
-  /** Loops per unit for each of the two crossing pen passes. */
-  spacingA: number
-  spacingB: number
-  /** Stroke thickness, in pixels. */
-  weight: number
-  /** How much the pen lifts — 0 = closed contour loops, 1 = broken strokes. */
-  lift: number
-  /** How far the strokes venture out of the wash, in coverage units. */
-  reachInk: number
-  /** Share of the stroke presence driven by the track's brightness. */
-  brightnessMix: number
-  /** Drift speed of the loops, in loops per beat. */
-  phaseSpeed: number
-
-  // --- Debugger ---
-  /** False-colour readout of one intermediate value. 'off' = the real render. */
-  view: InkView
-  /** Freeze the shader clock: the warp stops, the pigment keeps flowing. */
-  freeze: boolean
+  /** Placeholder : le mur n'a aucun reglage tant qu'on n'a pas re-ajoute de brique. */
+  wip: boolean
 }
 
 export const DEFAULT_INK: InkSettings = {
-  deposit: 0.85,
-  dryTime: 8,
-  flashTime: 0.3,
-  spread: 14,
-
-  weightStain: 0.62,
-  weightWet: 0.4,
-  weightFlash: 0.4,
-  beatLift: 0.25,
-
-  span: 46,
-  rise: 11,
-  reachBase: 0.12,
-  reachGain: 0.88,
-  falloff: 3,
-  sink: 0.42,
-  sideFade: 0.74,
-
-  bleed: 0.22,
-  fluxWarp: 0.9,
-  beatWarp: 0.7,
-
-  wash: 0.11,
-  blotchLow: 0.37,
-  blotchHigh: 0.6,
-  rim: 0.34,
-
-  stroke: 0.9,
-  strokeInk: 0.5,
-  strokeInkGain: 0.7,
-  spacingA: 10,
-  spacingB: 8,
-  weight: 1,
-  lift: 1,
-  reachInk: 0.055,
-  brightnessMix: 0.65,
-  phaseSpeed: 0.02,
-
-  view: 'off',
-  freeze: false,
+  wip: false,
 }
 
 /** Scene debugger settings: visual aids only — there's no lighting left to tune. */
