@@ -4,7 +4,7 @@ import { ShaderMaterial, Uniform, Vector2, Vector3 } from 'three'
 import { engine } from '../audio/engine'
 import { readState } from '../state/store'
 import { createInkPalette, InkField } from './inkField'
-import { INK_LINE, INK_PAPER } from './ink'
+import { INK_PAPER } from './ink'
 
 /**
  * Le mur d'encre — le visualiseur.
@@ -28,11 +28,17 @@ import { INK_LINE, INK_PAPER } from './ink'
  *  - la deformation du papier (double warp de bruit fractal) porte le flux
  *    spectral et le kick : un morceau dense fait baver l'encre, un kick la
  *    fait exploser ;
- *  - par dessus le lavis courent des BOUCLES A LA PLUME : les lignes de
- *    niveau d'un champ de bruit, d'epaisseur constante en pixels, qui se
- *    densifient avec la brillance du morceau. C'est ce qui empeche le mur de
- *    se lire comme un degrade de fond et le raccroche au trait du reste de la
- *    scene.
+ *  - l'image, c'est le TRAIT. Des boucles a la plume — les lignes de niveau
+ *    d'un champ de bruit deforme — courent la ou la musique a depose du
+ *    pigment, et elles sont ENCREES DE LA COULEUR DE LEUR FREQUENCE. Le lavis
+ *    n'est qu'un halo tres dilue autour d'elles : la page doit rester blanche,
+ *    ce qui la remplit est le trait, pas l'aplat.
+ *
+ * Rien n'est jamais dessine en gris : un trait gris sur une tache coloree se
+ * lit comme une carte de niveaux, pas comme de l'encre. Le trait et le lavis
+ * sont le MEME pigment a deux concentrations — c'est ce que fait un pinceau
+ * qu'on charge plus ou moins, et c'est pour ca que la palette stocke une
+ * direction d'absorption plutot qu'une couleur (cf. `inkField.ts`).
  *
  * Le plan est volontairement enorme : ses bords ne doivent jamais entrer dans
  * le cadre, quelle que soit l'orbite de la camera, sinon la passe `InkEffect`
@@ -86,7 +92,6 @@ varying vec2 vArt;
 uniform sampler2D uSpectrum;
 uniform sampler2D uPalette;
 uniform vec3 uPaper;
-uniform vec3 uInk;
 uniform float uTime;
 uniform float uPhase;
 uniform float uFlux;
@@ -152,6 +157,26 @@ vec2 flow(vec2 p, float t) {
   );
 }
 
+/**
+ * Une passe de plume : l'alpha du trait en un point.
+ *
+ * Le trait est une ligne de niveau d'un champ de bruit deforme — des boucles
+ * fermees et irregulieres, jamais des rayures. Son epaisseur est constante en
+ * PIXELS (via fwidth), comme le trait du reste de la scene : un stylo ne
+ * s'affine pas parce que la surface s'eloigne.
+ */
+float penStroke(vec2 p, vec2 scale, vec2 warp, float spacing, float phase, float weight) {
+  float g = fbm(p * scale + warp) * spacing + phase;
+  float ff = fract(g);
+  float dd = min(ff, 1.0 - ff);
+  float aa = clamp(fwidth(g), 0.0008, 0.35);
+  float hw = aa * weight;
+  float line = 1.0 - smoothstep(hw, hw * 2.3, dd);
+  // Quand les boucles se resserrent au dela du pixel, on les efface plutot
+  // que de les laisser former un aplat.
+  return line * (1.0 - smoothstep(0.14, 0.34, aa));
+}
+
 /** Papier nu : le blanc de la feuille, plus le tramage qui evite les bandes. */
 vec3 paper(vec3 tint) {
   return tint + (hash12(gl_FragCoord.xy) - 0.5) * 0.012;
@@ -208,9 +233,11 @@ void main() {
 
   // Sortie anticipee sur le papier nu. Le mur couvre tout l'ecran et, sur un
   // morceau normal, la majorite de ses pixels ne portent aucun pigment : tout
-  // ce qui suit (flaques, granulation, plume) n'aurait rien a y dessiner.
+  // ce qui suit (flaques, granulation, trait) n'aurait rien a y dessiner. Le
+  // seuil passe SOUS celui du trait, sinon les boucles seraient coupees net
+  // la ou elles doivent justement s'evanouir dans le blanc.
   float coverage = pigmentLoad * profile * sides;
-  if (coverage < 0.004) {
+  if (coverage < 0.0025) {
     gl_FragColor = vec4(srgbToLinear(clamp(paper(uPaper), 0.0, 1.0)), 1.0);
     return;
   }
@@ -232,53 +259,63 @@ void main() {
   float rim = smoothstep(0.02, 0.13, conc) * (1.0 - smoothstep(0.13, 0.38, conc));
   conc += rim * 0.34 * uDensity;
 
-  // Granulation : le pigment ne seche pas uniformement, il se depose dans le
-  // creux de la fibre et deserte la bosse. C'est ce qui donne a une aquarelle
-  // son grain irregulier — et c'est une modulation de la QUANTITE de pigment,
-  // pas un assombrissement de la couleur : un voile gris par dessus rendrait
-  // le papier sale au lieu de le rendre vivant.
-  conc *= 0.82 + 0.36 * fbm3(p * vec2(9.0, 12.0) + 37.0);
   // Plafonne sous 1 : la fibre du papier doit toujours transparaitre, meme au
   // plus fort du morceau.
   conc = clamp(conc, 0.0, 0.92);
 
-  // --- Teinte ---------------------------------------------------------------
-  // La couleur est echantillonnee sur une deformation BEAUCOUP plus ample que
-  // celle de la densite : les teintes voyagent d'une flaque a l'autre sans que
-  // la forme de la tache ne bouge, ce qui est exactement le comportement du
+  // --- Pigment --------------------------------------------------------------
+  // Il est echantillonne sur une deformation BEAUCOUP plus ample que celle de
+  // la densite : les teintes voyagent d'une flaque a l'autre sans que la forme
+  // de la tache ne bouge, ce qui est exactement le comportement du
   // mouille-sur-mouille. Sans ca, le mur reste un degrade horizontal propre —
   // lisible, mais ce n'est plus de l'encre.
   float cu = clamp((q.x + (w1.x * 2.2 + w2.x * 1.1) * max(turb, 0.06)) * 0.5 + 0.5, 0.0, 1.0);
-  vec3 pigment = texture2D(uPalette, vec2(cu, 0.5)).rgb;
+  vec4 pal = texture2D(uPalette, vec2(cu, 0.5));
+  vec3 absorb = pal.rgb;
+  float pigmentGain = pal.a * 2.0;
 
   // Loi de Beer-Lambert simplifiee : le pigment ABSORBE, il n'emet pas. Sur du
-  // papier blanc c'est ce qui donne des pastels francs sans jamais griser.
-  vec3 col = uPaper * (1.0 - (1.0 - pigment) * conc);
+  // papier blanc c'est ce qui donne des teintes franches sans jamais griser —
+  // et la meme formule sert au halo comme au trait, seule la concentration
+  // change.
+  vec3 col = uPaper * (1.0 - absorb * clamp(conc * pigmentGain, 0.0, 0.9));
 
 
-  // --- Boucles a la plume ---------------------------------------------------
-  if (uPenwork > 0.001 && conc > 0.02) {
-    // Lignes de niveau d'un champ de bruit deforme : des boucles fermees et
-    // irregulieres, pas des rayures. uPhase avance avec le tempo, donc les
-    // boucles migrent au rythme du morceau.
-    // L'ecart entre deux boucles varie lentement dans l'espace : des lignes de
-    // niveau regulierement espacees se lisent comme une carte topographique,
-    // pas comme une plume. En faisant respirer l'ecart, on retrouve les
-    // pleins et les delies d'un trait fait a la main.
-    float spacing = 9.0 + 11.0 * fbm3(p * 0.65 + 5.0);
-    float g = fbm(p * vec2(1.6, 2.2) + w1 * 1.4) * spacing + uPhase;
-    float ff = fract(g);
-    float dd = min(ff, 1.0 - ff);
-    // Epaisseur constante en PIXELS, comme le trait du reste de la scene : un
-    // stylo ne s'affine pas parce que la surface s'eloigne.
-    float aa = clamp(fwidth(g), 0.0008, 0.35);
-    float line = 1.0 - smoothstep(aa * 0.45, aa * 1.55, dd);
-    // Quand les boucles se resserrent au dela du pixel, on les efface plutot
-    // que de les laisser former un aplat gris.
-    line *= 1.0 - smoothstep(0.14, 0.34, aa);
-    // Le trait n'existe que sur l'encre, et se densifie avec l'aigu.
-    float where = smoothstep(0.025, 0.22, conc) * (0.28 + 0.72 * uBrightness);
-    col = mix(col, uInk, clamp(line, 0.0, 1.0) * where * uPenwork);
+  // --- Le trait -------------------------------------------------------------
+  // C'est lui qui porte l'image, pas le lavis.
+  if (uPenwork > 0.001) {
+    // DEUX passes de plume, a des echelles et des orientations differentes.
+    // Une seule donne des boucles concentriques et bien rangees — une carte de
+    // niveaux. Deux qui se croisent donnent ce qu'on veut : un trait qui
+    // repasse sur lui-meme, comme une main qui boucle sans lever le stylo.
+    //
+    // L'ecart entre boucles et l'epaisseur varient lentement dans l'espace :
+    // c'est ce qui donne les pleins et les delies. Les deux passes lisent le
+    // meme champ lent, l'une a l'endroit l'autre a l'envers, pour ne pas
+    // enfler et maigrir au meme endroit.
+    float slow = fbm3(p * 0.65 + 5.0);
+    float weight = 0.32 + 0.8 * slow + 0.6 * (w1.y + 0.5);
+
+    float a = penStroke(p, vec2(1.3, 1.8), w1 * 1.9, 6.5 + 7.0 * slow, uPhase, weight);
+    float b = penStroke(p, vec2(2.3, 1.05), w2 * 1.6 + 23.0, 5.0 + 6.0 * (1.0 - slow), uPhase * 0.7 + 4.0, weight * 0.85);
+
+    // La plume se leve. Sans ca, une ligne de niveau est une boucle FERMEE :
+    // elle revient toujours sur elle-meme et l'oeil y lit une courbe de niveau,
+    // pas un geste. En coupant chaque passe sur un champ different, le trait
+    // s'interrompt et repart ailleurs — c'est la main qui respire.
+    a *= smoothstep(-0.22, 0.06, w2.y + 0.1 * slow);
+    b *= smoothstep(-0.20, 0.08, w1.x - 0.1 * slow);
+    float line = max(a, b);
+
+    // Le trait suit le pigment depose, mais il deborde du lavis : c'est lui
+    // qui doit s'aventurer dans le blanc, pas la tache.
+    float where = smoothstep(0.003, 0.055, coverage) * (0.35 + 0.65 * uBrightness);
+
+    // Meme pigment que le lavis, simplement beaucoup plus charge. Jamais
+    // d'encre grise par dessus : le trait EST la couleur de sa frequence.
+    float strokeConc = clamp((0.5 + 0.7 * pigmentLoad) * pigmentGain, 0.0, 1.0);
+    vec3 stroke = uPaper * (1.0 - absorb * strokeConc);
+    col = mix(col, stroke, clamp(line * where * uPenwork, 0.0, 1.0));
   }
 
   gl_FragColor = vec4(srgbToLinear(clamp(paper(col), 0.0, 1.0)), 1.0);
@@ -301,7 +338,6 @@ export function InkWall() {
           uSpectrum: new Uniform(field.texture),
           uPalette: new Uniform(palette),
           uPaper: new Uniform(srgb(INK_PAPER)),
-          uInk: new Uniform(srgb(INK_LINE)),
           uOrigin: new Uniform(new Vector2(0, INK_BASE_Y)),
           uSpan: new Uniform(new Vector2(INK_SPAN, INK_RISE)),
           uTime: new Uniform(0),

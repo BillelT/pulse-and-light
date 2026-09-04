@@ -1,7 +1,8 @@
 # PULSE & LIGHT — Scénographie audio-réactive WebGL
 
-Un mur d'encre — un lavis d'aquarelle peint en direct par le spectre — qui
-réagit en temps réel à la musique jouée depuis Spotify.
+Un mur d'encre — des tracés d'encre colorés, dessinés en direct par le
+spectre sur une page blanche — qui réagit en temps réel à la musique jouée
+depuis Spotify.
 
 Référence visuelle : `ref.jpg`. Cahier des charges : `Brief_Projet_WebGL_AudioReactive.md`.
 
@@ -223,17 +224,27 @@ sortie change : **son → encre** au lieu de son → lumière.
   **luminance** : à quantité d'eau égale, le rouge (0,30) mord six fois plus le
   papier que le vert (0,86), et le grave écrasait l'aigu alors que ce sont deux
   moitiés du même spectre.
-- **Ce que le shader ajoute** (`InkWall.tsx`) : deux échelles de déformation par
-  bruit fractal, amplifiées par le flux spectral et le kick (un morceau dense
-  fait baver l'encre) ; des flaques, qui laissent le blanc du papier respirer à
-  l'intérieur de la tache ; un **bord humide** plus dense, signature de
-  l'aquarelle ; une granulation qui module la *quantité* de pigment et non sa
-  couleur — un voile gris salirait le papier au lieu de le rendre vivant.
-- **Les boucles à la plume** sont les lignes de niveau d'un champ de bruit
-  déformé, d'épaisseur constante en pixels comme le reste du trait. Leur
-  espacement varie dans l'espace : régulièrement espacées, elles se lisent
-  comme une carte topographique et non comme une plume. Elles se densifient
-  avec la brillance du morceau.
+- **L'image, c'est le trait.** Des boucles à la plume — lignes de niveau d'un
+  champ de bruit déformé, d'épaisseur constante en pixels comme le reste du
+  trait — courent là où la musique a déposé du pigment, **encrées de la couleur
+  de leur fréquence**. Le lavis n'est plus qu'un halo très dilué autour d'elles :
+  la page doit rester blanche, ce qui la remplit est le trait, pas l'aplat.
+  Rien n'est jamais dessiné en gris — un trait gris sur une tache colorée se lit
+  comme une carte de niveaux, pas comme de l'encre.
+- **Trait et lavis sont le même pigment à deux concentrations**, ce que fait un
+  pinceau qu'on charge plus ou moins. C'est pour ça que la palette stocke une
+  *direction d'absorption* (RGB) et un *gain de concentration* (alpha) plutôt
+  qu'une couleur : les deux rendus restent accordés sans dupliquer la rampe.
+- **Deux passes de plume qui se croisent**, à des échelles et orientations
+  différentes. Une seule donne des boucles concentriques bien rangées — une
+  carte de niveaux. Et chacune est **coupée sur un champ différent** : une ligne
+  de niveau est une boucle *fermée*, elle revient toujours sur elle-même ;
+  l'interrompre, c'est la main qui lève la plume et repart ailleurs.
+  L'espacement et l'épaisseur respirent dans l'espace — les pleins et les déliés.
+- **Ce que le shader ajoute au halo** : deux échelles de déformation par bruit
+  fractal, amplifiées par le flux spectral et le kick (un morceau dense fait
+  baver l'encre) ; des flaques, qui laissent le blanc respirer ; un **bord
+  humide** plus dense, signature de l'aquarelle.
 - **Le plan est volontairement énorme** (300 × 150) : ses bords ne doivent jamais
   entrer dans le cadre, sinon la passe `InkEffect` les cernerait d'un contour et
   le papier deviendrait un objet posé dans la scène. Le lavis, lui, ne vit que
@@ -243,8 +254,9 @@ sortie change : **son → encre** au lieu de son → lumière.
 - **Silence = feuille blanche.** Aucun lavis de repos : tant qu'aucune source
   n'est branchée, il n'y a rien à peindre.
 
-Trois réglages dans le panneau *Light* : **Pigment** (concentration), **Bleed**
-(à quel point le papier est mouillé) et **Pen loops** (densité des boucles).
+Trois réglages dans le panneau *Light* : **Ink strokes** (le dessin lui-même),
+**Wash** (le halo autour des tracés — à garder bas, la page doit rester
+blanche) et **Bleed** (à quel point le papier est mouillé).
 
 ---
 

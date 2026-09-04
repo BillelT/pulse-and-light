@@ -207,36 +207,23 @@ export class InkField {
   }
 }
 
-/** Largeur de la rampe de teintes. */
+/** Largeur de la rampe de pigments. */
 const PALETTE_SIZE = 128
 
 /**
- * Dilution du pigment.
+ * Profondeur visee, en luminance perdue par unite de concentration.
  *
- * Les couleurs du brief sont des couleurs de LED — pensees pour etre EMISES
- * dans le noir. Posees telles quelles sur du papier blanc elles donnent de la
- * gouache : des aplats francs qui ecrasent la feuille et transforment le mur
- * en drapeau arc-en-ciel. Un lavis, c'est du pigment dilue.
- *
- * Diluer, c'est raccourcir le vecteur d'ABSORPTION (1 - couleur) sans changer
- * sa direction : on garde exactement le pigment de la bande, on ne change que
- * la quantite d'eau. C'est aussi ce que fait physiquement un pinceau.
- */
-const DILUTION = 0.42
-
-/**
- * Profondeur visee, en luminance perdue, pour toutes les bandes.
- *
- * Une dilution uniforme donnerait un mur desequilibre : a quantite d'eau
- * egale, le rouge (luminance 0,30) mord six fois plus le papier que le vert
- * (0,86). Le grave ressortait donc en aplat franc et l'aigu disparaissait —
- * alors que ce sont deux moities du meme spectre. On corrige la concentration
- * de chaque pigment pour que toutes les bandes creusent le papier a peu pres
+ * A concentration egale, un pigment jaune mord quatre fois moins le papier
+ * qu'un rouge : le grave ressortait en aplat franc et l'aigu disparaissait,
+ * alors que ce sont deux moities du meme spectre. On corrige donc la
+ * concentration de chaque bande pour que toutes creusent le papier a peu pres
  * autant. Les bornes evitent les deux exces : un rouge qui vire au fluo si on
- * le concentre, un vert qui vire au noir.
+ * le concentre, un jaune qui vire au brun.
  */
-const REFERENCE_DEPTH = 0.4
-const CONCENTRATION_RANGE: [number, number] = [0.5, 1.7]
+const REFERENCE_LOSS = 0.4
+const GAIN_RANGE: [number, number] = [0.4, 2]
+/** Le gain est stocke sur un octet : il faut le ramener dans 0..1. */
+const GAIN_SCALE = 2
 
 /** Luminance relative (Rec. 709) : ce que l'oeil lit comme "clair" ou "fonce". */
 function luminance(r: number, g: number, b: number): number {
@@ -248,33 +235,49 @@ function clamp(v: number, lo: number, hi: number): number {
 }
 
 /**
- * Rampe frequence -> teinte, construite a partir des couleurs de bande du
+ * Rampe frequence -> pigment, construite a partir des couleurs de bande du
  * brief (PARTIE 1) et sur le meme axe log que les tranches d'encre.
+ *
+ * On n'y stocke pas une couleur mais un PIGMENT, c'est a dire deux choses :
+ *
+ *  - RGB : la direction du vecteur d'ABSORPTION (1 - couleur), normalisee.
+ *    C'est l'identite du pigment, ce qui ne change jamais — de l'encre rouge
+ *    reste de l'encre rouge, diluee ou pure.
+ *  - A   : le gain de concentration propre a cette bande (voir REFERENCE_LOSS).
+ *
+ * Separer les deux est ce qui permet au mur de tirer DEUX rendus du meme
+ * pigment : un lavis presque transparent, et un trait franc — sans jamais
+ * dupliquer la palette ni desaccorder les deux. La teinte reste exactement
+ * celle du brief dans les deux cas.
  *
  * Chaque bande est ancree a sa frequence centrale GEOMETRIQUE (et non a son
  * milieu arithmetique) : sur un axe logarithmique, c'est le seul point qui
  * tombe visuellement au centre de la bande. Entre deux ancres, interpolation
  * lineaire — c'est deja un fondu de pigment.
  *
- * La texture est stockee telle quelle (`NoColorSpace`) : le shader du mur
- * travaille en sRGB puis convertit une seule fois en sortie, ce qui garde un
- * controle direct sur ce qui est reellement affiche.
+ * La texture est stockee telle quelle (`NoColorSpace`) : ce sont des donnees,
+ * pas des couleurs, et le shader s'occupe seul de la conversion de sortie.
  */
 export function createInkPalette(): DataTexture {
   const logLo = Math.log2(COLUMN_F_LO)
   const logHi = Math.log2(COLUMN_F_HI)
   const anchors = BANDS.map((band) => {
-    const r = ((band.hex >> 16) & 255) / 255
-    const g = ((band.hex >> 8) & 255) / 255
-    const b = (band.hex & 255) / 255
-    const strength =
-      DILUTION *
-      clamp(REFERENCE_DEPTH / (1 - luminance(r, g, b)), CONCENTRATION_RANGE[0], CONCENTRATION_RANGE[1])
+    const absorb = [
+      1 - ((band.hex >> 16) & 255) / 255,
+      1 - ((band.hex >> 8) & 255) / 255,
+      1 - (band.hex & 255) / 255,
+    ]
+    // Direction du pigment : au moins un canal a 1, sinon un pigment clair
+    // (le jaune) plafonnerait bien avant d'avoir l'air d'un trait.
+    const peak = Math.max(absorb[0], absorb[1], absorb[2], 1e-4)
+    const dir = absorb.map((a) => a / peak)
+    const gain = clamp(REFERENCE_LOSS / luminance(dir[0], dir[1], dir[2]), GAIN_RANGE[0], GAIN_RANGE[1])
     return {
       u: (Math.log2(Math.sqrt(band.from * band.to)) - logLo) / (logHi - logLo),
-      r: clamp(1 - (1 - r) * strength, 0, 1),
-      g: clamp(1 - (1 - g) * strength, 0, 1),
-      b: clamp(1 - (1 - b) * strength, 0, 1),
+      r: dir[0],
+      g: dir[1],
+      b: dir[2],
+      a: gain / GAIN_SCALE,
     }
   })
 
@@ -284,21 +287,26 @@ export function createInkPalette(): DataTexture {
     let hi = 0
     while (hi < anchors.length && anchors[hi].u < u) hi++
 
-    let color: { r: number; g: number; b: number }
-    if (hi === 0) color = anchors[0]
-    else if (hi === anchors.length) color = anchors[anchors.length - 1]
+    let pigment: { r: number; g: number; b: number; a: number }
+    if (hi === 0) pigment = anchors[0]
+    else if (hi === anchors.length) pigment = anchors[anchors.length - 1]
     else {
       const a = anchors[hi - 1]
       const b = anchors[hi]
       const f = (u - a.u) / (b.u - a.u)
-      color = { r: a.r + (b.r - a.r) * f, g: a.g + (b.g - a.g) * f, b: a.b + (b.b - a.b) * f }
+      pigment = {
+        r: a.r + (b.r - a.r) * f,
+        g: a.g + (b.g - a.g) * f,
+        b: a.b + (b.b - a.b) * f,
+        a: a.a + (b.a - a.a) * f,
+      }
     }
 
     const o = i * 4
-    data[o] = byte(color.r)
-    data[o + 1] = byte(color.g)
-    data[o + 2] = byte(color.b)
-    data[o + 3] = 255
+    data[o] = byte(pigment.r)
+    data[o + 1] = byte(pigment.g)
+    data[o + 2] = byte(pigment.b)
+    data[o + 3] = byte(pigment.a)
   }
 
   const texture = new DataTexture(data, PALETTE_SIZE, 1)

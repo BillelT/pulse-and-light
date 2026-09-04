@@ -144,19 +144,19 @@ export function LightingTab() {
 
       <Section title="Ink wall (the visualizer)">
         <div className="field-hint" style={{ marginTop: 4, marginBottom: 10 }}>
-          Sound becomes pigment, not light. Left to right = low to high frequency, and each
-          slice keeps the colour its band is given in part 1 of the brief. Height = how much
-          ink that frequency has soaked into the paper.
+          Sound becomes pigment, not light. The image is the stroke: pen loops inked with
+          the colour of their own frequency (low to high, left to right, per part 1 of the
+          brief). The wash is only a faint halo — the page stays white.
         </div>
         <Slider
-          label="Pigment"
+          label="Wash"
           value={visual.inkWashDensity}
           min={0}
           max={1.6}
           step={0.02}
           format={pct}
           onChange={(inkWashDensity) => setVisual({ inkWashDensity })}
-          hint="Concentration of the wash. Too high and the paper stops showing through."
+          hint="Halo around the strokes. Keep it low: the paper has to stay white."
         />
         <Slider
           label="Bleed"
@@ -169,14 +169,14 @@ export function LightingTab() {
           hint="How wet the paper is. The spectral flux and the kick push it further."
         />
         <Slider
-          label="Pen loops"
+          label="Ink strokes"
           value={visual.inkWashPenwork}
           min={0}
           max={1.2}
           step={0.02}
           format={pct}
           onChange={(inkWashPenwork) => setVisual({ inkWashPenwork })}
-          hint="Contour lines drawn over the wash. They tighten with the treble."
+          hint="The drawing itself. Same pigment as the wash, far more concentrated; it tightens with the treble."
         />
       </Section>
 

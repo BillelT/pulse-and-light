@@ -25,11 +25,11 @@ export interface VisualSettings {
   /** Contour sensitivity: how eagerly a depth step becomes a line. */
   inkContour: number
 
-  /** Ink wall: pigment concentration the music lays on the paper. */
+  /** Ink wall: concentration of the faint wash haloing the strokes. */
   inkWashDensity: number
   /** Ink wall: how far wet paper drags the pigment around. */
   inkWashBleed: number
-  /** Ink wall: density of the pen loops running over the wash. */
+  /** Ink wall: presence of the coloured pen strokes — the image itself. */
   inkWashPenwork: number
 }
 
@@ -42,9 +42,9 @@ export const DEFAULT_VISUAL: VisualSettings = {
   inkHatch: 0,
   inkContour: 14,
 
-  inkWashDensity: 1,
+  inkWashDensity: 0.11,
   inkWashBleed: 0.22,
-  inkWashPenwork: 0.55,
+  inkWashPenwork: 0.9,
 }
 
 /** Scene debugger settings: visual aids only — there's no lighting left to tune. */
