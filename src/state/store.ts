@@ -40,7 +40,7 @@ export interface VisualSettings {
   inkLine: number
   /** Hand-drawn wobble of the line, in pixels. 0 = vector-clean line. */
   inkWobble: number
-  /** Hatching density on grazing surfaces, 0..1. Kept low on purpose. */
+  /** Hatching density on grazing surfaces. Off by default: the page stays white. */
   inkHatch: number
   /** Contour sensitivity: how eagerly a depth step becomes a line. */
   inkContour: number
@@ -64,8 +64,8 @@ export const DEFAULT_VISUAL: VisualSettings = {
 
   ink: true,
   inkLine: 1.2,
-  inkWobble: 2.4,
-  inkHatch: 0.55,
+  inkWobble: 1.6,
+  inkHatch: 0,
   inkContour: 14,
   inkColor: 1.35,
 }

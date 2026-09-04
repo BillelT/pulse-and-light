@@ -156,7 +156,10 @@ soit trois *draw calls*, ce qui laisse le budget au bloom.
   rotation de bassin entraîne tout le haut du corps. Sa phase de danse avance en
   **battements par seconde** (BPM/60), donc le rebond tombe sur le temps quel que
   soit le tempo. Il descend sur le kick plutôt que de monter : un rebond vers le
-  haut se lit comme un sursaut, pas comme une danse.
+  haut se lit comme un sursaut, pas comme une danse. Son **corps**, lui, est
+  volontairement réduit à des volumes simples (capsules, une sphère pour la
+  tête, aucun visage) : à sa taille à l'écran, le détail se lit comme de la
+  salissure, pas comme un personnage.
 - **Caméra** maison plutôt qu'`OrbitControls`, pour pouvoir superposer un
   mouvement automatique et un *shake* sur les kicks sans que le contrôleur ne
   les écrase. Glisser = orbiter, molette = zoom.
@@ -187,6 +190,14 @@ Rien n'est stylisé « par-dessus » une image colorée : l'image est *redessin�
   (membrane, épaule du danseur) fait varier sa normale continûment et se
   noircissait de traits jointifs, alors qu'une arête franche passe largement le
   seuil.
+- **Le critère de contour est la courbure rapportée à la pente**, pas le
+  gradient de profondeur. Un gradient dépend de tout — distance, angle
+  d'incidence, amplitude du saut : deux colonnes séparées de 80 cm passaient le
+  seuil de face et le rataient de trois quarts, d'où des traits qui
+  apparaissaient et disparaissaient pendant un mouvement de caméra, tandis
+  qu'une simple surface inclinée (l'estrade vue d'en bas) se couvrait de
+  hachures parasites. Le rapport courbure / pente vaut ~1 sur *toute*
+  discontinuité et ~0 sur une surface lisse, même vue en incidence rasante.
 - **Trois règles de couleur, dans cet ordre** : pixel saturé → c'est une LED, on
   garde sa teinte ; pixel sombre et désaturé → c'est de l'encre peinte dans la
   scène (skyline, traits de sol) ; sinon → papier. Corollaire utile : dessiner
@@ -197,6 +208,21 @@ Rien n'est stylisé « par-dessus » une image colorée : l'image est *redessin�
 - **Ce qui reste du sol** : quelques traits horizontaux sous les équipements. Le
   brief interdit un sol délimité ; un plan, même blanc, se trahirait par sa
   silhouette et par la ligne d'horizon que le trait en tirerait.
+- **Les hachures sont coupées par défaut** : la page doit rester blanche. Le
+  réglage existe encore (Lumière › *Hatching*), mais à zéro — sur une surface
+  vue en incidence rasante, elles n'apparaissaient que sous certains angles de
+  caméra, ce qui faisait "respirer" l'estrade sans raison.
+- **La ville plonge sous le plateau** : les plans de fond sont trois fois plus
+  grands et bien plus loin, et leur bord bas passe sous le sol. Aucune base
+  d'immeuble n'est visible, les tours traversent le cadre de bout en bout —
+  c'est ce qui dit qu'on regarde la ville depuis un étage élevé. Des immeubles
+  qui commencent en l'air se lisaient comme une frise posée sur l'horizon.
+- **Le personnage est réduit à des volumes simples** : une capsule pour le
+  buste, une sphère pour la tête, des capsules pour les membres. Ni visage, ni
+  casquette, ni casque : haut de deux pouces à l'écran, chaque détail
+  supplémentaire devenait un nœud de micro-arêtes que la passe encre ne pouvait
+  résoudre qu'en pâté noir. Le rig hiérarchique et les chorégraphies, eux, sont
+  intacts.
 - **Le HUD suit la même DA** : papier, contours fins, aucune lueur, analyseur en
   niveaux de gris. Une classe `ink` sur `<body>` suffit, la feuille de style est
   écrite autour de variables.

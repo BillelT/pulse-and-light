@@ -18,15 +18,18 @@ import { Band } from '../audio/bands'
  *
  * Several choreographies ("moves") take turns every CYCLE_BEATS bars, with a
  * one-beat crossfade between them: the dance doesn't loop on a single motif.
+ *
+ * The BODY, on the other hand, is deliberately reduced to simple volumes —
+ * capsules, one sphere for the head, no face, no accessories. The character is
+ * two thumbs tall on screen: every extra detail turned into a knot of tiny
+ * edges that the ink pass could only resolve as a black blob. A sketch states
+ * a body with a handful of masses, and the rig above is what makes it alive.
  */
 
 const SKIN = '#dba179'
 const HOODIE = '#3b4f7a'
-const HOODIE_DARK = '#232d47'
 const JEANS = '#39445e'
 const DARK = '#15181d'
-const CAP = '#232c3c'
-const CAP_BRIM = '#12151c'
 
 const CYCLE_BEATS = 8
 const MOVE_COUNT = 5
@@ -111,42 +114,23 @@ export function Dancer() {
   return (
     <group ref={root}>
       <group ref={hips} position={[0, 0.94, 0]}>
-        <Limb args={[0.34, 0.24, 0.22]} color={JEANS} />
+        <Limb args={[0.3, 0.22, 0.2]} color={JEANS} />
 
         <group ref={spine} position={[0, 0.14, 0]}>
           <group ref={chest}>
-            {/* Chest as two volumes: the rib cage wider than the waist. A single
-                cube gave a blocky silhouette, with no read on the shoulders. */}
-            <mesh position={[0, 0.14, 0]} castShadow>
-              <boxGeometry args={[0.36, 0.26, 0.23]} />
+            {/* Buste : UN seul volume, une capsule. La version detaillee
+                (cage + bassin + epaules + capuche + cordons + casquette +
+                casque) donnait un amas de petites aretes qui, au trait,
+                revenait a un paquet noir de la taille d'un pouce. Un croquis
+                resume un corps a des volumes simples, et c'est justement ce
+                qui le rend lisible a cette echelle. */}
+            <mesh position={[0, 0.26, 0]} castShadow>
+              <capsuleGeometry args={[0.185, 0.26, 6, 16]} />
               <meshStandardMaterial color={HOODIE} roughness={0.92} metalness={0.02} />
             </mesh>
-            <mesh position={[0, 0.37, 0]} castShadow>
-              <boxGeometry args={[0.46, 0.3, 0.28]} />
-              <meshStandardMaterial color={HOODIE} roughness={0.92} metalness={0.02} />
-            </mesh>
-            {/* Shoulders: without these spheres, the arms look detached from the chest. */}
-            {[-0.25, 0.25].map((x) => (
-              <mesh key={x} position={[x, 0.45, 0]} castShadow>
-                <sphereGeometry args={[0.085, 14, 12]} />
-                <meshStandardMaterial color={HOODIE} roughness={0.92} metalness={0.02} />
-              </mesh>
-            ))}
-            {/* Hood folded down on the back. */}
-            <mesh position={[0, 0.5, -0.11]} castShadow>
-              <boxGeometry args={[0.3, 0.16, 0.13]} />
-              <meshStandardMaterial color={HOODIE} roughness={0.92} metalness={0.02} />
-            </mesh>
-            {/* Hood drawstrings, on the torso. */}
-            {[-0.045, 0.045].map((x) => (
-              <mesh key={x} position={[x, 0.36, 0.115]} castShadow>
-                <cylinderGeometry args={[0.008, 0.008, 0.16, 6]} />
-                <meshStandardMaterial color={HOODIE_DARK} roughness={0.8} metalness={0.02} />
-              </mesh>
-            ))}
-            {/* Neck. */}
+            {/* Cou : court, il suffit a poser la tete au dessus des epaules. */}
             <mesh position={[0, 0.55, 0]} castShadow>
-              <cylinderGeometry args={[0.055, 0.065, 0.11, 12]} />
+              <cylinderGeometry args={[0.052, 0.06, 0.1, 12]} />
               <meshStandardMaterial color={SKIN} roughness={0.85} metalness={0.02} />
             </mesh>
 
@@ -154,8 +138,12 @@ export function Dancer() {
               <Head />
             </group>
 
-            <Arm groupRef={armL} foreRef={foreL} wristRef={wristL} x={-0.25} />
-            <Arm groupRef={armR} foreRef={foreR} wristRef={wristR} x={0.25} />
+            {/* Les bras s'accrochent au bord meme de la capsule (x = rayon) :
+                un point d'ancrage plus large laissait un vide entre le buste
+                et l'epaule, tres visible une fois la silhouette reduite a son
+                contour. */}
+            <Arm groupRef={armL} foreRef={foreL} wristRef={wristL} x={-0.19} />
+            <Arm groupRef={armR} foreRef={foreR} wristRef={wristR} x={0.19} />
           </group>
         </group>
 
@@ -175,57 +163,20 @@ function Limb({ args, color }: { args: [number, number, number]; color: string }
   )
 }
 
-/** Head: face, cap, headphones — the trio that sells the reference's "DJ" look. */
+/**
+ * Tete : une sphere, rien d'autre.
+ *
+ * Aucun visage : a la taille ou le personnage est vu, deux yeux et une bouche
+ * ne se lisent jamais comme une expression — ils se lisent comme de la salete
+ * sur le papier. La direction du regard passe deja par la rotation de la tete,
+ * qui suit la choregraphie.
+ */
 function Head() {
   return (
-    <>
-      <mesh position={[0, 0.1, 0]} castShadow>
-        <capsuleGeometry args={[0.1, 0.07, 6, 16]} />
-        <meshStandardMaterial color={SKIN} roughness={0.85} metalness={0.02} />
-      </mesh>
-
-      {/* Brows, eyes, mouth: just enough marks to read an expression head-on,
-          without chasing a detailed face that's pointless at this distance. */}
-      {[-0.045, 0.045].map((x) => (
-        <mesh key={`brow-${x}`} position={[x, 0.155, 0.093]} rotation-z={x < 0 ? 0.12 : -0.12} castShadow>
-          <boxGeometry args={[0.05, 0.012, 0.012]} />
-          <meshStandardMaterial color={DARK} roughness={0.7} metalness={0.02} />
-        </mesh>
-      ))}
-      {[-0.045, 0.045].map((x) => (
-        <mesh key={`eye-${x}`} position={[x, 0.12, 0.096]} castShadow>
-          <sphereGeometry args={[0.014, 8, 8]} />
-          <meshStandardMaterial color={DARK} roughness={0.5} metalness={0.1} />
-        </mesh>
-      ))}
-      <mesh position={[0, 0.07, 0.097]} rotation-x={Math.PI / 2.2} castShadow>
-        <torusGeometry args={[0.026, 0.006, 6, 10, Math.PI]} />
-        <meshStandardMaterial color="#7a4638" roughness={0.7} metalness={0.02} />
-      </mesh>
-
-      {/* Cap: dome + brim, worn slightly tilted back to keep the face visible
-          and let the headphones sit over it, as in the reference. */}
-      <mesh position={[0, 0.185, -0.006]} castShadow>
-        <sphereGeometry args={[0.107, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62]} />
-        <meshStandardMaterial color={CAP} roughness={0.75} metalness={0.05} />
-      </mesh>
-      <mesh position={[0, 0.165, 0.1]} rotation-x={-0.32} castShadow>
-        <boxGeometry args={[0.16, 0.014, 0.09]} />
-        <meshStandardMaterial color={CAP_BRIM} roughness={0.55} metalness={0.08} />
-      </mesh>
-
-      {/* Headphones: headband + ear cups, over the cap. */}
-      <mesh position={[0, 0.2, 0]} rotation-x={Math.PI / 2} castShadow>
-        <torusGeometry args={[0.118, 0.02, 8, 20, Math.PI]} />
-        <meshStandardMaterial color={DARK} roughness={0.6} metalness={0.25} />
-      </mesh>
-      {[-0.124, 0.124].map((x) => (
-        <mesh key={x} position={[x, 0.1, 0]} rotation-z={Math.PI / 2} castShadow>
-          <cylinderGeometry args={[0.055, 0.055, 0.05, 14]} />
-          <meshStandardMaterial color={DARK} roughness={0.6} metalness={0.25} />
-        </mesh>
-      ))}
-    </>
+    <mesh position={[0, 0.11, 0]} castShadow>
+      <sphereGeometry args={[0.115, 20, 16]} />
+      <meshStandardMaterial color={SKIN} roughness={0.85} metalness={0.02} />
+    </mesh>
   )
 }
 
@@ -285,7 +236,7 @@ function Leg({
           <meshStandardMaterial color={JEANS} roughness={0.94} metalness={0.02} />
         </mesh>
         <mesh position={[0, -0.4, 0.04]} castShadow>
-          <boxGeometry args={[0.13, 0.08, 0.27]} />
+          <boxGeometry args={[0.12, 0.07, 0.22]} />
           <meshStandardMaterial color={DARK} roughness={0.8} metalness={0.05} />
         </mesh>
       </group>

@@ -1043,6 +1043,39 @@ body.ink .dock {
   font-family: var(--mono);
 }
 
+/* Toute la typographie du dock et de l'analyseur est ecrite en blanc (elle
+   vit normalement sur une scene noire) : sur papier, chaque titre, minutage
+   ou libelle disparaissait. On repeint le sous-arbre entier plutot que de
+   traquer chaque regle une par une — les etats inverses (pastille active,
+   bouton play) sont redefinis plus bas, avec une specificite superieure. */
+body.ink .dock,
+body.ink .dock *,
+body.ink .analyzer,
+body.ink .analyzer * {
+  color: var(--ink);
+}
+
+/* Second niveau de lecture : les informations secondaires restent en gris
+   d'encre, comme une annotation au crayon a cote du trait principal. */
+body.ink .np-artist,
+body.ink .np-time,
+body.ink .dock-hint,
+body.ink .np-search-note,
+body.ink .np-search-result-artist,
+body.ink .analyzer-band,
+body.ink .np-vol-icon {
+  color: var(--ink-dim);
+}
+
+body.ink .np-search input[type='search']::placeholder {
+  color: var(--ink-faint);
+}
+
+body.ink .np-controls button:disabled,
+body.ink .btn:disabled {
+  opacity: 0.35;
+}
+
 body.ink .analyzer canvas {
   background: #ffffff;
   border-color: var(--line);

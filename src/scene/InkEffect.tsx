@@ -90,9 +90,26 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth,
   float d2 = viewDistance(suv - o);
   float d3 = viewDistance(suv + vec2(o.x, -o.y));
   float d4 = viewDistance(suv + vec2(-o.x, o.y));
-  // Gradient relatif : sans la division par la distance, les objets proches
-  // seraient cernes d'un trait epais et les lointains d'aucun trait.
-  float depthEdge = (abs(d1 - d2) + abs(d3 - d4)) / max(dc, 1.0) * depthSensitivity;
+
+  // Courbure de la profondeur (derivee seconde) RAPPORTEE a sa pente
+  // (derivee premiere).
+  //
+  // Un simple gradient de profondeur depend de tout : la distance, l'angle
+  // d'incidence, la taille du saut. Deux colonnes separees de 80 cm passaient
+  // le seuil de face et le rataient de trois quarts — d'ou des traits qui
+  // apparaissaient et disparaissaient pendant un mouvement de camera. Une
+  // surface simplement inclinee (l'estrade vue de bas) le franchissait au
+  // contraire toute seule.
+  //
+  // Le rapport courbure / pente vaut ~1 sur TOUTE discontinuite, quelle que
+  // soit son amplitude et sa distance, et ~0 sur une surface lisse, meme vue
+  // en incidence rasante. Le terme en dc au denominateur n'est qu'un garde
+  // fou : sur une surface plate, courbure et pente valent zero toutes les
+  // deux, et sans lui le bruit de quantification du depth buffer se
+  // retrouverait divise par lui-meme.
+  float curvature = abs(d1 + d2 - 2.0 * dc) + abs(d3 + d4 - 2.0 * dc);
+  float slope = abs(d1 - d2) + abs(d3 - d4);
+  float depthEdge = curvature / (slope + dc * 0.002 + 1e-5) * depthSensitivity * 0.07;
 
   // Le fond (aucune geometrie) n'a pas de normale exploitable : la passe de
   // normales y renvoie du noir, qui se decoderait en (-1,-1,-1) et cernerait
@@ -104,7 +121,7 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth,
     distance(viewNormal(suv + vec2(o.x, -o.y)), viewNormal(suv + vec2(-o.x, o.y)))
   ) * normalSensitivity * (1.0 - background);
 
-  float line = smoothstep(0.32, 0.78, max(depthEdge, normalEdge));
+  float line = smoothstep(0.35, 0.85, max(depthEdge, normalEdge));
 
   // --- Couleur --------------------------------------------------------------
   vec3 c = texture2D(inputBuffer, suv).rgb;
@@ -151,9 +168,12 @@ class InkEffectImpl extends Effect {
         // elevee la noircit de traits jointifs. Une arete franche (90 deg)
         // donne un ecart de ~1.41 et passe largement le seuil, elle.
         ['normalSensitivity', new Uniform(0.5)],
-        ['wobbleAmount', new Uniform(2.4)],
-        ['wobbleScale', new Uniform(16)],
-        ['hatchStrength', new Uniform(0.18)],
+        // Le tremblement est fixe a l'ECRAN : trop marque, il "glisse" sur la
+        // geometrie des que la camera bouge (effet porte de douche). Une
+        // ondulation longue et peu ample tient le trait sans se voir bouger.
+        ['wobbleAmount', new Uniform(1.6)],
+        ['wobbleScale', new Uniform(9)],
+        ['hatchStrength', new Uniform(0)],
         ['colorBoost', new Uniform(1.35)],
       ]) as Map<string, Uniform<unknown>>,
     })

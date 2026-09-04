@@ -423,6 +423,21 @@ const BACKDROP_BACK_SIZE: [number, number] = [110, 56]
 const BACKDROP_SIDE_SIZE: [number, number] = [90, 56]
 
 /**
+ * Cadrage de la ville en DA "ink".
+ *
+ * Les plans sont bien plus grands, bien plus loin, et surtout leur bord BAS
+ * descend sous le plateau (`INK_BACKDROP_Y - hauteur / 2` est negatif) : les
+ * tours n'ont donc pas de base visible, elles traversent le cadre de bout en
+ * bout. C'est la seule facon de dire qu'on est en hauteur — des immeubles qui
+ * commencent en l'air se lisent comme une frise posee sur l'horizon.
+ */
+const INK_BACKDROP_BACK_SIZE: [number, number] = [320, 170]
+const INK_BACKDROP_SIDE_SIZE: [number, number] = [280, 170]
+const INK_BACKDROP_Y = 42
+const INK_BACKDROP_BACK_Z = BACK_Z - 62
+const INK_BACKDROP_SIDE_X = SIDE_X + 44
+
+/**
  * Ville de nuit derriere les trois baies (fond, gauche, droite) : trois plans
  * texture, immobiles, chacun montrant la bande correspondante de la feuille
  * de sprites (ou la skyline generee tant qu'elle n'est pas fournie).
@@ -468,26 +483,24 @@ function CityBackdrop() {
       <meshBasicMaterial map={map} toneMapped fog />
     )
 
+  const backSize = ink ? INK_BACKDROP_BACK_SIZE : BACKDROP_BACK_SIZE
+  const sideSize = ink ? INK_BACKDROP_SIDE_SIZE : BACKDROP_SIDE_SIZE
+  const y = ink ? INK_BACKDROP_Y : WALL_TOP * 0.75
+  const backZ = ink ? INK_BACKDROP_BACK_Z : BACK_Z - 16
+  const sideX = ink ? INK_BACKDROP_SIDE_X : SIDE_X + 16
+
   return (
     <>
-      <mesh position={[0, WALL_TOP * 0.75, BACK_Z - 16]} renderOrder={-1}>
-        <planeGeometry args={BACKDROP_BACK_SIZE} />
+      <mesh position={[0, y, backZ]} renderOrder={-1}>
+        <planeGeometry args={backSize} />
         {material(backTex)}
       </mesh>
-      <mesh
-        position={[-(SIDE_X + 16), WALL_TOP * 0.75, SIDE_Z]}
-        rotation-y={Math.PI / 2}
-        renderOrder={-1}
-      >
-        <planeGeometry args={BACKDROP_SIDE_SIZE} />
+      <mesh position={[-sideX, y, SIDE_Z]} rotation-y={Math.PI / 2} renderOrder={-1}>
+        <planeGeometry args={sideSize} />
         {material(leftTex)}
       </mesh>
-      <mesh
-        position={[SIDE_X + 16, WALL_TOP * 0.75, SIDE_Z]}
-        rotation-y={-Math.PI / 2}
-        renderOrder={-1}
-      >
-        <planeGeometry args={BACKDROP_SIDE_SIZE} />
+      <mesh position={[sideX, y, SIDE_Z]} rotation-y={-Math.PI / 2} renderOrder={-1}>
+        <planeGeometry args={sideSize} />
         {material(rightTex)}
       </mesh>
     </>

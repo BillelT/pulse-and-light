@@ -138,7 +138,7 @@ export function makeCityTexture(): Texture {
  */
 export function makeCitySketchTexture(): Texture {
   const width = 2048
-  const height = 1024
+  const height = 1152
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
@@ -148,51 +148,77 @@ export function makeCitySketchTexture(): Texture {
   ctx.fillRect(0, 0, width, height)
 
   const rand = mulberry32(0x51f0a3)
-  const horizon = height * 0.78
   ctx.lineJoin = 'miter'
   ctx.lineCap = 'butt'
 
   /** Trait legerement tremble : une ligne droite parfaite trahit le vectoriel. */
   const stroke = (x0: number, y0: number, x1: number, y1: number) => {
-    const steps = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / 42))
+    const steps = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / 44))
     ctx.beginPath()
     ctx.moveTo(x0, y0)
     for (let i = 1; i <= steps; i++) {
       const t = i / steps
-      const jitter = (rand() - 0.5) * 2.2
+      const jitter = (rand() - 0.5) * 1.6
       ctx.lineTo(x0 + (x1 - x0) * t + jitter, y0 + (y1 - y0) * t + jitter)
     }
     ctx.stroke()
   }
 
-  // Deux plans : les tours du fond sont plus claires, comme sur un croquis ou
-  // l'arriere-plan est simplement moins appuye.
+  // Les tours PLONGENT sous le bord bas de l'image : le plan qui porte cette
+  // texture descend sous le plateau, donc aucune base d'immeuble n'est
+  // visible. C'est ce qui installe la scenographie en hauteur — on regarde la
+  // ville depuis un etage eleve, pas depuis le trottoir d'en face.
+  //
+  // Trois plans de profondeur, du plus clair (le plus loin) au plus appuye.
   for (const plane of [
-    { shade: '#b4b4b4', lw: 2.4, minH: 60, maxH: 210, count: 26, offset: -18 },
-    { shade: '#8a8a8a', lw: 3.1, minH: 90, maxH: 330, count: 20, offset: 0 },
+    { shade: '#dcdcdc', lw: 2.0, minH: 0.42, maxH: 0.78, minW: 40, maxW: 92, gap: 16 },
+    { shade: '#c2c2c2', lw: 2.4, minH: 0.5, maxH: 0.95, minW: 48, maxW: 116, gap: 26 },
+    { shade: '#a6a6a6', lw: 2.8, minH: 0.34, maxH: 0.74, minW: 60, maxW: 142, gap: 40 },
   ]) {
     ctx.strokeStyle = plane.shade
     ctx.lineWidth = plane.lw
-    let x = -40
-    for (let i = 0; i < plane.count && x < width + 40; i++) {
-      const w = 34 + rand() * 96
-      const h = plane.minH + rand() * (plane.maxH - plane.minH)
-      const top = horizon - h + plane.offset
-      // Contour : montants + toit. Pas de base — elle est mangee par
-      // l'horizon, exactement comme sur la reference.
-      stroke(x, horizon, x, top)
-      stroke(x, top, x + w, top)
-      stroke(x + w, top, x + w, horizon)
+    let x = -60 - rand() * 80
+    while (x < width + 60) {
+      const w = plane.minW + rand() * (plane.maxW - plane.minW)
+      const top = height * (1 - (plane.minH + rand() * (plane.maxH - plane.minH)))
 
-      // Quelques etages suggeres, jamais une grille complete de fenetres.
-      if (h > 150 && rand() > 0.45) {
-        const floors = 1 + Math.floor(rand() * 3)
-        for (let f = 1; f <= floors; f++) {
-          const y = top + (h * f) / (floors + 1)
-          stroke(x + 4, y, x + w - 4, y)
-        }
+      // Contour : deux montants qui descendent hors cadre, et le toit.
+      stroke(x, height + 20, x, top)
+      stroke(x, top, x + w, top)
+      stroke(x + w, top, x + w, height + 20)
+
+      // Parapet : le double trait du couronnement, juste sous le toit.
+      if (rand() > 0.4) stroke(x + 3, top + 9 + rand() * 6, x + w - 3, top + 9 + rand() * 6)
+
+      // Trame d'etages : un trait toutes les ~40 px, jamais jusqu'en bas —
+      // le dessin s'epuise vers le bas de l'immeuble, comme un croquis reel.
+      const floorGap = 26 + rand() * 18
+      const drawnHeight = (height - top) * (0.45 + rand() * 0.5)
+      for (let y = top + floorGap * 2; y < top + drawnHeight; y += floorGap) {
+        stroke(x + 5, y, x + w - 5, y)
       }
-      x += w + 6 + rand() * 46
+
+      // Refends verticaux : c'est eux qui donnent l'elancement.
+      const mullions = 1 + Math.floor(rand() * 3)
+      for (let m = 1; m <= mullions; m++) {
+        const mx = x + (w * m) / (mullions + 1)
+        stroke(mx, top + 6, mx, top + drawnHeight * (0.6 + rand() * 0.4))
+      }
+
+      // Couronnement : retrait plus etroit, ou simple antenne.
+      if (rand() > 0.62) {
+        const cw = w * (0.32 + rand() * 0.3)
+        const cx = x + (w - cw) / 2
+        const ch = 26 + rand() * 70
+        stroke(cx, top, cx, top - ch)
+        stroke(cx, top - ch, cx + cw, top - ch)
+        stroke(cx + cw, top - ch, cx + cw, top)
+      } else if (rand() > 0.5) {
+        const ax = x + w * (0.3 + rand() * 0.4)
+        stroke(ax, top, ax, top - (34 + rand() * 90))
+      }
+
+      x += w + plane.gap + rand() * 58
     }
   }
 
