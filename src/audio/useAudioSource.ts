@@ -168,5 +168,45 @@ export function useAudioSource(readSnapshot: () => PlaybackSnapshot): AudioSourc
     setSource('none', 'No source')
   }, [setSource])
 
+  // --- Release mic/tab capture when the page goes to the background -------
+  //
+  // On iOS Safari, backgrounding the tab (switching app, locking the screen)
+  // doesn't stop an active getUserMedia/getDisplayMedia stream on its own:
+  // the mic indicator stays on even though nothing is read anymore. We tear
+  // the capture down on `visibilitychange`/`pagehide` and transparently
+  // re-acquire it when the tab is foregrounded again (permission is already
+  // granted, so this doesn't need a fresh user gesture).
+  useEffect(() => {
+    const pausableKinds: SourceKind[] = ['mic', 'tab']
+    let pausedKind: Extract<SourceKind, 'mic' | 'tab'> | null = null
+
+    const release = () => {
+      const kind = readState().sourceKind
+      if (!pausableKinds.includes(kind)) return
+      pausedKind = kind as 'mic' | 'tab'
+      engine.setProvider(null)
+      setSource('none', 'Paused (background)')
+    }
+
+    const resume = () => {
+      if (document.visibilityState !== 'visible' || !pausedKind) return
+      const kind = pausedKind
+      pausedKind = null
+      void select(kind)
+    }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') release()
+      else resume()
+    }
+
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('pagehide', release)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('pagehide', release)
+    }
+  }, [select, setSource])
+
   return { select, selectFile, stop, fileElement: () => fileRef.current?.element ?? null }
 }
