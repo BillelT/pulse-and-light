@@ -1,10 +1,9 @@
-import { useMemo, useRef } from 'react'
+import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Color, Group, MeshBasicMaterial } from 'three'
+import type { Group } from 'three'
 import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
-import { useStore } from '../state/store'
-import { paletteById } from './palettes'
+import { INK_SURFACE } from './ink'
 
 /**
  * Implantation des caissons : deux stacks lateraux, comme une vraie sono de
@@ -34,16 +33,8 @@ const SHAKE_AMPLITUDE = 0.055
  * donc ce mouvement porte a lui seul la sensation de pression sonore.
  */
 export function SubCabinets() {
-  const paletteId = useStore((s) => s.visual.paletteId)
-  const palette = useMemo(() => paletteById(paletteId), [paletteId])
-  const ink = useStore((s) => s.visual.ink)
-
   const conesRef = useRef<Group[]>([])
   const stacksRef = useRef<(Group | null)[]>([])
-  const badgeMaterial = useMemo(
-    () => new MeshBasicMaterial({ toneMapped: false, color: new Color(palette.bands[0]) }),
-    [palette],
-  )
 
   useFrame((state) => {
     const frame = engine.currentFrame
@@ -88,7 +79,6 @@ export function SubCabinets() {
       // deja le decalage vers la face avant du caisson.
       cone.position.z = push * 0.17 * wobble
     }
-    badgeMaterial.color.set(palette.bands[0]).multiplyScalar(0.1 + push * 0.6)
   })
 
   return (
@@ -103,29 +93,29 @@ export function SubCabinets() {
           rotation-y={cab.rotationY}
         >
           {/* Coffre. */}
-          <mesh position={[0, 0.62, 0]} castShadow receiveShadow>
+          <mesh position={[0, 0.62, 0]}>
             <boxGeometry args={[2.5, 1.24, 0.78]} />
-            <meshStandardMaterial color="#23282e" roughness={0.72} metalness={0.28} />
+            <meshBasicMaterial color={INK_SURFACE} />
           </mesh>
           {/* Renforts d'angle : detail "industriel epure" du brief. */}
           {[-1.19, 1.19].map((x) => (
-            <mesh key={x} position={[x, 0.62, 0]} castShadow>
+            <mesh key={x} position={[x, 0.62, 0]}>
               <boxGeometry args={[0.08, 1.28, 0.84]} />
-              <meshStandardMaterial color="#5b636b" roughness={0.42} metalness={0.25} />
+              <meshBasicMaterial color={INK_SURFACE} />
             </mesh>
           ))}
           {/* Deux haut-parleurs par caisson. */}
           {[-0.6, 0.6].map((x, sub) => (
             <group key={x} position={[x, 0.62, 0.36]}>
               {/* Saladier. */}
-              <mesh rotation-x={Math.PI / 2} castShadow>
+              <mesh rotation-x={Math.PI / 2}>
                 <cylinderGeometry args={[0.5, 0.5, 0.06, 28]} />
-                <meshStandardMaterial color="#3c434b" roughness={0.5} metalness={0.25} />
+                <meshBasicMaterial color={INK_SURFACE} />
               </mesh>
               {/* Suspension. */}
-              <mesh position={[0, 0, 0.03]} rotation-x={Math.PI / 2} castShadow>
+              <mesh position={[0, 0, 0.03]} rotation-x={Math.PI / 2}>
                 <torusGeometry args={[0.42, 0.05, 10, 28]} />
-                <meshStandardMaterial color="#20242a" roughness={0.75} metalness={0.1} />
+                <meshBasicMaterial color={INK_SURFACE} />
               </mesh>
               {/* Membrane : troncs de cone FERMES. La version precedente
                   utilisait un cone ouvert en DoubleSide, dont l'interieur
@@ -135,26 +125,18 @@ export function SubCabinets() {
                   if (node) conesRef.current[index * 2 + sub] = node
                 }}
               >
-                <mesh rotation-x={-Math.PI / 2} castShadow>
+                <mesh rotation-x={-Math.PI / 2}>
                   <cylinderGeometry args={[0.14, 0.4, 0.16, 28]} />
-                  <meshStandardMaterial color="#0e1013" roughness={0.62} metalness={0.12} />
+                  <meshBasicMaterial color={INK_SURFACE} />
                 </mesh>
                 {/* Cache-noyau. */}
-                <mesh position={[0, 0, 0.08]} rotation-x={Math.PI / 2} castShadow>
+                <mesh position={[0, 0, 0.08]} rotation-x={Math.PI / 2}>
                   <sphereGeometry args={[0.14, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
-                  <meshStandardMaterial color="#171a1f" roughness={0.5} metalness={0.2} />
+                  <meshBasicMaterial color={INK_SURFACE} />
                 </mesh>
               </group>
             </group>
           ))}
-
-          {/* Temoin de niveau du caisson — supprime en DA encre, ou seules les
-              colonnes LED ont droit a la couleur. */}
-          {!ink && (
-            <mesh position={[0, 0.06, 0.4]} material={badgeMaterial}>
-              <boxGeometry args={[0.7, 0.02, 0.02]} />
-            </mesh>
-          )}
         </group>
       ))}
     </group>

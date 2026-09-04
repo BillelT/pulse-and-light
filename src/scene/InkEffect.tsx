@@ -9,8 +9,8 @@ import { INK_LINE, INK_PAPER } from './ink'
 /**
  * Passe "encre".
  *
- * Elle ne stylise pas une image coloree : elle la REDESSINE. Les surfaces
- * arrivent ici en blanc plat (voir `InkSurfaces`), donc l'image d'entree ne
+ * Elle ne stylise pas une image coloree : elle la REDESSINE. Toutes les
+ * surfaces de la scene sont rendues en blanc plat, donc l'image d'entree ne
  * porte pratiquement aucune information de forme — tout le dessin est deduit
  * de la profondeur et des normales :
  *
@@ -200,7 +200,6 @@ export function InkEffect() {
     effect.set('lineWidth', visual.inkLine)
     effect.set('wobbleAmount', visual.inkWobble)
     effect.set('hatchStrength', visual.inkHatch)
-    effect.set('colorBoost', visual.inkColor)
     effect.set('depthSensitivity', visual.inkContour)
   })
 

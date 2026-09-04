@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react'
 import { engine } from '../audio/engine'
 import { BANDS } from '../audio/bands'
 import { COLUMN_COUNT } from '../audio/types'
-import { readState } from '../state/store'
 
 /**
  * Analyseur du HUD. Il tourne sur son propre `requestAnimationFrame` et dessine
@@ -33,10 +32,7 @@ export function Analyzer() {
       raf = requestAnimationFrame(draw)
       const frame = engine.currentFrame
 
-      // La DA "ink" impose un HUD au trait : l'analyseur passe en niveaux de
-      // gris, la couleur reste reservee aux colonnes de la scene.
-      const ink = readState().visual.ink
-
+      // DA "ink" : l'analyseur reste au trait, en niveaux de gris.
       ctx.clearRect(0, 0, w, h)
       const gap = 4
       const bw = (w - gap * (COLUMN_COUNT + 1)) / COLUMN_COUNT
@@ -44,20 +40,13 @@ export function Analyzer() {
         const v = frame.columns[i]
         const bh = Math.max(1, v * (h - 8))
         const x = gap + i * (bw + gap)
-        if (ink) {
-          ctx.fillStyle = `hsl(40 6% ${74 - v * 56}%)`
-        } else {
-          const hue = 150 - (i / COLUMN_COUNT) * 150
-          ctx.fillStyle = `hsl(${hue} 90% ${28 + v * 34}%)`
-        }
+        ctx.fillStyle = `hsl(40 6% ${74 - v * 56}%)`
         ctx.fillRect(x, h - 4 - bh, bw, bh)
       }
 
       // Marqueur de kick : une ligne qui flashe en bas du graphe.
       if (frame.beat > 0.02) {
-        ctx.fillStyle = ink
-          ? `rgba(20,18,15,${frame.beat * 0.8})`
-          : `rgba(255,255,255,${frame.beat * 0.8})`
+        ctx.fillStyle = `rgba(20,18,15,${frame.beat * 0.8})`
         ctx.fillRect(0, h - 2, w, 2)
       }
 

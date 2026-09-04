@@ -1,8 +1,9 @@
 import { useMemo, useRef, type RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { MeshStandardMaterial, type Group } from 'three'
+import { MeshBasicMaterial, type Group } from 'three'
 import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
+import { INK_SURFACE } from './ink'
 
 /**
  * Le public.
@@ -22,7 +23,7 @@ import { Band } from '../audio/bands'
  */
 
 /** Places disponibles sur la piste — donc nombre maximum de danseurs. */
-const MAX_MEMBERS = 12
+const MAX_MEMBERS = 48
 /** Point d'entree / de sortie, derriere la camera. */
 const SPAWN_Z = 34
 const WALK_SPEED = 5
@@ -79,21 +80,18 @@ function mulberry32(seed: number): () => number {
 }
 
 /**
- * Places sur la piste : devant le mur, derriere la regie, jamais alignees.
- * Les premieres places tirees sont les plus centrales — la piste se garnit
- * donc du centre vers les bords, comme une vraie salle.
+ * Places sur la piste, jamais alignees. Les premieres places tirees sont les
+ * plus centrales — la piste se garnit donc du centre vers les bords, comme
+ * une vraie salle.
  */
 const SLOTS = (() => {
   const rand = mulberry32(0x2b91f7)
   return Array.from({ length: MAX_MEMBERS }, (_, i) => {
-    const spread = 0.35 + (i / (MAX_MEMBERS - 1)) * 0.65
-    // La piste tient entre le nez de scene et la regie, et pas plus loin en
-    // avant : au cadrage par defaut la camera est a z ~ 20, quelqu'un place a
-    // z = 15 danserait derriere elle.
-    const z = 1.6 + rand() * 6 * spread
-    let x = (rand() - 0.5) * 32 * spread
-    // La regie occupe le centre du plateau : personne ne danse dedans.
-    if (Math.abs(z - 4.6) < 3.4 && Math.abs(x) < 4.4) x = Math.sign(x || 1) * (4.4 + rand() * 5)
+    const spread = 0.3 + (i / (MAX_MEMBERS - 1)) * 0.7
+    // Au cadrage par defaut la camera est a z ~ 20 : personne ne danse plus
+    // loin en avant qu'elle.
+    const z = 1.4 + rand() * 15 * spread
+    const x = (rand() - 0.5) * 46 * spread
     return { x, z }
   })
 })()
@@ -280,52 +278,51 @@ export function Crowd() {
   )
 }
 
-const SKIN = '#c98f68'
-const TOP = '#4a5b7f'
-const BOTTOM = '#3a4257'
+/**
+ * Un seul materiau, partage par toutes les silhouettes ET par tout le reste
+ * du decor : DA "ink", aucun aplat de couleur, juste le papier — le trait
+ * (InkEffect) est seul responsable de la lisibilite des formes.
+ */
+const memberMaterial = new MeshBasicMaterial({ color: INK_SURFACE })
 
 function Member({ refs }: { refs: MemberRefs }) {
-  // Trois materiaux partages par toutes les silhouettes : la foule ne doit pas
-  // couter douze fois le prix d'un personnage.
-  const materials = useMemo(
-    () => ({
-      skin: new MeshStandardMaterial({ color: SKIN, roughness: 0.85, metalness: 0.02 }),
-      top: new MeshStandardMaterial({ color: TOP, roughness: 0.92, metalness: 0.02 }),
-      bottom: new MeshStandardMaterial({ color: BOTTOM, roughness: 0.94, metalness: 0.02 }),
-    }),
-    [],
-  )
-
-  // Proportions calees sur celles du DJ, avec un BASSIN distinct.
+  // Proportions calquees sur celles du DJ (buste-capsule qui couvre aussi le
+  // haut du bassin, cou court, tete-sphere, bras a un seul segment) : la
+  // silhouette du public doit se lire comme la meme famille de personnage,
+  // juste sans la richesse d'un rig anime en detail.
   //
-  // La version precedente accrochait les jambes au meme point que le buste :
-  // la cuisse partait alors du milieu du torse, et des qu'elle pivotait elle
-  // en sortait a mi-hauteur — au trait, on lisait une jambe plantee dans le
-  // ventre. Le bassin (0.78 -> 1.02) couvre le haut des cuisses quelle que
-  // soit leur rotation, et le buste s'appuie dessus sans le recouvrir.
+  // Le bassin n'est pas un volume separe : la capsule du buste (rayon 0.185,
+  // longueur 0.28) descend assez bas pour couvrir le haut des cuisses quelle
+  // que soit leur rotation — un bassin distinct n'ajouterait un maillage que
+  // pour redire ce que cette capsule dit deja.
   return (
     <group ref={refs.root} visible={false}>
       <group ref={refs.body} position={[0, BODY_Y, 0]}>
         {/* Buste. */}
-        <mesh position={[0, 0.36, 0]} material={materials.top}>
-          <capsuleGeometry args={[0.17, 0.24, 5, 12]} />
+        <mesh position={[0, 0.37, 0]} material={memberMaterial}>
+          <capsuleGeometry args={[0.185, 0.28, 5, 12]} />
         </mesh>
-        <mesh position={[0, 0.63, 0]} material={materials.skin}>
-          <cylinderGeometry args={[0.048, 0.055, 0.09, 10]} />
+        {/* Cou. */}
+        <mesh position={[0, 0.66, 0]} material={memberMaterial}>
+          <cylinderGeometry args={[0.05, 0.058, 0.09, 10]} />
         </mesh>
-        <mesh position={[0, 0.76, 0]} material={materials.skin}>
-          <sphereGeometry args={[0.105, 16, 12]} />
+        {/* Tete. */}
+        <mesh position={[0, 0.8, 0]} material={memberMaterial}>
+          <sphereGeometry args={[0.115, 16, 12]} />
         </mesh>
 
-        {/* Epaules a la hauteur du haut du buste, sur son flanc. */}
-        <group ref={refs.armL} position={[-0.185, 0.52, 0]}>
-          <mesh position={[0, -0.21, 0]} material={materials.top}>
-            <capsuleGeometry args={[0.05, 0.32, 4, 10]} />
+        {/* Epaules a la hauteur du haut du buste, sur son flanc — a son bord
+            meme (x = rayon) : un point d'ancrage plus large laisse un vide
+            entre le buste et l'epaule, tres visible une fois la silhouette
+            reduite a son contour. */}
+        <group ref={refs.armL} position={[-0.185, 0.54, 0]}>
+          <mesh position={[0, -0.22, 0]} material={memberMaterial}>
+            <capsuleGeometry args={[0.052, 0.32, 4, 10]} />
           </mesh>
         </group>
-        <group ref={refs.armR} position={[0.185, 0.52, 0]}>
-          <mesh position={[0, -0.21, 0]} material={materials.top}>
-            <capsuleGeometry args={[0.05, 0.32, 4, 10]} />
+        <group ref={refs.armR} position={[0.185, 0.54, 0]}>
+          <mesh position={[0, -0.22, 0]} material={memberMaterial}>
+            <capsuleGeometry args={[0.052, 0.32, 4, 10]} />
           </mesh>
         </group>
       </group>
@@ -333,16 +330,16 @@ function Member({ refs }: { refs: MemberRefs }) {
       {/* Hanches : pivot sous le bassin, jamais dans le buste. L'ecartement
           compte autant que la longueur — deux jambes collees a l'axe restent
           dans l'ombre du bassin et la silhouette n'a plus de jambes du tout.
-          A +/- 0.115 avec un rayon de 0.062, il reste un vide net entre les
+          A +/- 0.12 avec un rayon de 0.065, il reste un vide net entre les
           deux, et c'est ce vide qui les fait exister au trait. */}
-      <group ref={refs.legL} position={[-0.115, 0.86, 0]}>
-        <mesh position={[0, -0.42, 0]} material={materials.bottom}>
-          <capsuleGeometry args={[0.062, 0.6, 4, 10]} />
+      <group ref={refs.legL} position={[-0.12, 0.88, 0]}>
+        <mesh position={[0, -0.42, 0]} material={memberMaterial}>
+          <capsuleGeometry args={[0.065, 0.6, 4, 10]} />
         </mesh>
       </group>
-      <group ref={refs.legR} position={[0.115, 0.86, 0]}>
-        <mesh position={[0, -0.42, 0]} material={materials.bottom}>
-          <capsuleGeometry args={[0.062, 0.6, 4, 10]} />
+      <group ref={refs.legR} position={[0.12, 0.88, 0]}>
+        <mesh position={[0, -0.42, 0]} material={memberMaterial}>
+          <capsuleGeometry args={[0.065, 0.6, 4, 10]} />
         </mesh>
       </group>
     </group>

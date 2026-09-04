@@ -20,7 +20,7 @@ const BASE_FOV = 42
 /**
  * En portrait, un FOV vertical fixe donne un FOV horizontal bien plus etroit
  * qu'en paysage (le FOV horizontal depend du ratio largeur/hauteur) : on ne
- * voyait plus qu'une tranche du mur de caissons, jamais le danseur en entier.
+ * voyait plus qu'une tranche de la piste, jamais la foule en entier.
  * On elargit le FOV vertical quand l'ecran est plus haut que large, borne
  * pour ne pas deformer l'image comme un fisheye.
  */
@@ -63,8 +63,8 @@ export function CameraRig() {
   const spherical = useRef(
     (() => {
       // Meme punition qu'au niveau du FOV : en portrait, on recule un peu la
-      // camera par defaut pour que le mur de caissons ET le danseur tiennent
-      // dans le cadre des l'ouverture, sans que l'utilisateur ait a dezoomer.
+      // camera par defaut pour que toute la foule tienne dans le cadre des
+      // l'ouverture, sans que l'utilisateur ait a dezoomer.
       const aspect = typeof window !== 'undefined' ? window.innerWidth / window.innerHeight : 16 / 9
       const radius = aspect < 1 ? 22.5 * clamp(1 / aspect, 1, 1.7) : 22.5
       return new Spherical(radius, 1.35, 0)
@@ -212,54 +212,6 @@ export function CameraRig() {
   })
 
   return null
-}
-
-/**
- * Eclairage de base. Volontairement famelique : dans la reference, presque
- * toute la lumiere vient des caissons eux-memes. Ces sources ne servent qu'a
- * ce que la geometrie non emissive ne disparaisse pas completement.
- *
- * Chaque valeur vient du store (`debug`) pour etre manipulable en direct
- * depuis l'onglet Debug, `DEFAULT_DEBUG` portant les valeurs d'origine.
- */
-export function Rig() {
-  const debug = useStore((s) => s.debug)
-
-  return (
-    <>
-      <ambientLight intensity={debug.ambientIntensity} color={debug.ambientColor} />
-      <hemisphereLight args={[debug.hemiSkyColor, debug.hemiGroundColor, debug.hemiIntensity]} />
-      <directionalLight
-        position={debug.dirPos}
-        intensity={debug.dirIntensity}
-        color={debug.dirColor}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-26}
-        shadow-camera-right={26}
-        shadow-camera-top={26}
-        shadow-camera-bottom={-14}
-        shadow-camera-far={60}
-        shadow-bias={-0.0008}
-      />
-      <pointLight
-        position={debug.pointPos}
-        intensity={debug.pointIntensity}
-        distance={debug.pointDistance}
-        decay={debug.pointDecay}
-        color={debug.pointColor}
-      />
-      <spotLight
-        position={debug.spotPos}
-        angle={debug.spotAngle}
-        penumbra={debug.spotPenumbra}
-        intensity={debug.spotIntensity}
-        distance={debug.spotDistance}
-        decay={debug.spotDecay}
-        color={debug.spotColor}
-      />
-    </>
-  )
 }
 
 /**

@@ -1,22 +1,17 @@
 :root {
-  --bg: #05070a;
-  --ink: #f2f6fa;
-  /* Contraste releve : les anciennes valeurs (#6d7f8e / #3d4b57) tombaient
-     sous 3:1 sur le panneau, illisibles pour un texte de 9-11px. */
-  --ink-dim: #a7b6c4;
-  --ink-faint: #7c8fa0;
-  --accent: #4dffc0;
-  --accent-2: #2be3ff;
-  --warn: #ffc266;
-  --danger: #ff6b7a;
-  --line: rgba(160, 190, 210, 0.28);
-  --panel: rgba(6, 9, 13, 0.94);
-  --panel-solid: #0a0d13;
+  --bg: #ffffff;
+  --ink: #14120f;
+  --ink-dim: #46423b;
+  --ink-faint: #7d776d;
+  /* Aucun accent colore : l'etat actif se lit au contraste, comme sur un
+     croquis ou l'on repasse un trait. */
+  --accent: #14120f;
+  --accent-2: #14120f;
+  --warn: #6a5a2a;
+  --danger: #7a2b2b;
+  --line: rgba(20, 18, 15, 0.45);
+  --panel: #ffffff;
   --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  /* Resout en SF Pro sur les plateformes Apple ; sinon la police systeme la
-     plus proche. Reservee aux surfaces "liquid glass" (dock, analyseur). */
-  --glass-font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue',
-    Arial, sans-serif;
 }
 
 * {
@@ -24,7 +19,7 @@
 }
 
 ::selection {
-  background: #f0680033;
+  background: rgba(20, 18, 15, 0.14);
 }
 
 html,
@@ -70,11 +65,10 @@ select {
   top: 14px;
   left: 16px;
   text-transform: uppercase;
-  background: var(--panel);
+  background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: 8px 12px;
-  backdrop-filter: blur(8px);
 }
 
 .hud-title {
@@ -121,26 +115,21 @@ select {
   width: 34px;
   height: 28px;
   border: 1px solid var(--line);
-  background: var(--panel);
+  background: #ffffff;
   border-radius: 3px;
   cursor: pointer;
   color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  transition: background 0.15s;
 }
 
 .icon-btn:hover {
-  background: rgba(20, 26, 34, 0.96);
+  background: rgba(20, 18, 15, 0.07);
 }
 
-.icon-btn:hover {
-  color: var(--accent);
-  border-color: rgba(77, 255, 192, 0.55);
-}
-
-/* ---------- Analyseur (bas gauche, "liquid glass") ---------- */
+/* ---------- Analyseur (bas gauche) ---------- */
 
 .analyzer {
   position: absolute;
@@ -148,27 +137,19 @@ select {
   bottom: 24px;
   width: 256px;
   padding: 16px;
-  border-radius: 20px;
-  font-family: var(--glass-font);
-  color: #fff;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    0 1px 1px rgba(255, 255, 255, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  color: var(--ink);
+  background: #ffffff;
+  border: 1px solid var(--line);
 }
 
 .analyzer canvas {
   display: block;
   width: 100%;
   height: 64px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
 }
 
 .analyzer-bands {
@@ -180,34 +161,35 @@ select {
 
 .analyzer-band {
   font-size: 8px;
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--ink-dim);
   text-align: center;
   letter-spacing: -0.01em;
   font-weight: 600;
   white-space: nowrap;
 }
 
+/* Les six bandes du spectre restent au trait : aucun aplat de couleur nulle
+   part dans l'interface. */
 .analyzer-band span {
   display: block;
   height: 4px;
   margin-top: 8px;
-  background: var(--band-color);
-  border-radius: 4px;
+  background: var(--ink);
+  opacity: 0.75;
   transform-origin: left;
-  opacity: 0.9;
 }
 
 .analyzer-meta {
   display: flex;
   justify-content: space-between;
-  color: #fff;
+  color: var(--ink);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   margin-top: 16px;
   font-weight: 600;
 }
 
-/* ---------- Signature (bas droite, miroir de l'analyseur, "liquid glass") ---------- */
+/* ---------- Signature (bas droite, miroir de l'analyseur) ---------- */
 
 .signature {
   position: absolute;
@@ -217,38 +199,30 @@ select {
   align-items: center;
   gap: 4px;
   padding: 8px 16px;
-  border-radius: 20px;
-  font-family: var(--glass-font);
+  border-radius: 12px;
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--ink-dim);
   text-decoration: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    0 1px 1px rgba(255, 255, 255, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .signature:hover {
-  color: rgba(255, 255, 255, 0.9);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08));
-  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(20, 18, 15, 0.06);
+  border-color: var(--ink);
+  color: var(--ink);
 }
 
 .signature-name {
-  color: #fff;
+  color: var(--ink);
   font-weight: 700;
 }
 
-/* ---------- Dock de source (bas centre, "liquid glass") ---------- */
+/* ---------- Dock de source (bas centre) ---------- */
 
 .dock {
   position: fixed;
@@ -261,52 +235,57 @@ select {
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  border-radius: 24px;
-  font-family: var(--glass-font);
-  color: #fff;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    0 1px 1px rgba(255, 255, 255, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  color: var(--ink);
+  background: #ffffff;
+  border: 1px solid var(--line);
+}
+
+.dock,
+.dock * {
+  color: var(--ink);
+}
+
+/* ...sauf les icones. Elles sont tracees en `fill: currentColor`, donc
+   repeindre le sous-arbre entier leur donnait la couleur de l'encre y compris
+   a l'interieur du bouton play, dont le fond EST l'encre : un rond noir vide.
+   `inherit` leur rend la couleur de leur bouton, quelle qu'elle soit. */
+.dock svg,
+.dock svg * {
+  color: inherit;
 }
 
 .dock-modes {
   display: flex;
   gap: 4px;
   padding: 4px;
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.18);
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+  border-radius: 12px;
+  background: rgba(20, 18, 15, 0.04);
 }
 
 .dock-mode {
   flex: 1;
   padding: 8px 12px;
   border: none;
-  border-radius: 12px;
+  border-radius: 9px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--ink-dim);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: background 0.18s, color 0.18s, box-shadow 0.18s;
+  transition: background 0.18s, color 0.18s;
 }
 
 .dock-mode:hover {
-  color: #fff;
+  background: rgba(20, 18, 15, 0.07);
+  color: var(--ink);
 }
 
 .dock-mode[data-active='true'] {
-  background: rgba(255, 255, 255, 0.9);
-  color: #0b0d12;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  background: var(--ink);
+  color: #ffffff;
 }
 
 .dock-body {
@@ -316,17 +295,17 @@ select {
 .dock-hint {
   font-size: 10.5px;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--ink-dim);
   padding: 4px 4px 0;
 }
 
 .dock-connect {
   width: 100%;
   padding: 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--ink);
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.1em;
@@ -336,7 +315,7 @@ select {
 }
 
 .dock-connect:hover {
-  background: rgba(255, 255, 255, 0.24);
+  background: rgba(20, 18, 15, 0.07);
 }
 
 .dock-playback {
@@ -354,9 +333,12 @@ select {
 .np-row img {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: 8px;
   object-fit: cover;
   flex: none;
+  /* Les pochettes sont les seules images "photo" de l'interface : en niveaux
+     de gris, elles restent lisibles sans casser le noir et blanc. */
+  filter: grayscale(1) contrast(1.08);
 }
 
 .np-text {
@@ -365,7 +347,6 @@ select {
 
 .np-title {
   font-size: 11.5px;
-  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -373,7 +354,7 @@ select {
 
 .np-artist {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--ink-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -392,10 +373,10 @@ select {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
+  background: #ffffff;
   cursor: pointer;
-  color: #fff;
+  color: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -405,29 +386,30 @@ select {
 
 .np-controls button svg {
   display: block;
+  fill: currentColor;
 }
 
 .np-controls button.np-play {
   width: 40px;
   height: 40px;
-  background: #fff;
-  color: #0b0d12;
-  border-color: transparent;
+  background: var(--ink);
+  color: #ffffff;
+  border-color: var(--ink);
 }
 
 /* Le triangle "play" est optiquement decale vers la gauche : le recentrer. */
 .np-controls button.np-play svg:first-child {
   margin-left: 1px;
+  fill: currentColor;
 }
 
 .np-controls button:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(20, 18, 15, 0.07);
 }
 
 .np-controls button.np-play:hover:not(:disabled) {
-  background: #fff;
-  transform: scale(1.04);
+  background: var(--ink);
+  color: #ffffff;
 }
 
 .np-controls button:active:not(:disabled) {
@@ -435,7 +417,7 @@ select {
 }
 
 .np-controls button:disabled {
-  opacity: 0.32;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
@@ -448,7 +430,7 @@ select {
 
 .np-time {
   font-size: 9px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--ink-dim);
   font-variant-numeric: tabular-nums;
   flex: none;
   width: 28px;
@@ -460,20 +442,22 @@ select {
 
 .np-seek,
 .np-vol {
-  height: 4px;
+  height: 5px;
   border-radius: 4px;
+  background: rgba(20, 18, 15, 0.16);
+  border: 1px solid rgba(20, 18, 15, 0.42);
 }
 
 .dock input.np-seek::-webkit-slider-thumb,
 .dock input.np-vol::-webkit-slider-thumb {
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  background: var(--ink);
+  box-shadow: none;
 }
 
 .dock input.np-seek::-moz-range-thumb,
 .dock input.np-vol::-moz-range-thumb {
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  background: var(--ink);
+  box-shadow: none;
 }
 
 .np-vol-icon {
@@ -483,7 +467,7 @@ select {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--ink-dim);
 }
 
 .np-vol {
@@ -491,8 +475,7 @@ select {
 }
 
 .np-controls button.np-search-active {
-  border-color: rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(20, 18, 15, 0.07);
 }
 
 .np-search {
@@ -505,56 +488,55 @@ select {
 .np-search input[type='search'] {
   flex: 1;
   min-width: 0;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 9px;
   padding: 8px 12px;
-  color: #fff;
-  font-family: var(--glass-font);
+  color: var(--ink);
   font-size: 11.5px;
 }
 
 .np-search input[type='search']::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--ink-faint);
 }
 
 .np-search input[type='search']:focus {
   outline: none;
-  border-color: rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.16);
+  border-color: var(--ink);
 }
 
 .np-search button {
   flex: none;
-  border-radius: 12px;
+  border-radius: 9px;
   padding: 0 16px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  background: rgba(255, 255, 255, 0.14);
-  color: #fff;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--ink);
   cursor: pointer;
   font-size: 11px;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .np-search button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.26);
+  background: rgba(20, 18, 15, 0.07);
 }
 
 .np-search button:disabled {
-  opacity: 0.32;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
 .np-search-note {
   font-size: 10.5px;
   line-height: 1.5;
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--ink-dim);
   padding: 4px 4px 0;
   animation: np-search-in 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  background: rgba(20, 18, 15, 0.04);
 }
 
 .np-search-note-error {
-  color: var(--danger, #ff6b7a);
+  color: var(--danger);
 }
 
 .np-search-results {
@@ -571,18 +553,17 @@ select {
   gap: 10px;
   align-items: center;
   padding: 6px 8px;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 9px;
   cursor: pointer;
   text-align: left;
   width: 100%;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .np-search-result:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.22);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(20, 18, 15, 0.07);
 }
 
 .np-search-result:disabled {
@@ -593,8 +574,9 @@ select {
 .np-search-result img {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: 6px;
   flex: none;
+  filter: grayscale(1) contrast(1.08);
 }
 
 .np-search-result-text {
@@ -603,7 +585,6 @@ select {
 
 .np-search-result-title {
   font-size: 10.5px;
-  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -611,7 +592,7 @@ select {
 
 .np-search-result-artist {
   font-size: 9px;
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--ink-dim);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -628,7 +609,7 @@ select {
   }
 }
 
-/* ---------- Panneau lateral ---------- */
+/* ---------- Panneau lateral (dev) ---------- */
 
 .panel {
   position: absolute;
@@ -636,10 +617,9 @@ select {
   right: 18px;
   bottom: 18px;
   width: 306px;
-  background: var(--panel);
+  background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 4px;
-  backdrop-filter: blur(14px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -671,8 +651,8 @@ select {
 }
 
 .panel-tabs button[data-active='true'] {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  color: var(--ink);
+  border-bottom-color: var(--ink);
 }
 
 .panel-body {
@@ -740,9 +720,10 @@ select {
 
 input[type='range'] {
   width: 100%;
-  height: 4px;
+  height: 5px;
   appearance: none;
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(20, 18, 15, 0.16);
+  border: 1px solid rgba(20, 18, 15, 0.42);
   border-radius: 2px;
   outline: none;
   cursor: pointer;
@@ -753,7 +734,7 @@ input[type='range']::-webkit-slider-thumb {
   width: 11px;
   height: 11px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--ink);
   cursor: pointer;
 }
 
@@ -762,7 +743,7 @@ input[type='range']::-moz-range-thumb {
   height: 11px;
   border: none;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--ink);
   cursor: pointer;
 }
 
@@ -770,7 +751,7 @@ input[type='text'],
 input[type='search'] {
   width: 100%;
   padding: 7px 9px;
-  background: rgba(255, 255, 255, 0.07);
+  background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 3px;
   font-size: 11px;
@@ -785,13 +766,13 @@ input[type='search']::placeholder {
 
 input[type='text']:focus,
 input[type='search']:focus {
-  border-color: rgba(53, 240, 176, 0.5);
+  border-color: var(--ink);
 }
 
 .btn {
   width: 100%;
   padding: 9px;
-  background: rgba(255, 255, 255, 0.07);
+  background: #ffffff;
   border: 1px solid var(--line);
   border-radius: 3px;
   color: var(--ink);
@@ -800,30 +781,22 @@ input[type='search']:focus {
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  transition: background 0.15s;
 }
 
 .btn:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(77, 255, 192, 0.08);
+  background: rgba(20, 18, 15, 0.07);
 }
 
 .btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
-.btn-primary {
-  background: rgba(53, 240, 176, 0.12);
-  border-color: rgba(53, 240, 176, 0.45);
-  color: var(--accent);
-}
-
+.btn-primary,
 .btn-active {
-  background: rgba(53, 240, 176, 0.16);
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--ink);
+  color: #ffffff;
 }
 
 .btn-row {
@@ -852,7 +825,7 @@ input[type='search']:focus {
   width: 30px;
   height: 16px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(20, 18, 15, 0.18);
   position: relative;
   cursor: pointer;
   transition: background 0.18s;
@@ -872,36 +845,36 @@ input[type='search']:focus {
 }
 
 .toggle input:checked {
-  background: rgba(53, 240, 176, 0.28);
+  background: var(--ink);
 }
 
 .toggle input:checked::after {
   transform: translateX(14px);
-  background: var(--accent);
+  background: #ffffff;
 }
 
 .note {
   font-size: 9.5px;
   line-height: 1.55;
-  color: var(--ink);
+  color: var(--ink-dim);
   padding: 9px 10px;
   border-left: 2px solid var(--ink-faint);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(20, 18, 15, 0.04);
   border-radius: 0 3px 3px 0;
 }
 
 .note-warn {
   border-left-color: var(--warn);
-  color: #d3b88f;
+  color: var(--warn);
 }
 
 .note-error {
   border-left-color: var(--danger);
-  color: #e8a3ab;
+  color: var(--danger);
 }
 
 .note code {
-  color: var(--accent-2);
+  color: var(--ink);
   font-size: 9px;
   word-break: break-all;
 }
@@ -912,6 +885,7 @@ input[type='search']:focus {
   font-size: 10.5px;
   padding: 3px 0;
   color: var(--ink-dim);
+  background: rgba(20, 18, 15, 0.04);
 }
 
 .kv b {
@@ -932,8 +906,8 @@ input[type='search']:focus {
   gap: 8px;
   align-items: center;
   padding: 5px;
-  background: none;
-  border: 1px solid transparent;
+  background: #ffffff;
+  border: 1px solid var(--line);
   border-radius: 3px;
   cursor: pointer;
   text-align: left;
@@ -941,8 +915,7 @@ input[type='search']:focus {
 }
 
 .result:hover {
-  border-color: var(--line);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(20, 18, 15, 0.07);
 }
 
 .result img {
@@ -950,6 +923,7 @@ input[type='search']:focus {
   height: 30px;
   border-radius: 2px;
   flex: none;
+  filter: grayscale(1) contrast(1.08);
 }
 
 .result-text {
@@ -990,227 +964,4 @@ input[type='search']:focus {
     bottom: 24px;
     width: min(400px, 94vw);
   }
-}
-
-/* ---------- DA "ink" : HUD au trait sur papier ----------
-
-   Le brief (point 4) demande que l'interface perde son aspect digital et
-   adopte la meme DA que la scene : fond blanc, contours fins, aucune lueur.
-   Tout passe par une classe sur <body> — la feuille est ecrite autour de
-   variables, il ne reste donc qu'a les retourner, puis a neutraliser les
-   surfaces "liquid glass" (elles sont faites de blanc translucide, invisible
-   sur du papier) et les rares couleurs d'accent. */
-
-body.ink {
-  --bg: #ffffff;
-  --ink: #14120f;
-  --ink-dim: #46423b;
-  --ink-faint: #7d776d;
-  /* Aucun accent colore : l'etat actif se lit au contraste, comme sur un
-     croquis ou l'on repasse un trait. */
-  --accent: #14120f;
-  --accent-2: #14120f;
-  --warn: #6a5a2a;
-  --danger: #7a2b2b;
-  --line: rgba(20, 18, 15, 0.45);
-  --panel: rgba(255, 255, 255, 0.96);
-  --panel-solid: #ffffff;
-}
-
-body.ink ::selection {
-  background: rgba(20, 18, 15, 0.14);
-}
-
-/* Surfaces : papier blanc, un seul trait de contour, jamais d'ombre portee
-   ni de flou — un croquis n'a pas de profondeur de champ. */
-body.ink .hud-tl,
-body.ink .analyzer,
-body.ink .signature,
-body.ink .dock,
-body.ink .panel,
-body.ink .icon-btn {
-  background: #ffffff;
-  border: 1px solid var(--line);
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  color: var(--ink);
-}
-
-body.ink .analyzer,
-body.ink .signature,
-body.ink .dock {
-  font-family: var(--mono);
-}
-
-/* Toute la typographie du dock et de l'analyseur est ecrite en blanc (elle
-   vit normalement sur une scene noire) : sur papier, chaque titre, minutage
-   ou libelle disparaissait. On repeint le sous-arbre entier plutot que de
-   traquer chaque regle une par une — les etats inverses (pastille active,
-   bouton play) sont redefinis plus bas, avec une specificite superieure. */
-body.ink .dock,
-body.ink .dock *,
-body.ink .analyzer,
-body.ink .analyzer * {
-  color: var(--ink);
-}
-
-/* ...sauf les icones. Elles sont tracees en `fill: currentColor`, donc
-   repeindre le sous-arbre entier leur donnait la couleur de l'encre y compris
-   a l'interieur du bouton play, dont le fond EST l'encre : un rond noir vide.
-   `inherit` leur rend la couleur de leur bouton, quelle qu'elle soit. */
-body.ink .dock svg,
-body.ink .dock svg *,
-body.ink .analyzer svg,
-body.ink .analyzer svg * {
-  color: inherit;
-}
-
-/* Second niveau de lecture : les informations secondaires restent en gris
-   d'encre, comme une annotation au crayon a cote du trait principal. */
-body.ink .np-artist,
-body.ink .np-time,
-body.ink .dock-hint,
-body.ink .np-search-note,
-body.ink .np-search-result-artist,
-body.ink .analyzer-band,
-body.ink .np-vol-icon {
-  color: var(--ink-dim);
-}
-
-body.ink .np-search input[type='search']::placeholder {
-  color: var(--ink-faint);
-}
-
-body.ink .np-controls button:disabled,
-body.ink .btn:disabled {
-  opacity: 0.35;
-}
-
-body.ink .analyzer canvas {
-  background: #ffffff;
-  border-color: var(--line);
-}
-
-/* Les six bandes du spectre perdent leur couleur : seules les colonnes de la
-   scene ont droit a la teinte. */
-body.ink .analyzer-band {
-  color: var(--ink-dim);
-}
-body.ink .analyzer-band span {
-  background: var(--ink);
-  opacity: 0.75;
-  border-radius: 0;
-}
-body.ink .analyzer-meta {
-  color: var(--ink);
-}
-
-body.ink .signature,
-body.ink .signature-name {
-  color: var(--ink-dim);
-}
-body.ink .signature:hover {
-  background: rgba(20, 18, 15, 0.06);
-  border-color: var(--ink);
-  color: var(--ink);
-}
-
-/* Boutons et champs : contour fin, remplissage papier, actif = inverse. */
-body.ink .dock-mode,
-body.ink .dock-connect,
-body.ink .np-controls button,
-body.ink .np-search button,
-body.ink .np-search input[type='search'],
-body.ink .np-search-result,
-body.ink .btn,
-body.ink .result {
-  background: #ffffff;
-  border: 1px solid var(--line);
-  color: var(--ink);
-  box-shadow: none;
-}
-
-body.ink .dock-modes {
-  background: rgba(20, 18, 15, 0.04);
-  box-shadow: none;
-}
-
-body.ink .dock-mode[data-active='true'],
-body.ink .btn-active,
-body.ink .btn-primary,
-body.ink .np-controls button.np-play {
-  background: var(--ink);
-  color: #ffffff;
-  border-color: var(--ink);
-}
-
-body.ink .dock-mode:hover,
-body.ink .np-controls button:hover:not(:disabled),
-body.ink .np-search button:hover:not(:disabled),
-body.ink .np-search-result:hover:not(:disabled),
-body.ink .btn:hover:not(:disabled),
-body.ink .result:hover,
-body.ink .icon-btn:hover {
-  background: rgba(20, 18, 15, 0.07);
-  color: var(--ink);
-}
-
-body.ink .np-controls button.np-play:hover:not(:disabled) {
-  background: var(--ink);
-  color: #ffffff;
-}
-
-body.ink .np-controls button svg,
-body.ink .np-controls button.np-play svg:first-child {
-  fill: currentColor;
-}
-
-/* Curseurs : rail au trait, poignee pleine. Le rail est le seul element de
-   l'interface qui n'a pas de contour propre — a 14% d'opacite il disparaissait
-   simplement du dessin, ne laissant que la poignee flotter. */
-body.ink .np-seek,
-body.ink .np-vol,
-body.ink input[type='range'] {
-  background: rgba(20, 18, 15, 0.16);
-  border: 1px solid rgba(20, 18, 15, 0.42);
-  height: 5px;
-}
-body.ink .dock input.np-seek::-webkit-slider-thumb,
-body.ink .dock input.np-vol::-webkit-slider-thumb {
-  background: var(--ink);
-  box-shadow: none;
-}
-body.ink .dock input.np-seek::-moz-range-thumb,
-body.ink .dock input.np-vol::-moz-range-thumb {
-  background: var(--ink);
-  box-shadow: none;
-}
-
-/* Panneau de reglages (dev) : memes regles, sur toute sa quincaillerie. */
-body.ink .panel-tabs button[data-active='true'] {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-}
-body.ink .panel-body::-webkit-scrollbar-thumb {
-  background: var(--ink-faint);
-}
-body.ink .toggle input {
-  background: rgba(20, 18, 15, 0.18);
-}
-body.ink .toggle input:checked {
-  background: var(--ink);
-}
-body.ink .note,
-body.ink .kv,
-body.ink .np-search-note {
-  background: rgba(20, 18, 15, 0.04);
-  color: var(--ink-dim);
-}
-body.ink .np-row img,
-body.ink .result img,
-body.ink .np-search-result img {
-  /* Les pochettes sont les seules images "photo" de l'interface : en niveaux
-     de gris, elles restent lisibles sans casser le noir et blanc. */
-  filter: grayscale(1) contrast(1.08);
 }

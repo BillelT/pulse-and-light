@@ -17,15 +17,6 @@ export default function App() {
 
   const sourceKind = useStore((s) => s.sourceKind)
   const playing = useStore((s) => s.snapshot.playing)
-  const ink = useStore((s) => s.visual.ink)
-
-  // La DA "ink" ne s'arrete pas au canvas : le HUD et les panneaux basculent
-  // eux aussi en papier/trait (point 4 du brief). Une classe sur <body> suffit,
-  // toute la feuille de style est ecrite autour de variables.
-  useEffect(() => {
-    document.body.classList.toggle('ink', ink)
-    return () => document.body.classList.remove('ink')
-  }, [ink])
 
   // Des que Spotify joue, on bascule sur sa timeline : appuyer sur play doit
   // suffire a ce que le mur suive le morceau. Avant ca, la scene reste
