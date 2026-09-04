@@ -133,6 +133,67 @@ export function LightingTab() {
         </div>
       </Section>
 
+      <Section title="Ink art direction">
+        <Toggle
+          label="Ink mode"
+          checked={visual.ink}
+          onChange={(ink) => setVisual({ ink })}
+        />
+        <div className="field-hint" style={{ marginTop: 4, marginBottom: 10 }}>
+          Pen sketch on white paper. Fog, bloom and every neon accent are dropped:
+          the only color left is the one the LED cells emit.
+        </div>
+        <Slider
+          label="Line width"
+          value={visual.inkLine}
+          min={0.6}
+          max={3}
+          step={0.05}
+          format={(v) => `${v.toFixed(2)} px`}
+          onChange={(inkLine) => setVisual({ inkLine })}
+          hint="Constant in pixels, whatever the distance — a pen doesn't get thinner far away."
+        />
+        <Slider
+          label="Hand wobble"
+          value={visual.inkWobble}
+          min={0}
+          max={6}
+          step={0.1}
+          format={(v) => `${v.toFixed(1)} px`}
+          onChange={(inkWobble) => setVisual({ inkWobble })}
+          hint="0 = clean vector line. A bit of wobble is what kills the 3D look."
+        />
+        <Slider
+          label="Contours"
+          value={visual.inkContour}
+          min={4}
+          max={40}
+          step={0.5}
+          format={(v) => v.toFixed(1)}
+          onChange={(inkContour) => setVisual({ inkContour })}
+          hint="How eagerly a depth step becomes a line. Too high and every fold gets drawn."
+        />
+        <Slider
+          label="Hatching"
+          value={visual.inkHatch}
+          min={0}
+          max={1.5}
+          step={0.01}
+          format={pct}
+          onChange={(inkHatch) => setVisual({ inkHatch })}
+          hint="Only on grazing surfaces, to detach a volume. Kept low: the page must stay white."
+        />
+        <Slider
+          label="LED color"
+          value={visual.inkColor}
+          min={0}
+          max={3}
+          step={0.05}
+          onChange={(inkColor) => setVisual({ inkColor })}
+          hint="Strength of the colored wash kept inside the light boxes."
+        />
+      </Section>
+
       <Section title="Rendering">
         <Slider
           label="Bloom"

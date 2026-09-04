@@ -20,6 +20,7 @@ import { HalfFloatType, Vector2 } from 'three'
 import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
 import { readState, useStore } from '../state/store'
+import { InkEffect } from './InkEffect'
 
 const _offset = new Vector2()
 
@@ -32,6 +33,25 @@ const _offset = new Vector2()
  * qu'elles, et jamais le decor.
  */
 export function Effects() {
+  const ink = useStore((s) => s.visual.ink)
+  return ink ? <InkChain /> : <NeonChain />
+}
+
+/**
+ * Chaine de la DA "ink" : une seule passe, et surtout aucun effet
+ * atmospherique. Pas de bloom (le brief supprime les halos), pas d'aberration
+ * chromatique (l'image est noire et blanche), pas de vignette (le papier est
+ * uniforme). `enableNormalPass` fournit les normales dont le trait a besoin.
+ */
+function InkChain() {
+  return (
+    <EffectComposer enableNormalPass multisampling={0} frameBufferType={HalfFloatType}>
+      <InkEffect />
+    </EffectComposer>
+  )
+}
+
+function NeonChain() {
   const bloomRef = useRef<BloomEffect>(null)
   const chromaRef = useRef<ChromaticAberrationEffect>(null)
   const noiseRef = useRef<NoiseEffect>(null)

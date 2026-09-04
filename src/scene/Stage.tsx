@@ -15,9 +15,15 @@ import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
 import { useStore } from '../state/store'
 import { Dancer } from './Dancer'
+import { INK_STROKE } from './ink'
 import { paletteById } from './palettes'
 import { BACK_WIDTH, BACK_Z, SIDE_LEN, SIDE_X, SIDE_Z, WALL_HEIGHT, WALL_TOP, WALL_Y } from './roomLayout'
-import { makeCityTexture, makeGratingTexture, makeTileTexture } from './textures'
+import {
+  makeCitySketchTexture,
+  makeCityTexture,
+  makeGratingTexture,
+  makeTileTexture,
+} from './textures'
 
 /**
  * Feuille de sprites ville de nuit, optionnelle : 4 bandes empilees (FRONT,
@@ -76,6 +82,7 @@ function GlassMaterial() {
 export function Stage() {
   const paletteId = useStore((s) => s.visual.paletteId)
   const palette = useMemo(() => paletteById(paletteId), [paletteId])
+  const ink = useStore((s) => s.visual.ink)
 
   const floorMarginX = useStore((s) => s.debug.floorMarginX)
   const floorMarginBack = useStore((s) => s.debug.floorMarginBack)
@@ -125,9 +132,16 @@ export function Stage() {
 
   return (
     <group>
+      {/* Sol : en mode encre, il n'existe pas. Le brief demande un sol sans
+          delimitation, qui se fond dans le blanc — un plan, meme blanc, se
+          trahirait par sa silhouette et par la ligne d'horizon que le trait en
+          tirerait. Seules quelques touches sous les equipements le suggerent. */}
+      {ink && <InkGroundStrokes />}
+
       {/* Sol reflechissant. Mat cote PBR : la reflexion vient du miroir, pas du
           lobe speculaire, sinon chaque projecteur laisse une pastille brillante
           au milieu du plateau. */}
+      {!ink && (
       <mesh rotation-x={-Math.PI / 2} position={[0, 0, floorCenterZ]} receiveShadow>
         <planeGeometry args={[floorWidth, floorDepth]} />
         <MeshReflectorMaterial
@@ -145,6 +159,7 @@ export function Stage() {
           roughnessMap={tiles}
         />
       </mesh>
+      )}
 
       {/* Contour du sol reglable, en fil de fer : le miroir ne peut pas
           s'afficher en wireframe, ce contour donne quand meme ses bords
@@ -173,28 +188,37 @@ export function Stage() {
           les baies vitrees. Decor de fond, jamais de vraie geometrie. */}
       <CityBackdrop />
 
-      {/* Murs en verre : la transmission laisse voir le fond/la brume au
-          travers (plus de noir absolu quand la camera orbite devant la
-          scene) tout en gardant un effet de vitre, avec reflets et fresnel. */}
-      <mesh position={[0, WALL_Y, BACK_Z]}>
-        <boxGeometry args={[BACK_WIDTH, WALL_HEIGHT, 0.25]} />
-        <GlassMaterial />
-      </mesh>
-      {[-SIDE_X, SIDE_X].map((x) => (
-        <mesh key={x} position={[x, WALL_Y, SIDE_Z]} rotation-y={(x < 0 ? 1 : -1) * (Math.PI / 2)}>
-          <boxGeometry args={[SIDE_LEN, WALL_HEIGHT, 0.25]} />
-          <GlassMaterial />
-        </mesh>
-      ))}
+      {/* Murs en verre, lisere neon et plafond : toute la boite disparait en
+          mode encre. Le croquis de reference ne montre aucune piece — la
+          scenographie flotte dans le blanc, devant la skyline. Les limites de
+          camera, elles, restent celles de la piece. */}
+      {!ink && (
+        <>
+          <mesh position={[0, WALL_Y, BACK_Z]}>
+            <boxGeometry args={[BACK_WIDTH, WALL_HEIGHT, 0.25]} />
+            <GlassMaterial />
+          </mesh>
+          {[-SIDE_X, SIDE_X].map((x) => (
+            <mesh
+              key={x}
+              position={[x, WALL_Y, SIDE_Z]}
+              rotation-y={(x < 0 ? 1 : -1) * (Math.PI / 2)}
+            >
+              <boxGeometry args={[SIDE_LEN, WALL_HEIGHT, 0.25]} />
+              <GlassMaterial />
+            </mesh>
+          ))}
 
-      <RoomTrim />
+          <RoomTrim />
 
-      {/* Plafond : plan mat sombre, juste assez pour fermer la piece — la
-          reference ne montre jamais sa texture, seul le lisere neon compte. */}
-      <mesh position={[0, WALL_TOP + 0.3, SIDE_Z]} rotation-x={Math.PI / 2}>
-        <planeGeometry args={[BACK_WIDTH + 4, SIDE_LEN + 4]} />
-        <meshStandardMaterial color="#050408" roughness={1} metalness={0} side={DoubleSide} />
-      </mesh>
+          {/* Plafond : plan mat sombre, juste assez pour fermer la piece — la
+              reference ne montre jamais sa texture, seul le lisere neon compte. */}
+          <mesh position={[0, WALL_TOP + 0.3, SIDE_Z]} rotation-x={Math.PI / 2}>
+            <planeGeometry args={[BACK_WIDTH + 4, SIDE_LEN + 4]} />
+            <meshStandardMaterial color="#050408" roughness={1} metalness={0} side={DoubleSide} />
+          </mesh>
+        </>
+      )}
 
       {/* Estrade des caissons. */}
       <mesh position={[0, 0.12, -5.5]} receiveShadow castShadow>
@@ -207,7 +231,7 @@ export function Stage() {
         />
       </mesh>
 
-      <StageEdge stripMaterial={stripMaterial} grating={grating} />
+      <StageEdge stripMaterial={stripMaterial} grating={grating} ink={ink} />
 
       {/* Podium de la regie. */}
       <mesh position={[0, 0.26, PODIUM_Z]} castShadow receiveShadow>
@@ -224,10 +248,14 @@ export function Stage() {
         />
       </mesh>
       {/* Lisere du podium, sur la tranche : une bague posee a plat sur le
-          plateau disparaissait en une ligne aliasee vue de face. */}
-      <mesh position={[0, 0.42, PODIUM_Z]} material={rimMaterial}>
-        <cylinderGeometry args={[2.62, 2.62, 0.06, 48, 1, true]} />
-      </mesh>
+          plateau disparaissait en une ligne aliasee vue de face.
+          En encre, tous les liseres lumineux du decor tombent : la seule
+          couleur autorisee est celle des colonnes. */}
+      {!ink && (
+        <mesh position={[0, 0.42, PODIUM_Z]} material={rimMaterial}>
+          <cylinderGeometry args={[2.62, 2.62, 0.06, 48, 1, true]} />
+        </mesh>
+      )}
 
       <DjBooth />
     </group>
@@ -245,9 +273,11 @@ export function Stage() {
 function StageEdge({
   stripMaterial,
   grating,
+  ink,
 }: {
   stripMaterial: MeshBasicMaterial
   grating: ReturnType<typeof makeGratingTexture>
+  ink: boolean
 }) {
   return (
     <group position={[0, 0, 0.55]}>
@@ -261,9 +291,11 @@ function StageEdge({
         />
       </mesh>
       {/* Bandeau encastre dans la face avant de la marche. */}
-      <mesh position={[0, 0.115, 0.552]} material={stripMaterial}>
-        <boxGeometry args={[23.4, 0.075, 0.02]} />
-      </mesh>
+      {!ink && (
+        <mesh position={[0, 0.115, 0.552]} material={stripMaterial}>
+          <boxGeometry args={[23.4, 0.075, 0.02]} />
+        </mesh>
+      )}
     </group>
   )
 }
@@ -272,6 +304,7 @@ function StageEdge({
 function DjBooth() {
   const paletteId = useStore((s) => s.visual.paletteId)
   const palette = useMemo(() => paletteById(paletteId), [paletteId])
+  const ink = useStore((s) => s.visual.ink)
   const ledsMaterial = useMemo(
     () => new MeshBasicMaterial({ toneMapped: false, color: new Color(palette.bands[3]) }),
     [palette],
@@ -306,9 +339,11 @@ function DjBooth() {
         <boxGeometry args={[1.5, 0.1, 0.56]} />
         <meshStandardMaterial color="#2e2d3d" roughness={0.78} metalness={0.16} />
       </mesh>
-      <mesh position={[0, 1.163, -0.15]} material={ledsMaterial}>
-        <boxGeometry args={[1.3, 0.014, 0.05]} />
-      </mesh>
+      {!ink && (
+        <mesh position={[0, 1.163, -0.15]} material={ledsMaterial}>
+          <boxGeometry args={[1.3, 0.014, 0.05]} />
+        </mesh>
+      )}
 
       <group position={[0, 0, -0.72]}>
         <Dancer />
@@ -393,7 +428,11 @@ const BACKDROP_SIDE_SIZE: [number, number] = [90, 56]
  * de sprites (ou la skyline generee tant qu'elle n'est pas fournie).
  */
 function CityBackdrop() {
-  const { texture: base, isSheet } = useCitySheet(CITY_SHEET_URL)
+  const ink = useStore((s) => s.visual.ink)
+  const sketch = useMemo(() => (ink ? makeCitySketchTexture() : null), [ink])
+  const { texture: photo, isSheet: photoIsSheet } = useCitySheet(CITY_SHEET_URL)
+  const base = sketch ?? photo
+  const isSheet = sketch ? false : photoIsSheet
   // Trois plans, trois cadrages : chacun a besoin de son propre repeat/offset,
   // donc de son propre clone plutot que de partager l'instance de texture.
   const backTex = useMemo(() => base.clone(), [base])
@@ -413,21 +452,85 @@ function CityBackdrop() {
     else fitFallback(rightTex)
   }, [rightTex, isSheet])
 
+  // En encre, les plans de fond n'ecrivent PAS la profondeur : sinon le trait
+  // cernerait le rectangle du plan lui-meme, et une bordure franche
+  // apparaitrait en plein ciel. Seul le dessin qu'ils portent doit exister.
+  const material = (map: Texture) =>
+    ink ? (
+      <meshBasicMaterial
+        map={map}
+        toneMapped={false}
+        fog={false}
+        depthWrite={false}
+        userData={{ inkKeep: true }}
+      />
+    ) : (
+      <meshBasicMaterial map={map} toneMapped fog />
+    )
+
   return (
     <>
-      <mesh position={[0, WALL_TOP * 0.75, BACK_Z - 16]}>
+      <mesh position={[0, WALL_TOP * 0.75, BACK_Z - 16]} renderOrder={-1}>
         <planeGeometry args={BACKDROP_BACK_SIZE} />
-        <meshBasicMaterial map={backTex} toneMapped fog />
+        {material(backTex)}
       </mesh>
-      <mesh position={[-(SIDE_X + 16), WALL_TOP * 0.75, SIDE_Z]} rotation-y={Math.PI / 2}>
+      <mesh
+        position={[-(SIDE_X + 16), WALL_TOP * 0.75, SIDE_Z]}
+        rotation-y={Math.PI / 2}
+        renderOrder={-1}
+      >
         <planeGeometry args={BACKDROP_SIDE_SIZE} />
-        <meshBasicMaterial map={leftTex} toneMapped fog />
+        {material(leftTex)}
       </mesh>
-      <mesh position={[SIDE_X + 16, WALL_TOP * 0.75, SIDE_Z]} rotation-y={-Math.PI / 2}>
+      <mesh
+        position={[SIDE_X + 16, WALL_TOP * 0.75, SIDE_Z]}
+        rotation-y={-Math.PI / 2}
+        renderOrder={-1}
+      >
         <planeGeometry args={BACKDROP_SIDE_SIZE} />
-        <meshBasicMaterial map={rightTex} toneMapped fog />
+        {material(rightTex)}
       </mesh>
     </>
+  )
+}
+
+/**
+ * Traits de sol.
+ *
+ * Le brief interdit un sol delimite : la scenographie doit poser sur du blanc.
+ * Quelques traits horizontaux sous les equipements suffisent a ancrer les
+ * objets — c'est exactement ce que fait un croquis, une ombre portee au trait
+ * plutot qu'un plan. Ce sont de vraies geometries (des lames tres plates
+ * couchees au sol), donc elles suivent la perspective de la camera.
+ */
+function InkGroundStrokes() {
+  // [x, z, longueur, epaisseur]
+  const strokes: Array<[number, number, number, number]> = [
+    [-10.6, 0.35, 5.2, 0.09],
+    [10.6, 0.35, 5.2, 0.09],
+    [-9.2, 1.5, 3.0, 0.06],
+    [9.2, 1.5, 3.0, 0.06],
+    [0, 7.5, 7.4, 0.09],
+    [0, 8.4, 4.2, 0.06],
+    [-4.6, 6.9, 2.4, 0.05],
+    [4.6, 6.9, 2.4, 0.05],
+  ]
+
+  return (
+    <group>
+      {strokes.map(([x, z, length, thickness]) => (
+        <mesh key={`${x}:${z}`} position={[x, 0.012, z]} rotation-x={-Math.PI / 2}>
+          <planeGeometry args={[length, thickness]} />
+          <meshBasicMaterial
+            color={INK_STROKE}
+            toneMapped={false}
+            fog={false}
+            depthWrite={false}
+            userData={{ inkKeep: true }}
+          />
+        </mesh>
+      ))}
+    </group>
   )
 }
 

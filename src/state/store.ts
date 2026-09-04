@@ -30,6 +30,22 @@ export interface VisualSettings {
   peakHold: boolean
   /** Flat palette colors (true) or continuous gradient (false). */
   quantize: boolean
+
+  /**
+   * "Ink" art direction: the whole scene is redrawn as a pen sketch on white
+   * paper. The only colors left are the ones the LED cells emit.
+   */
+  ink: boolean
+  /** Ink line width, in pixels. Constant whatever the distance. */
+  inkLine: number
+  /** Hand-drawn wobble of the line, in pixels. 0 = vector-clean line. */
+  inkWobble: number
+  /** Hatching density on grazing surfaces, 0..1. Kept low on purpose. */
+  inkHatch: number
+  /** Contour sensitivity: how eagerly a depth step becomes a line. */
+  inkContour: number
+  /** Saturation of the LED wash kept on the paper, 0..3. */
+  inkColor: number
 }
 
 export const DEFAULT_VISUAL: VisualSettings = {
@@ -45,6 +61,13 @@ export const DEFAULT_VISUAL: VisualSettings = {
   grain: 0.35,
   peakHold: true,
   quantize: true,
+
+  ink: true,
+  inkLine: 1.2,
+  inkWobble: 2.4,
+  inkHatch: 0.55,
+  inkContour: 14,
+  inkColor: 1.35,
 }
 
 /** Scene debugger settings: lights, fog, visual aids. */

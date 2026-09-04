@@ -163,6 +163,50 @@ soit trois *draw calls*, ce qui laisse le budget au bloom.
 
 ---
 
+## La DA « ink » (mode par défaut)
+
+La scène est redessinée comme un croquis à l'encre : papier blanc, trait fin,
+presque aucun aplat. **La seule couleur de l'image est celle qu'émettent les
+cellules LED** — ce qui est coloré, c'est ce qui sonne.
+
+Rien n'est stylisé « par-dessus » une image colorée : l'image est *redessinée*.
+
+- **Toutes les surfaces sont aplaties en blanc** (`InkSurfaces.tsx`), sans
+  lumière ni ombre. Un croquis n'a qu'un remplissage, le papier ; dupliquer
+  chaque matériau du décor en version encre (le danseur seul en compte une
+  vingtaine) n'aurait servi à rien. Deux exceptions, marquées par
+  `material.userData.inkKeep` : les cellules LED, et les textures qui peignent
+  déjà de l'encre.
+- **Le trait est déduit de la profondeur et des normales** (`InkEffect.tsx`) :
+  un saut de profondeur donne une silhouette, un saut de normale une arête —
+  y compris quand les deux faces sont à la même distance de la caméra. Sa
+  largeur est constante **en pixels** : un stylo ne s'affine pas parce que
+  l'objet est loin. Les points d'échantillonnage sont décalés par un bruit
+  lisse, ce qui suffit à casser l'aspect vectoriel.
+  La sensibilité aux normales est volontairement basse : une surface *courbe*
+  (membrane, épaule du danseur) fait varier sa normale continûment et se
+  noircissait de traits jointifs, alors qu'une arête franche passe largement le
+  seuil.
+- **Trois règles de couleur, dans cet ordre** : pixel saturé → c'est une LED, on
+  garde sa teinte ; pixel sombre et désaturé → c'est de l'encre peinte dans la
+  scène (skyline, traits de sol) ; sinon → papier. Corollaire utile : dessiner
+  en gris moyen suffit à reculer un élément sans changer l'épaisseur du trait.
+- **Ce qui disparaît** : brume, bloom, aberration chromatique, vignettage, sol
+  réfléchissant, murs de verre, plafond, liserés néon du décor — et les ombres
+  portées, que plus aucun matériau ne reçoit.
+- **Ce qui reste du sol** : quelques traits horizontaux sous les équipements. Le
+  brief interdit un sol délimité ; un plan, même blanc, se trahirait par sa
+  silhouette et par la ligne d'horizon que le trait en tirerait.
+- **Le HUD suit la même DA** : papier, contours fins, aucune lueur, analyseur en
+  niveaux de gris. Une classe `ink` sur `<body>` suffit, la feuille de style est
+  écrite autour de variables.
+
+Le mode se coupe depuis *Lumière › Ink art direction* (la scénographie néon
+d'origine est intacte), avec réglages du trait, du tremblement, des contours,
+des hachures et de l'intensité du lavis coloré.
+
+---
+
 ## Le panneau « Lumière »
 
 La partie 3 du brief liste les trous volontaires de la science. Ils sont tous
@@ -199,7 +243,10 @@ src/
     SubCabinets.tsx            caissons de basses à membranes
     Stage.tsx                  sol, podium, régie
     Rig.tsx                    caméra + éclairage
-    Effects.tsx                chaîne de post-processing
+    Effects.tsx                chaîne de post-processing (néon ou encre)
+    InkEffect.tsx              passe encre : trait, hachures, lavis coloré
+    InkSurfaces.tsx            aplatissement des matériaux en blanc
+    ink.ts                     constantes de la DA encre
     layout.ts / palettes.ts    implantation et couleurs
   ui/                          HUD, analyseur, panneau de contrôle
   state/store.ts               réglages et état de lecture (zustand)

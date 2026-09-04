@@ -991,3 +991,178 @@ input[type='search']:focus {
     width: min(400px, 94vw);
   }
 }
+
+/* ---------- DA "ink" : HUD au trait sur papier ----------
+
+   Le brief (point 4) demande que l'interface perde son aspect digital et
+   adopte la meme DA que la scene : fond blanc, contours fins, aucune lueur.
+   Tout passe par une classe sur <body> — la feuille est ecrite autour de
+   variables, il ne reste donc qu'a les retourner, puis a neutraliser les
+   surfaces "liquid glass" (elles sont faites de blanc translucide, invisible
+   sur du papier) et les rares couleurs d'accent. */
+
+body.ink {
+  --bg: #ffffff;
+  --ink: #14120f;
+  --ink-dim: #46423b;
+  --ink-faint: #7d776d;
+  /* Aucun accent colore : l'etat actif se lit au contraste, comme sur un
+     croquis ou l'on repasse un trait. */
+  --accent: #14120f;
+  --accent-2: #14120f;
+  --warn: #6a5a2a;
+  --danger: #7a2b2b;
+  --line: rgba(20, 18, 15, 0.45);
+  --panel: rgba(255, 255, 255, 0.96);
+  --panel-solid: #ffffff;
+}
+
+body.ink ::selection {
+  background: rgba(20, 18, 15, 0.14);
+}
+
+/* Surfaces : papier blanc, un seul trait de contour, jamais d'ombre portee
+   ni de flou — un croquis n'a pas de profondeur de champ. */
+body.ink .hud-tl,
+body.ink .analyzer,
+body.ink .signature,
+body.ink .dock,
+body.ink .panel,
+body.ink .icon-btn {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  color: var(--ink);
+}
+
+body.ink .analyzer,
+body.ink .signature,
+body.ink .dock {
+  font-family: var(--mono);
+}
+
+body.ink .analyzer canvas {
+  background: #ffffff;
+  border-color: var(--line);
+}
+
+/* Les six bandes du spectre perdent leur couleur : seules les colonnes de la
+   scene ont droit a la teinte. */
+body.ink .analyzer-band {
+  color: var(--ink-dim);
+}
+body.ink .analyzer-band span {
+  background: var(--ink);
+  opacity: 0.75;
+  border-radius: 0;
+}
+body.ink .analyzer-meta {
+  color: var(--ink);
+}
+
+body.ink .signature,
+body.ink .signature-name {
+  color: var(--ink-dim);
+}
+body.ink .signature:hover {
+  background: rgba(20, 18, 15, 0.06);
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+/* Boutons et champs : contour fin, remplissage papier, actif = inverse. */
+body.ink .dock-mode,
+body.ink .dock-connect,
+body.ink .np-controls button,
+body.ink .np-search button,
+body.ink .np-search input[type='search'],
+body.ink .np-search-result,
+body.ink .btn,
+body.ink .result {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+body.ink .dock-modes {
+  background: rgba(20, 18, 15, 0.04);
+  box-shadow: none;
+}
+
+body.ink .dock-mode[data-active='true'],
+body.ink .btn-active,
+body.ink .btn-primary,
+body.ink .np-controls button.np-play {
+  background: var(--ink);
+  color: #ffffff;
+  border-color: var(--ink);
+}
+
+body.ink .dock-mode:hover,
+body.ink .np-controls button:hover:not(:disabled),
+body.ink .np-search button:hover:not(:disabled),
+body.ink .np-search-result:hover:not(:disabled),
+body.ink .btn:hover:not(:disabled),
+body.ink .result:hover,
+body.ink .icon-btn:hover {
+  background: rgba(20, 18, 15, 0.07);
+  color: var(--ink);
+}
+
+body.ink .np-controls button.np-play:hover:not(:disabled) {
+  background: var(--ink);
+  color: #ffffff;
+}
+
+body.ink .np-controls button svg,
+body.ink .np-controls button.np-play svg:first-child {
+  fill: currentColor;
+}
+
+/* Curseurs : rail au trait, poignee pleine. */
+body.ink .np-seek,
+body.ink .np-vol,
+body.ink input[type='range'] {
+  background: rgba(20, 18, 15, 0.14);
+}
+body.ink .dock input.np-seek::-webkit-slider-thumb,
+body.ink .dock input.np-vol::-webkit-slider-thumb {
+  background: var(--ink);
+  box-shadow: none;
+}
+body.ink .dock input.np-seek::-moz-range-thumb,
+body.ink .dock input.np-vol::-moz-range-thumb {
+  background: var(--ink);
+  box-shadow: none;
+}
+
+/* Panneau de reglages (dev) : memes regles, sur toute sa quincaillerie. */
+body.ink .panel-tabs button[data-active='true'] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+body.ink .panel-body::-webkit-scrollbar-thumb {
+  background: var(--ink-faint);
+}
+body.ink .toggle input {
+  background: rgba(20, 18, 15, 0.18);
+}
+body.ink .toggle input:checked {
+  background: var(--ink);
+}
+body.ink .note,
+body.ink .kv,
+body.ink .np-search-note {
+  background: rgba(20, 18, 15, 0.04);
+  color: var(--ink-dim);
+}
+body.ink .np-row img,
+body.ink .result img,
+body.ink .np-search-result img {
+  /* Les pochettes sont les seules images "photo" de l'interface : en niveaux
+     de gris, elles restent lisibles sans casser le noir et blanc. */
+  filter: grayscale(1) contrast(1.08);
+}

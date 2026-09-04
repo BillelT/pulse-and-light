@@ -28,6 +28,7 @@ const CABINETS = [
 export function SubCabinets() {
   const paletteId = useStore((s) => s.visual.paletteId)
   const palette = useMemo(() => paletteById(paletteId), [paletteId])
+  const ink = useStore((s) => s.visual.ink)
 
   const conesRef = useRef<Group[]>([])
   const badgeMaterial = useMemo(
@@ -109,10 +110,13 @@ export function SubCabinets() {
             </group>
           ))}
 
-          {/* Temoin de niveau du caisson. */}
-          <mesh position={[0, 0.06, 0.4]} material={badgeMaterial}>
-            <boxGeometry args={[0.7, 0.02, 0.02]} />
-          </mesh>
+          {/* Temoin de niveau du caisson — supprime en DA encre, ou seules les
+              colonnes LED ont droit a la couleur. */}
+          {!ink && (
+            <mesh position={[0, 0.06, 0.4]} material={badgeMaterial}>
+              <boxGeometry args={[0.7, 0.02, 0.02]} />
+            </mesh>
+          )}
         </group>
       ))}
     </group>

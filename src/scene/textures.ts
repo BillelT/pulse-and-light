@@ -128,6 +128,80 @@ export function makeCityTexture(): Texture {
   return tex
 }
 
+/**
+ * Skyline au trait, pour la DA "ink" : des immeubles dessines en contour
+ * uniquement, sur fond blanc. Le gris moyen du trait n'est pas un hasard —
+ * `InkEffect` transforme un pixel sombre en encre proportionnellement a sa
+ * noirceur, donc dessiner la ville en gris suffit a la reculer derriere la
+ * scenographie sans changer l'epaisseur du trait (brief, point 4 : contraste
+ * attenue, pas trait plus fin).
+ */
+export function makeCitySketchTexture(): Texture {
+  const width = 2048
+  const height = 1024
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')!
+
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, width, height)
+
+  const rand = mulberry32(0x51f0a3)
+  const horizon = height * 0.78
+  ctx.lineJoin = 'miter'
+  ctx.lineCap = 'butt'
+
+  /** Trait legerement tremble : une ligne droite parfaite trahit le vectoriel. */
+  const stroke = (x0: number, y0: number, x1: number, y1: number) => {
+    const steps = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / 42))
+    ctx.beginPath()
+    ctx.moveTo(x0, y0)
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps
+      const jitter = (rand() - 0.5) * 2.2
+      ctx.lineTo(x0 + (x1 - x0) * t + jitter, y0 + (y1 - y0) * t + jitter)
+    }
+    ctx.stroke()
+  }
+
+  // Deux plans : les tours du fond sont plus claires, comme sur un croquis ou
+  // l'arriere-plan est simplement moins appuye.
+  for (const plane of [
+    { shade: '#b4b4b4', lw: 2.4, minH: 60, maxH: 210, count: 26, offset: -18 },
+    { shade: '#8a8a8a', lw: 3.1, minH: 90, maxH: 330, count: 20, offset: 0 },
+  ]) {
+    ctx.strokeStyle = plane.shade
+    ctx.lineWidth = plane.lw
+    let x = -40
+    for (let i = 0; i < plane.count && x < width + 40; i++) {
+      const w = 34 + rand() * 96
+      const h = plane.minH + rand() * (plane.maxH - plane.minH)
+      const top = horizon - h + plane.offset
+      // Contour : montants + toit. Pas de base — elle est mangee par
+      // l'horizon, exactement comme sur la reference.
+      stroke(x, horizon, x, top)
+      stroke(x, top, x + w, top)
+      stroke(x + w, top, x + w, horizon)
+
+      // Quelques etages suggeres, jamais une grille complete de fenetres.
+      if (h > 150 && rand() > 0.45) {
+        const floors = 1 + Math.floor(rand() * 3)
+        for (let f = 1; f <= floors; f++) {
+          const y = top + (h * f) / (floors + 1)
+          stroke(x + 4, y, x + w - 4, y)
+        }
+      }
+      x += w + 6 + rand() * 46
+    }
+  }
+
+  const tex = new CanvasTexture(canvas)
+  tex.colorSpace = SRGBColorSpace
+  tex.anisotropy = 8
+  return tex
+}
+
 /** PRNG deterministe, pour que la skyline ne change pas a chaque hot-reload. */
 function mulberry32(seed: number): () => number {
   let a = seed
