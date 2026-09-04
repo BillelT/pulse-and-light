@@ -1,6 +1,6 @@
 # PULSE & LIGHT — Scénographie audio-réactive WebGL
 
-Un mur de caissons lumineux — treize colonnes de VU-mètres LED en arc — qui
+Un mur d'encre — un lavis d'aquarelle peint en direct par le spectre — qui
 réagit en temps réel à la musique jouée depuis Spotify.
 
 Référence visuelle : `ref.jpg`. Cahier des charges : `Brief_Projet_WebGL_AudioReactive.md`.
@@ -192,6 +192,62 @@ soit trois *draw calls*, ce qui laisse le budget au bloom.
 
 ---
 
+## Le mur d'encre — le visualiseur
+
+Le mur de caissons LED est remplacé par un **lavis peint par le son**. La chaîne
+d'analyse ne bouge pas d'un iota : même compression `I = log10(1 + A·K) / log10(1 + K)`,
+mêmes plancher et plafond, mêmes constantes d'attaque et de décroissance, même
+correspondance bande de fréquence → couleur de la partie 1 du brief. Seule la
+sortie change : **son → encre** au lieu de son → lumière.
+
+- **La mise en page**. L'axe horizontal est celui des fréquences (grave à
+  gauche, aigu à droite) : chaque endroit du mur appartient à une tranche du
+  spectre et porte sa teinte. L'axe vertical est celui de l'énergie : le lavis
+  monte d'autant plus haut que la tranche a reçu de pigment.
+- **Trois états du pigment** (`inkField.ts`), tenus côté CPU sur 160 tranches
+  puis publiés dans une texture 1D :
+  le *dépôt* suit l'énergie instantanée ; la *tache* est son intégrale avec un
+  séchage lent (~8 s), donc la mémoire du morceau ; la *goutte* tombe sur les
+  transitoires et se résorbe en 0,3 s. Sans la tache, le mur redevient un
+  VU-mètre : un refrain disparaîtrait avec sa dernière croche.
+- **Deux phénomènes physiques**, et ce sont eux qui font la différence entre un
+  dégradé et de l'encre : le dépôt est **superlinéaire** (un passage discret
+  n'imbibe presque rien, un passage fort sature la fibre), et la tache
+  **diffuse latéralement** d'une tranche de fréquence à ses voisines, comme le
+  pigment migre dans le papier humide.
+- **Le pigment est dilué, pas émis.** Les couleurs du brief sont des couleurs de
+  LED, pensées pour être émises dans le noir ; posées telles quelles sur du
+  papier blanc elles donnent de la gouache. Diluer, c'est raccourcir le vecteur
+  d'absorption `1 - couleur` sans changer sa direction — exactement ce que fait
+  un pinceau. La concentration de chaque bande est en plus corrigée par sa
+  **luminance** : à quantité d'eau égale, le rouge (0,30) mord six fois plus le
+  papier que le vert (0,86), et le grave écrasait l'aigu alors que ce sont deux
+  moitiés du même spectre.
+- **Ce que le shader ajoute** (`InkWall.tsx`) : deux échelles de déformation par
+  bruit fractal, amplifiées par le flux spectral et le kick (un morceau dense
+  fait baver l'encre) ; des flaques, qui laissent le blanc du papier respirer à
+  l'intérieur de la tache ; un **bord humide** plus dense, signature de
+  l'aquarelle ; une granulation qui module la *quantité* de pigment et non sa
+  couleur — un voile gris salirait le papier au lieu de le rendre vivant.
+- **Les boucles à la plume** sont les lignes de niveau d'un champ de bruit
+  déformé, d'épaisseur constante en pixels comme le reste du trait. Leur
+  espacement varie dans l'espace : régulièrement espacées, elles se lisent
+  comme une carte topographique et non comme une plume. Elles se densifient
+  avec la brillance du morceau.
+- **Le plan est volontairement énorme** (300 × 150) : ses bords ne doivent jamais
+  entrer dans le cadre, sinon la passe `InkEffect` les cernerait d'un contour et
+  le papier deviendrait un objet posé dans la scène. Le lavis, lui, ne vit que
+  dans une fenêtre bornée et se dissout dans le blanc bien avant les bords. Une
+  sortie anticipée sur le papier nu évite de payer le bruit fractal sur la
+  majorité des pixels de l'écran.
+- **Silence = feuille blanche.** Aucun lavis de repos : tant qu'aucune source
+  n'est branchée, il n'y a rien à peindre.
+
+Trois réglages dans le panneau *Light* : **Pigment** (concentration), **Bleed**
+(à quel point le papier est mouillé) et **Pen loops** (densité des boucles).
+
+---
+
 ## La DA « ink » (mode par défaut)
 
 La scène est redessinée comme un croquis à l'encre : papier blanc, trait fin,
@@ -224,10 +280,14 @@ Rien n'est stylisé « par-dessus » une image colorée : l'image est *redessin�
   qu'une simple surface inclinée (l'estrade vue d'en bas) se couvrait de
   hachures parasites. Le rapport courbure / pente vaut ~1 sur *toute*
   discontinuité et ~0 sur une surface lisse, même vue en incidence rasante.
-- **Trois règles de couleur, dans cet ordre** : pixel saturé → c'est une LED, on
-  garde sa teinte ; pixel sombre et désaturé → c'est de l'encre peinte dans la
+- **Trois règles de couleur, dans cet ordre** : pixel coloré → c'est du pigment,
+  il passe tel quel ; pixel sombre et désaturé → c'est de l'encre peinte dans la
   scène ; sinon → papier. Corollaire utile : dessiner
   en gris moyen suffit à reculer un élément sans changer l'épaisseur du trait.
+  La saturation est remappée **linéairement**, pas ramenée vers le papier en
+  proportion d'elle-même : l'ancienne formule élevait la saturation au carré,
+  ce qui laissait une LED intacte mais blanchissait un lavis à 20 % de
+  saturation jusqu'à 7 %, c'est-à-dire jusqu'au blanc.
 - **Ce qui disparaît** : brume, bloom, aberration chromatique, vignettage, sol
   réfléchissant, murs de verre, plafond, liserés néon du décor — et les ombres
   portées, que plus aucun matériau ne reçoit.
@@ -285,7 +345,8 @@ src/
     api.ts                     Web API, dégradation propre sur 403
     useSpotify.ts              Web Playback SDK, horloge de lecture
   scene/
-    CaissonWall.tsx            le mur (3 draw calls)
+    InkWall.tsx                le mur d'encre : le visualiseur
+    inkField.ts                modèle son -> pigment (dépôt, séchage, diffusion)
     Dancer.tsx                 l'operateur, rig hierarchique cale sur les temps
     SubCabinets.tsx            caissons de basses à membranes
     Stage.tsx                  sol, podium, régie

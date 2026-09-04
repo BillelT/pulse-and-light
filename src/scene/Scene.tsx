@@ -5,6 +5,7 @@ import { AudioDriver } from './AudioDriver'
 import { Crowd } from './Crowd'
 import { Effects } from './Effects'
 import { INK_PAPER } from './ink'
+import { InkWall } from './InkWall'
 import { CameraRig, DebugHelpers } from './Rig'
 import { Stage } from './Stage'
 import { SubCabinets } from './SubCabinets'
@@ -28,6 +29,7 @@ export function Scene() {
       <DebugHelpers />
 
       <Suspense fallback={null}>
+        <InkWall />
         <Stage />
         <SubCabinets />
         <Crowd />

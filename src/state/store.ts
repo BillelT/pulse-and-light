@@ -24,6 +24,13 @@ export interface VisualSettings {
   inkHatch: number
   /** Contour sensitivity: how eagerly a depth step becomes a line. */
   inkContour: number
+
+  /** Ink wall: pigment concentration the music lays on the paper. */
+  inkWashDensity: number
+  /** Ink wall: how far wet paper drags the pigment around. */
+  inkWashBleed: number
+  /** Ink wall: density of the pen loops running over the wash. */
+  inkWashPenwork: number
 }
 
 export const DEFAULT_VISUAL: VisualSettings = {
@@ -34,6 +41,10 @@ export const DEFAULT_VISUAL: VisualSettings = {
   inkWobble: 1.6,
   inkHatch: 0,
   inkContour: 14,
+
+  inkWashDensity: 1,
+  inkWashBleed: 0.22,
+  inkWashPenwork: 0.55,
 }
 
 /** Scene debugger settings: visual aids only — there's no lighting left to tune. */

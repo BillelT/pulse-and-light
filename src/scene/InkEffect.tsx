@@ -4,7 +4,7 @@ import { EffectComposerContext } from '@react-three/postprocessing'
 import { Effect, EffectAttribute } from 'postprocessing'
 import { Color, Uniform, type Texture } from 'three'
 import { readState } from '../state/store'
-import { INK_LINE, INK_PAPER } from './ink'
+import { INK_LINE } from './ink'
 
 /**
  * Passe "encre".
@@ -26,17 +26,16 @@ import { INK_LINE, INK_PAPER } from './ink'
  * donner le tremblement d'un trait a la main.
  *
  * Trois regles de couleur, dans cet ordre :
- *  1. pixel sature => c'est une LED, on garde sa teinte (seule couleur de la
- *     DA) ;
+ *  1. pixel colore => c'est du pigment (le mur d'encre), on le garde tel quel,
+ *     teinte et densite (seule couleur de la DA) ;
  *  2. pixel sombre et desature => c'est de l'encre peinte directement dans la
- *     scene (skyline, traits de sol) ;
+ *     scene (traits de sol, boucles a la plume) ;
  *  3. sinon => papier.
  */
 
 const fragmentShader = /* glsl */ `
 uniform sampler2D normalBuffer;
 uniform vec3 inkColor;
-uniform vec3 paperColor;
 uniform float lineWidth;
 uniform float depthSensitivity;
 uniform float normalSensitivity;
@@ -129,10 +128,21 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, const in float depth,
   float mn = min(c.r, min(c.g, c.b));
   float sat = mx > 1e-4 ? (mx - mn) / mx : 0.0;
 
-  // 1. LED : on garde la teinte pure, l'intensite ne fait que doser le lavis.
+  // 1. Pigment : la teinte ET sa densite passent telles quelles.
+  //
+  //    L'ancienne regle ramenait le pixel vers le papier proportionnellement a
+  //    sa saturation (mix(paper, hue, sat * k)). La saturation de sortie
+  //    valait donc sat x colored, c'est a dire sat AU CARRE : sans consequence
+  //    pour une LED (petite source deja tres saturee, qui ressortait intacte),
+  //    fatal pour un lavis. Le mur d'encre est fait de degrades doux, et une
+  //    zone peinte a 20 % de saturation en ressortait a 7 %, donc blanche.
+  //    On remappe desormais la saturation LINEAIREMENT en gardant la luminance
+  //    du pixel : une LED reste une LED, un lavis reste un lavis.
   vec3 hue = c / max(mx, 1e-4);
-  float colored = clamp(sat * 1.7, 0.0, 1.0) * clamp(mx * colorBoost, 0.0, 1.0);
-  vec3 base = mix(paperColor, hue, colored);
+  vec3 base = clamp(1.0 - (1.0 - hue) * colorBoost, 0.0, 1.0) * mx;
+  // Sert uniquement de masque aux deux regles suivantes : "ce pixel porte de
+  // la couleur, ne le passe pas a l'encre".
+  float colored = clamp(sat * 3.0, 0.0, 1.0);
 
   // 2. Encre peinte dans la scene : uniquement les pixels sombres ET
   //    desatures, pour ne jamais noircir une LED de faible niveau.
@@ -160,7 +170,6 @@ class InkEffectImpl extends Effect {
       uniforms: new Map<string, Uniform<unknown>>([
         ['normalBuffer', new Uniform<Texture | null>(null)],
         ['inkColor', new Uniform(new Color(INK_LINE))],
-        ['paperColor', new Uniform(new Color(INK_PAPER))],
         ['lineWidth', new Uniform(1.2)],
         ['depthSensitivity', new Uniform(14)],
         // Volontairement basse : une surface COURBE (membrane, epaule du
