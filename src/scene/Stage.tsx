@@ -8,10 +8,10 @@ import { INK_SURFACE } from './ink'
  * la terrasse sur laquelle la foule danse.
  */
 
-const TERRACE_X = 40
-const TERRACE_BACK_Z = -8
+const TERRACE_X = 50
+const TERRACE_BACK_Z = -26.1
 const TERRACE_FRONT_Z = 40
-const TERRACE_THICKNESS = 0.8
+const TERRACE_THICKNESS = 0.2
 
 export function Stage() {
   const depth = TERRACE_FRONT_Z - TERRACE_BACK_Z

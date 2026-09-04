@@ -27,6 +27,7 @@ export function Scene() {
       <AudioDriver />
       <CameraRig />
       <DebugHelpers />
+      
 
       <Suspense fallback={null}>
         <InkWall />

@@ -10,13 +10,13 @@ const TARGET = new Vector3(0, 4.3, -2.2)
 const _pos = new Vector3()
 const _look = new Vector3()
 
-const MIN_RADIUS = 11
-const MAX_RADIUS = 48
-const MIN_PHI = 0.55
-const MAX_PHI = 1.52
+const MIN_RADIUS = 9
+const MAX_RADIUS = 52
+const MIN_PHI = 0.45
+const MAX_PHI = 1.6
 
 /** FOV vertical de reference, calibre pour un ecran large (desktop). */
-const BASE_FOV = 42
+const BASE_FOV = 60
 /**
  * En portrait, un FOV vertical fixe donne un FOV horizontal bien plus etroit
  * qu'en paysage (le FOV horizontal depend du ratio largeur/hauteur) : on ne
@@ -24,7 +24,7 @@ const BASE_FOV = 42
  * On elargit le FOV vertical quand l'ecran est plus haut que large, borne
  * pour ne pas deformer l'image comme un fisheye.
  */
-const MAX_PORTRAIT_FOV = 62
+const MAX_PORTRAIT_FOV = 80
 
 const _dir = new Vector3()
 
@@ -205,7 +205,7 @@ export function CameraRig() {
       _pos.y += Math.sin(t * 47 + 1.7) * amp * 0.7
     }
 
-    camera.position.lerp(_pos, 1 - Math.exp(-dt / 0.06))
+    camera.position.lerp(_pos, 2 - Math.exp(-dt / 0.06))
     _look.copy(TARGET)
     _look.y += Math.sin(t * 53) * amp * 0.35
     camera.lookAt(_look)

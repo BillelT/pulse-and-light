@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { ShaderMaterial, Uniform, Vector2, Vector3 } from 'three'
+import { ShaderMaterial, Uniform, Vector2, Vector3, DoubleSide } from 'three'
 import { engine } from '../audio/engine'
 import { INK_VIEWS, readState } from '../state/store'
 import { createInkPalette, inkField } from './inkField'
@@ -56,13 +56,12 @@ const WALL_Z = -26
 const WALL_WIDTH = 300
 const WALL_HEIGHT = 150
 /** Centre du plan : sa moitie basse passe sous le sol, elle n'est jamais peinte. */
-const WALL_CENTER_Y = 30
+const WALL_CENTER_Y = 50
 /**
  * Base du lavis. La ou le plan du mur croise y = 0, il se confond avec la
  * ligne de fuite de la terrasse — l'encre part donc pile de l'horizon.
  */
-const INK_BASE_Y = 0
-
+const INK_BASE_Y = 4.5
 function srgb(hex: string): Vector3 {
   const v = parseInt(hex.slice(1), 16)
   return new Vector3(((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255)
@@ -428,6 +427,7 @@ export function InkWall() {
   const material = useMemo(
     () =>
       new ShaderMaterial({
+        side: DoubleSide,
         vertexShader,
         fragmentShader,
         depthWrite: true,
@@ -537,6 +537,8 @@ export function InkWall() {
     u.uBrightnessMix.value = ink.brightnessMix
     u.uView.value = INK_VIEWS.indexOf(ink.view)
   })
+
+
 
   return (
     // renderOrder tres bas : le fond est dessine en premier, tout le reste le

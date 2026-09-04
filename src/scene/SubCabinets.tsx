@@ -12,10 +12,10 @@ import { INK_SURFACE } from './ink'
  * vertes du bas).
  */
 const CABINETS = [
-  { x: -10.6, y: 0.24, z: -1.2, rotationY: 0.34, phase: 0 },
-  { x: -10.6, y: 1.48, z: -1.2, rotationY: 0.34, phase: 0.37 },
-  { x: 10.6, y: 0.24, z: -1.2, rotationY: -0.34, phase: 0.74 },
-  { x: 10.6, y: 1.48, z: -1.2, rotationY: -0.34, phase: 1.11 },
+  { x: -15.6, y: 0.24, z: -10, rotationY: 0.34, phase: 0 },
+  { x: -15.6, y: 1.48, z: -10, rotationY: 0.34, phase: 0.37 },
+  { x: 15.6, y: 0.24, z: -10, rotationY: -0.34, phase: 0.74 },
+  { x: 15.6, y: 1.48, z: -10, rotationY: -0.34, phase: 1.11 },
 ]
 
 /**
