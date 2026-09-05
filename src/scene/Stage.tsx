@@ -10,7 +10,7 @@ import { INK_SURFACE } from './ink'
 
 const TERRACE_X = 50
 const TERRACE_BACK_Z = -26.1
-const TERRACE_FRONT_Z = 40
+const TERRACE_FRONT_Z = 53
 const TERRACE_THICKNESS = 0.2
 
 export function Stage() {

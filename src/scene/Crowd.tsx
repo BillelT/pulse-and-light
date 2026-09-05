@@ -26,7 +26,7 @@ import { INK_SURFACE } from './ink'
 /** Places disponibles sur la piste — donc nombre maximum de danseurs. */
 const MAX_MEMBERS = 230
 /** Point d'entree / de sortie, derriere la camera. */
-const SPAWN_Z = 48
+const SPAWN_Z = 52.5
 const WALK_SPEED = 5
 /** Vitesse de remplissage, en fraction de piste par seconde a plein niveau. */
 const FILL_RATE = 0.06
