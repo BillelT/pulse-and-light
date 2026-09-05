@@ -9,6 +9,7 @@ import { InkWall } from './InkWall'
 import { CameraRig, DebugHelpers } from './Rig'
 import { Stage } from './Stage'
 import { SubCabinets } from './SubCabinets'
+import { CAPTURE_ENABLED } from '../ui/CaptureButton'
 
 export function Scene() {
   return (
@@ -20,7 +21,15 @@ export function Scene() {
       flat
       dpr={[1, 2]}
       camera={{ fov: 42, near: 0.01, far: 240, position: [0, 4.4, 18] }}
-      gl={{ antialias: false, powerPreference: 'high-performance', alpha: false }}
+      // `preserveDrawingBuffer` uniquement quand le bouton de capture est
+      // present (dev / preprod) : necessaire pour lire le canvas via
+      // `toBlob`, inutile et legerement couteux en production.
+      gl={{
+        antialias: false,
+        powerPreference: 'high-performance',
+        alpha: false,
+        preserveDrawingBuffer: CAPTURE_ENABLED,
+      }}
     >
       <color attach="background" args={[INK_PAPER]} />
 

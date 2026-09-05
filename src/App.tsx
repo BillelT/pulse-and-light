@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Scene } from './scene/Scene'
+import { CaptureButton } from './ui/CaptureButton'
 import { Hud } from './ui/Hud'
 import { Panel } from './ui/Panel'
 import { SourceDock } from './ui/SourceDock'
@@ -61,6 +62,7 @@ export default function App() {
   return (
     <>
       <Scene />
+      <CaptureButton />
       <Hud />
       <SourceDock audio={audio} spotify={spotify} />
       {DEV && <Panel audio={audio} spotify={spotify} />}
