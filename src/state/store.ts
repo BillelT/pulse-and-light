@@ -119,19 +119,19 @@ export interface InkSettings {
 
 export const DEFAULT_INK: InkSettings = {
   view: 'off',
-  flowScale: 2.4,
-  flowSpeed: 0.18,
+  flowScale: 8.0,
+  flowSpeed: 0.25,
   flowBass: 1,
   flowTreble: 0.8,
 
   injectMode: 'both',
-  advectStrength: 1,
-  injectSize: 0.045,
-  injectionRate: 8,
-  rise: 0.35,
-  dissipation: 1.1,
-  ceiling: 0.28,
-  ceilingSoftness: 0.15,
+  advectStrength: 0.25,
+  injectSize: 0.090,
+  injectionRate: 12,
+  rise: 0.55,
+  dissipation: 0.8,
+  ceiling: 0.34,
+  ceilingSoftness: 0.08,
 
   rectCenterX: 0.5,
   rectCenterY: 0.15,
