@@ -39,19 +39,23 @@ export const DEFAULT_VISUAL: VisualSettings = {
 /**
  * Ink wall settings.
  *
- * Le shader du mur est en cours de reconstruction : on repart d'une base
- * minimale et on rajoute les briques une par une. Ce slice va se remplir au
- * fur et a mesure que des reglages seront exposes ; pour l'instant il ne
- * contient qu'un placeholder pour garder le plumbing (setInk, resetInk,
- * onglet Ink) en place et pret a accueillir la suite.
+ * Le shader du mur est reconstruit brique par brique. Chaque brique amene
+ * sa propre section de reglages ici et une vue de debug dans `INK_VIEWS` ;
+ * chaque vue mappe sur un index passe a l'uniforme `uView` du shader.
+ *
+ * Etape 1 : la seule brique en place est le pont audio -> DataTexture, on
+ * expose donc une seule vue de debug qui affiche cette texture sur le mur.
  */
+export const INK_VIEWS = ['off', 'spectrum'] as const
+export type InkView = (typeof INK_VIEWS)[number]
+
 export interface InkSettings {
-  /** Placeholder : le mur n'a aucun reglage tant qu'on n'a pas re-ajoute de brique. */
-  wip: boolean
+  /** Vue de debug active. 'off' = rendu reel (papier vide pour l'instant). */
+  view: InkView
 }
 
 export const DEFAULT_INK: InkSettings = {
-  wip: false,
+  view: 'off',
 }
 
 /** Scene debugger settings: visual aids only — there's no lighting left to tune. */
