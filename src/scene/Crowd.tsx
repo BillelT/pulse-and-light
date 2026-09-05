@@ -31,6 +31,27 @@ const WALK_SPEED = 5
 /** Vitesse de remplissage, en fraction de piste par seconde a plein niveau. */
 const FILL_RATE = 0.06
 const EMPTY_RATE = 0.17
+/**
+ * Cadence des ARRIVEES / DEPARTS.
+ *
+ * Sans cadence, `staying < wanted` active un danseur PAR FRAME : au demarrage
+ * d'un morceau, dix silhouettes surgissent en une seconde et marchent en
+ * ligne vers la piste — une entree groupee tres visible. Meme probleme a
+ * l'inverse quand le morceau s'arrete : un peloton se retourne d'un coup
+ * vers la sortie.
+ *
+ * On borne donc l'ecart minimum entre deux evenements du meme sens, avec
+ * une plage aleatoire : le taux moyen reste piloté par `heat` (donc par le
+ * son), mais l'instant de chaque entree / sortie est desynchronise.
+ *
+ * Les sorties sont volontairement plus lentes que les entrees : une piste
+ * qui se vide en trainant se lit comme la fin d'une soiree ; une piste qui
+ * se vide d'un bloc se lit comme une alarme incendie.
+ */
+const SPAWN_GAP_MIN = 0.25
+const SPAWN_GAP_MAX = 1.1
+const LEAVE_GAP_MIN = 0.6
+const LEAVE_GAP_MAX = 2.2
 /** Duree du fondu d'echelle a l'apparition, en secondes. */
 const FADE = 0.35
 /**
@@ -86,6 +107,11 @@ interface Walker {
   /** Decalage propre a la silhouette : personne ne danse exactement en phase. */
   seed: number
   scale: number
+  /**
+   * Multiplicateur de vitesse de marche : evite que dix silhouettes
+   * activees a la suite arrivent en peloton compact a leur place.
+   */
+  walkMul: number
   /** Style de danse, tire une fois pour toutes. */
   style: Style
   /** Diviseur/multiplicateur de tempo perso : 0.5, 1.0 ou 1.5. */
@@ -169,6 +195,9 @@ export function Crowd() {
         // frequence donnee. On ecarte deliberement Sub/Bass des styles calmes
         // (Sway, HandsUp) pour qu'ils ne pompent pas sur les kicks.
         const bandBias = (i * 7 + style) % 6
+        // Vitesse de marche legerement dispersee : entre 0.75x et 1.25x du
+        // pas de reference. Deterministe pour rester reproductible.
+        const walkMul = 0.75 + ((i * 11) % 100) / 200
         return {
           active: false,
           leaving: false,
@@ -180,6 +209,7 @@ export function Crowd() {
           step: i * 1.7,
           seed: (i * 0.618) % 1,
           scale: 0,
+          walkMul,
           style,
           tempoMul,
           bandBias,
@@ -194,6 +224,15 @@ export function Crowd() {
   const heat = useRef(0)
   /** Phase rythmique partagee, en temps (1.0 = un temps). */
   const beat = useRef(0)
+  /**
+   * Cooldowns anti-peloton. Compte a rebours en secondes ; tant que > 0 on
+   * n'active/ne fait pas partir personne, meme si `wanted` reclame plus.
+   * Chaque evenement les recharge a une valeur aleatoire (borne min..max) :
+   * le rythme global suit toujours le son, mais chaque entree/sortie tombe
+   * a un instant desynchronise des autres.
+   */
+  const spawnCooldown = useRef(0)
+  const leaveCooldown = useRef(0)
 
   useFrame((_, delta) => {
     const dt = Math.min(0.1, delta)
@@ -213,29 +252,38 @@ export function Crowd() {
     let staying = 0
     for (const w of walkers) if (w.active && !w.leaving) staying++
 
-    if (staying < wanted) {
-      // Une arrivee a la fois : une foule qui apparait par paquets se voit.
+    if (spawnCooldown.current > 0) spawnCooldown.current -= dt
+    if (leaveCooldown.current > 0) leaveCooldown.current -= dt
+
+    if (staying < wanted && spawnCooldown.current <= 0) {
+      // Une arrivee a la fois, ET pas avant que le cooldown ne soit ecoule :
+      // une foule qui apparait par paquets se voit.
       for (let i = 0; i < walkers.length; i++) {
         const w = walkers[i]
         if (w.active) continue
         w.active = true
         w.leaving = false
-        w.x = SLOTS[i].x * 0.45
-        w.z = SPAWN_Z
+        // Le point d'entree recoit un peu de dispersion laterale : sans ca,
+        // deux danseurs actives coup sur coup partent exactement du meme x.
+        w.x = SLOTS[i].x * 0.45 + (w.seed - 0.5) * 3.5
+        w.z = SPAWN_Z + w.seed * 2
         w.tx = SLOTS[i].x
         w.tz = SLOTS[i].z
         w.rot = Math.PI
         w.scale = 0
+        spawnCooldown.current = randRange(SPAWN_GAP_MIN, SPAWN_GAP_MAX)
         break
       }
-    } else if (staying > wanted) {
-      // Les derniers arrives repartent les premiers.
+    } else if (staying > wanted && leaveCooldown.current <= 0) {
+      // Les derniers arrives repartent les premiers, mais un a la fois et
+      // avec des trous entre chaque depart.
       for (let i = walkers.length - 1; i >= 0; i--) {
         const w = walkers[i]
         if (!w.active || w.leaving) continue
         w.leaving = true
-        w.tx = SLOTS[i].x * 0.45
-        w.tz = SPAWN_Z
+        w.tx = SLOTS[i].x * 0.45 + (w.seed - 0.5) * 3.5
+        w.tz = SPAWN_Z + w.seed * 2
+        leaveCooldown.current = randRange(LEAVE_GAP_MIN, LEAVE_GAP_MAX)
         break
       }
     }
@@ -257,7 +305,7 @@ export function Crowd() {
       const walking = dist > 0.12
 
       if (walking) {
-        const advance = Math.min(dist, WALK_SPEED * dt)
+        const advance = Math.min(dist, WALK_SPEED * w.walkMul * dt)
         w.x += (dx / dist) * advance
         w.z += (dz / dist) * advance
         // Le personnage regarde ou il va ; le virage est lisse, sinon il
@@ -570,6 +618,10 @@ function danceMember(
 
 function clamp01(v: number): number {
   return v < 0 ? 0 : v > 1 ? 1 : v
+}
+
+function randRange(min: number, max: number): number {
+  return min + Math.random() * (max - min)
 }
 
 function smoothstep(t: number): number {
