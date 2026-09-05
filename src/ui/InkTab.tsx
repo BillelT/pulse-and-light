@@ -18,10 +18,10 @@ import { Section, Slider } from './controls'
  *
  * Etapes en place :
  *  1. pont audio -> DataTexture, vue "Spectrum".
- *  2. flow field (bruit simplex), vue "Flow".
- *  3. ping-pong FBO : le rendu reel affiche enfin quelque chose. Trois
- *     modes d'injection commutables pour choisir a l'oeil laquelle
- *     donne le meilleur rendu (fountain / drops / both).
+ *  2. flow field simplex, vue "Flow".
+ *  3. ping-pong FBO avec integrateur leaky, spectre lisse, plafond doux.
+ *  4. colorimetrie palette BANDS + Beer-Lambert.
+ *  5. masque rectangulaire (fenetre d'affichage).
  */
 
 const VIEW_LABEL: Record<InkView, string> = {
@@ -31,8 +31,8 @@ const VIEW_LABEL: Record<InkView, string> = {
 }
 
 const VIEW_HELP: Record<InkView, string> = {
-  off: 'The real render. Grayscale ink density from the fluid FBO — fades to white when the music stops, capped in height by the ceiling. Colour comes at step 4.',
-  spectrum: 'The 13 log-frequency columns straight from the audio engine, drawn as a horizontal spectrum bar. Bass on the left, treble on the right.',
+  off: 'The real render. Colored fluid density coming from the FBO, framed by the rectangular mask. Fades to white when the music stops.',
+  spectrum: 'The 13 log-frequency columns straight from the audio engine (smoothed 5-tap), drawn as a horizontal spectrum bar. Bass on the left, treble on the right.',
   flow: 'The flow field vector, red = horizontal, green = vertical. Bass pushes the amplitude, treble accelerates the churn. Same field the fluid is advected by.',
 }
 
@@ -43,12 +43,13 @@ const INJECT_LABEL: Record<InkInjectMode, string> = {
 }
 
 const INJECT_HELP: Record<InkInjectMode, string> = {
-  fountain: 'A thin band at the bottom is painted every frame with the audio spectrum. The flow field then carries it up. Continuous life, works on quiet tracks.',
+  fountain: 'Leaky integrator toward the current spectrum along a thin band at the bottom. Continuous life, tracks the audio faithfully — no ghost spikes.',
   drops: 'On each onset, a Gaussian drop is dropped at a position tied to the transient\'s peak frequency. Punchy, goes quiet between beats.',
   both: 'Fountain keeps the background alive, drops mark the beats. The mix that looks most like ink in water.',
 }
 
 const num = (v: number) => v.toFixed(2)
+const num3 = (v: number) => v.toFixed(3)
 const pct = (v: number) => `${(v * 100).toFixed(0)}%`
 
 export function InkTab() {
@@ -81,10 +82,6 @@ export function InkTab() {
       </Section>
 
       <Section title="2 · Flow field">
-        <div className="field-hint" style={{ marginTop: 4, marginBottom: 8 }}>
-          Simplex noise → 2D vector field. The fluid is now advected by it;
-          flip to Flow to see the same field on its own.
-        </div>
         <Slider
           label="Scale"
           value={ink.flowScale}
@@ -93,7 +90,7 @@ export function InkTab() {
           step={0.05}
           format={num}
           onChange={set('flowScale')}
-          hint="Bigger = smaller, tighter swirls. Smaller = big lazy volutes that cross the whole wall."
+          hint="Bigger = tighter swirls. Smaller = big lazy volutes."
         />
         <Slider
           label="Base speed"
@@ -103,7 +100,7 @@ export function InkTab() {
           step={0.005}
           format={num}
           onChange={set('flowSpeed')}
-          hint="Clock speed of the field with no audio. 0 = the field is frozen in place."
+          hint="Clock speed of the field with no audio. 0 = field frozen."
         />
         <Slider
           label="Bass → amplitude"
@@ -113,7 +110,7 @@ export function InkTab() {
           step={0.02}
           format={pct}
           onChange={set('flowBass')}
-          hint="How much a kick pushes the fluid further in one frame."
+          hint="How much a kick pushes the fluid further per frame."
         />
         <Slider
           label="Treble → churn"
@@ -129,9 +126,9 @@ export function InkTab() {
 
       <Section title="3 · Fluid">
         <div className="field-hint" style={{ marginTop: 4, marginBottom: 8 }}>
-          Ping-pong FBO, 256 × 384 half-float. Each frame reads the previous
-          state, warps it by the flow field, and adds the injection below.
-          No dissipation yet.
+          Ping-pong FBO, 256 × 384 half-float, RGB (linear absorption). Each
+          frame reads the previous state, advects it by the flow field, blends
+          in the injection, then applies dissipation and the ceiling.
         </div>
 
         <div className="field" style={{ marginBottom: 8 }}>
@@ -162,7 +159,17 @@ export function InkTab() {
           step={0.02}
           format={num}
           onChange={set('advectStrength')}
-          hint="How far the flow field displaces each pixel per frame. Too low = the fluid barely drifts; too high = smearing artifacts."
+          hint="How far the flow field displaces each pixel. Too low = the fluid barely drifts; too high = smearing artifacts."
+        />
+        <Slider
+          label="Rise"
+          value={ink.rise}
+          min={0}
+          max={2}
+          step={0.01}
+          format={num}
+          onChange={set('rise')}
+          hint="Extra upward push per unit of local intensity (UV/s). Loud bands push their pigment higher — the wave height reflects the frequency intensity."
         />
         <Slider
           label="Injection size"
@@ -170,9 +177,19 @@ export function InkTab() {
           min={0.005}
           max={0.2}
           step={0.001}
-          format={num}
+          format={num3}
           onChange={set('injectSize')}
-          hint="Fountain: band height. Drops: Gaussian radius. Both in UV units."
+          hint="Fountain: band height. Drops: Gaussian radius."
+        />
+        <Slider
+          label="Injection rate"
+          value={ink.injectionRate}
+          min={0.5}
+          max={30}
+          step={0.1}
+          format={num}
+          onChange={set('injectionRate')}
+          hint="Leaky-integrator speed toward the current spectrum, in 1/s. Higher = fluid tracks the audio faster (sharper response). Lower = smoother, more painterly."
         />
         <Slider
           label="Dissipation"
@@ -182,7 +199,7 @@ export function InkTab() {
           step={0.02}
           format={num}
           onChange={set('dissipation')}
-          hint="Fade rate per second (exp(-rate·dt), framerate-independent). 0 = ink never fades. 0.7 ≈ 1s half-life. 1.5 ≈ 0.45s half-life. This is what returns the wall to white when the music stops."
+          hint="Fade rate per second, exp(-rate·dt). 1.1 ≈ 0.63s half-life. Higher = ink clears faster. Balance with the injection rate so peaks don't linger."
         />
         <Slider
           label="Ceiling"
@@ -192,7 +209,7 @@ export function InkTab() {
           step={0.005}
           format={num}
           onChange={set('ceiling')}
-          hint="UV height where the fluid starts fading to zero. Keep it near the spectrum bar's max (~0.25) to frame the visualizer."
+          hint="UV height where the fluid starts fading to zero. Keep near the spectrum bar's max (~0.25) to frame the visualizer."
         />
         <Slider
           label="Ceiling softness"
@@ -202,7 +219,7 @@ export function InkTab() {
           step={0.005}
           format={num}
           onChange={set('ceilingSoftness')}
-          hint="Width of the smoothstep above the ceiling. 0 = hard cut (visible edge), 0.15 = soft dissolve like smoke."
+          hint="Fade width above the ceiling. 0 = hard cut, 0.15 = soft smoke-like dissolve."
         />
 
         <button className="btn" onClick={() => inkFluid.reset()}>
@@ -210,11 +227,66 @@ export function InkTab() {
         </button>
       </Section>
 
+      <Section title="5 · Display rectangle">
+        <div className="field-hint" style={{ marginTop: 4, marginBottom: 8 }}>
+          Frames the fluid to a bounded window on the wall. Outside the rect →
+          paper white. Soft edges avoid the "sticker on a wall" look.
+        </div>
+        <Slider
+          label="Center X"
+          value={ink.rectCenterX}
+          min={0}
+          max={1}
+          step={0.005}
+          format={num}
+          onChange={set('rectCenterX')}
+        />
+        <Slider
+          label="Center Y"
+          value={ink.rectCenterY}
+          min={0}
+          max={1}
+          step={0.005}
+          format={num}
+          onChange={set('rectCenterY')}
+        />
+        <Slider
+          label="Half width"
+          value={ink.rectHalfW}
+          min={0.05}
+          max={0.5}
+          step={0.005}
+          format={num}
+          onChange={set('rectHalfW')}
+          hint="In UV. 0.5 = full width of the wall."
+        />
+        <Slider
+          label="Half height"
+          value={ink.rectHalfH}
+          min={0.05}
+          max={0.5}
+          step={0.005}
+          format={num}
+          onChange={set('rectHalfH')}
+        />
+        <Slider
+          label="Edge softness"
+          value={ink.rectSoftness}
+          min={0}
+          max={0.2}
+          step={0.002}
+          format={num3}
+          onChange={set('rectSoftness')}
+          hint="Smoothstep width at the rectangle border. 0 = hard cut, ~0.05 = ink-fringed print, higher = misty vignette."
+        />
+      </Section>
+
       <Section title="Where we are">
         <div className="field-hint" style={{ marginTop: 4 }}>
-          Step 3 · the ping-pong FBO is alive, with dissipation and a soft
-          vertical ceiling wired in early so the wall stays legible while we
-          pick an injection mode. Colorimetry (BANDS palette) comes at step 4.
+          Steps 1–5 in place. Palette follows BANDS (Sub, Bass, Low-Mid, Mid,
+          High-Mid, Air) on the log-frequency axis common to the whole
+          project — pigment keeps the colour of the frequency that laid it
+          down even as advection carries it around.
         </div>
       </Section>
     </div>

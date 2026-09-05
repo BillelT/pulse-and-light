@@ -80,6 +80,19 @@ export interface InkSettings {
    */
   injectSize: number
   /**
+   * Vitesse d'infusion de la fontaine, en 1/seconde. `alpha = 1 - exp(-rate*dt)` :
+   * on tend vers le spectre courant plutot que de l'ajouter — l'ecran suit le
+   * son au lieu de saturer, et les pics retombent proprement quand l'energie
+   * baisse. Framerate-independent.
+   */
+  injectionRate: number
+  /**
+   * Coup de pouce vertical proportionnel a l'energie locale (UV/seconde).
+   * Une frequence forte pousse son pigment plus haut avant que le plafond
+   * ne l'attenue : la "vague" a une hauteur qui correspond a l'intensite.
+   */
+  rise: number
+  /**
    * Taux de fonte du pigment, en 1/seconde. `residual(t) = exp(-rate * t)`.
    * Independant du framerate. 0 = jamais rien ne fond. 0.7 = demi-vie ~1s.
    * C'est ce qui fait retomber le mur au blanc quand la musique s'arrete.
@@ -87,12 +100,21 @@ export interface InkSettings {
   dissipation: number
   /**
    * Hauteur du plafond, en UV. Au-dessus de ce niveau le pigment est
-   * attenue vers zero (fondu doux, cf. `ceilingSoftness`). Le rendu reste
-   * ainsi cadre a peu pres a la hauteur du spectrum debug.
+   * attenue vers zero (fondu doux, cf. `ceilingSoftness`).
    */
   ceiling: number
   /** Largeur du fondu au-dessus du plafond, en UV. */
   ceilingSoftness: number
+
+  // --- Etape 5 · Masque rectangulaire (fenetre d'affichage) ---
+  /** Centre du rectangle d'affichage en UV. */
+  rectCenterX: number
+  rectCenterY: number
+  /** Demi-largeur et demi-hauteur du rectangle en UV. */
+  rectHalfW: number
+  rectHalfH: number
+  /** Largeur du fondu au bord du rectangle, en UV. 0 = coupure nette. */
+  rectSoftness: number
 }
 
 export const DEFAULT_INK: InkSettings = {
@@ -104,10 +126,18 @@ export const DEFAULT_INK: InkSettings = {
 
   injectMode: 'both',
   advectStrength: 1,
-  injectSize: 0.04,
-  dissipation: 0.9,
+  injectSize: 0.045,
+  injectionRate: 8,
+  rise: 0.35,
+  dissipation: 1.1,
   ceiling: 0.28,
   ceilingSoftness: 0.15,
+
+  rectCenterX: 0.5,
+  rectCenterY: 0.15,
+  rectHalfW: 0.5,
+  rectHalfH: 0.28,
+  rectSoftness: 0.04,
 }
 
 /** Scene debugger settings: visual aids only — there's no lighting left to tune. */

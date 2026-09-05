@@ -8,6 +8,7 @@ import {
   HalfFloatType,
   LinearFilter,
   Mesh,
+  NoColorSpace,
   OrthographicCamera,
   PlaneGeometry,
   Scene as ThreeScene,
@@ -27,27 +28,31 @@ import {
   FLUID_FBO_WIDTH,
   inkFluid,
 } from './inkFluid'
-import { INK_LINE, INK_PAPER } from './ink'
+import { createInkPalette } from './inkPalette'
+import { INK_PAPER } from './ink'
 
 /**
  * Le mur — visualiseur en cours de reconstruction, brique par brique.
  *
  * Etapes en place :
- *  1. pont audio -> `DataTexture` (voir `audioTexture.ts`), vue "spectrum".
+ *  1. pont audio -> DataTexture (voir `audioTexture.ts`), vue "spectrum".
  *  2. flow field (bruit simplex, voir `inkFluid.ts`), vue "flow".
- *  3. ping-pong FBO : la simulation avance dans deux `WebGLRenderTarget`
- *     qui s'echangent chaque frame. Le shader de simulation lit la frame
- *     precedente a des UVs deformees par le flow field (advection
- *     semi-Lagrangienne) et rajoute une INJECTION. Trois modes commutables
- *     pour choisir a l'oeil laquelle donne le meilleur rendu :
- *       - fountain : bande audio en bas, alimentation continue.
- *       - drops   : goutte lachee sur chaque onset a la frequence du kick.
- *       - both    : les deux, la fontaine tient la vie, les gouttes marquent.
- *
- * Le mur affiche la sortie du FBO en niveaux de gris (papier <-> encre
- * foncee). Aucune dissipation ici : l'ecran finit par saturer. C'est le
- * point que l'etape 4 va corriger, et c'est exactement ce que le MD
- * demandait de voir avant d'ajouter la dissipation.
+ *  3. ping-pong FBO : la simulation avance dans deux WebGLRenderTarget qui
+ *     s'echangent chaque frame. Advection semi-Lagrangienne par le flow
+ *     field, injection au choix (fountain / drops / both), dissipation
+ *     exponentielle et plafond doux. La fontaine est un INTEGRATEUR LEAKY :
+ *     on tend vers le spectre courant plutot que de l'ajouter, sinon l'ecran
+ *     sature ou garde des pointes qui persistent quand l'energie a bouge.
+ *     Le spectre est lisse horizontalement (5 taps ponderes) pour arrondir
+ *     les pointes cellule par cellule.
+ *  4. colorimetrie : le FBO stocke l'ABSORPTION en espace lineaire (Beer-
+ *     Lambert simplifie), la palette BANDS complete (Sub -> Air) est lue
+ *     dans `inkPalette.ts` et tient sur l'axe log-frequence commun au reste
+ *     du projet. Un pigment tache donc a la couleur de la frequence qui l'a
+ *     depose et garde cette couleur meme quand l'advection le deplace.
+ *  5. masque rectangulaire : fenetre d'affichage bornee (centre + demi-taille
+ *     + adoucissement des bords) pour cadrer le fluide comme un "ecran" au
+ *     milieu du mur.
  */
 
 const WALL_Z = -26
@@ -60,6 +65,32 @@ function srgb(hex: string): Vector3 {
   const v = parseInt(hex.slice(1), 16)
   return new Vector3(((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255)
 }
+
+// --- Shared GLSL ------------------------------------------------------------
+
+/**
+ * Echantillonnage lisse du spectre : 5 taps ponderes 1-2-3-2-1 (somme 9)
+ * autour de x. Le sampler linear fait deja de l'interpolation entre texels,
+ * mais 13 colonnes reechantillonnees en 128 slots laissent quand meme des
+ * pointes visibles cellule par cellule quand une seule colonne est forte.
+ * Ce petit box blur arrondit les pointes en douceur.
+ */
+const SPECTRUM_SAMPLER_GLSL = /* glsl */ `
+float sampleSpectrum(sampler2D tex, float x) {
+  const float du = 2.0 / 128.0;
+  float s = 0.0;
+  s += texture2D(tex, vec2(x - 2.0 * du, 0.5)).r * 1.0;
+  s += texture2D(tex, vec2(x -       du, 0.5)).r * 2.0;
+  s += texture2D(tex, vec2(x           , 0.5)).r * 3.0;
+  s += texture2D(tex, vec2(x +       du, 0.5)).r * 2.0;
+  s += texture2D(tex, vec2(x + 2.0 * du, 0.5)).r * 1.0;
+  return s / 9.0;
+}
+
+vec3 srgbToLinear(vec3 c) {
+  return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+}
+`
 
 // --- Wall (display) shader --------------------------------------------------
 
@@ -78,12 +109,11 @@ precision mediump float;
 varying vec2 vUv;
 
 uniform vec3 uPaper;
-uniform vec3 uInk;
 uniform sampler2D uSpectrum;
 uniform sampler2D uFluid;
 uniform int uView;
 
-// Flow field uniforms (partages avec la simulation).
+// Flow field uniforms.
 uniform float uTime;
 uniform float uBass;
 uniform float uTreble;
@@ -92,33 +122,46 @@ uniform float uFlowSpeed;
 uniform float uFlowBass;
 uniform float uFlowTreble;
 
-vec3 srgbToLinear(vec3 c) {
-  return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
-}
+// Masque rectangulaire.
+uniform vec2 uRectCenter;
+uniform vec2 uRectHalfSize;
+uniform float uRectSoftness;
 
+${SPECTRUM_SAMPLER_GLSL}
 ${FLOW_FIELD_GLSL}
 
 void main() {
-  vec3 col = uPaper;
+  vec3 paperLin = srgbToLinear(uPaper);
+  vec3 col = paperLin;
 
   if (uView == 1) {
-    // Spectrum debug : barre horizontale en bas, grave a gauche, aigu a droite.
-    float level = texture2D(uSpectrum, vec2(vUv.x, 0.5)).r;
+    // Spectrum debug : barre horizontale, spectre lisse.
+    float level = sampleSpectrum(uSpectrum, vUv.x);
     float fill = step(vUv.y, level * 0.25);
-    col = mix(uPaper, vec3(0.08, 0.07, 0.06), fill);
+    col = mix(paperLin, srgbToLinear(vec3(0.08, 0.07, 0.06)), fill);
   } else if (uView == 2) {
-    // Flow debug : le vecteur du champ en fausses couleurs.
+    // Flow debug : vecteur en fausses couleurs.
     vec2 f = flowField(vUv, uTime, uFlowScale, uFlowSpeed, uFlowBass, uFlowTreble, uBass, uTreble);
     f = clamp(f, -1.0, 1.0);
-    col = vec3(0.5 + 0.5 * f.x, 0.5 + 0.5 * f.y, 0.5);
+    col = srgbToLinear(vec3(0.5 + 0.5 * f.x, 0.5 + 0.5 * f.y, 0.5));
   } else {
-    // Rendu reel (uView == 0) : le canal R du FBO = densite d'encre 0..1.
-    // Papier a 0, encre foncee a 1. La couleur arrive a l'etape 4.
-    float density = texture2D(uFluid, vUv).r;
-    col = mix(uPaper, uInk, density);
+    // Rendu reel : Beer-Lambert. Le FBO stocke absorption * densite en
+    // lineaire, papier * (1 - fbo) redonne la couleur de la frequence
+    // qui a depose le pigment.
+    vec3 absorb = texture2D(uFluid, vUv).rgb;
+    vec3 fluidCol = paperLin * (1.0 - clamp(absorb, 0.0, 1.0));
+
+    // Masque rectangulaire (etape 5). Distance signee au rectangle :
+    // 0 a l'interieur, > 0 a l'exterieur. Le smoothstep donne un bord
+    // doux qui evite l'effet "sticker" et rappelle un tirage humide.
+    vec2 d = abs(vUv - uRectCenter) - uRectHalfSize;
+    float outside = length(max(d, 0.0));
+    float rectMask = 1.0 - smoothstep(0.0, max(uRectSoftness, 1e-4), outside);
+    col = mix(paperLin, fluidCol, rectMask);
   }
 
-  gl_FragColor = vec4(srgbToLinear(col), 1.0);
+  // Sortie directe en lineaire : Three convertira en sRGB pour l'affichage.
+  gl_FragColor = vec4(col, 1.0);
 }
 `
 
@@ -140,6 +183,7 @@ varying vec2 vUv;
 
 uniform sampler2D uPrev;
 uniform sampler2D uSpectrum;
+uniform sampler2D uPalette;
 
 // Flow field.
 uniform float uTime;
@@ -153,61 +197,64 @@ uniform float uFlowTreble;
 // Fluide.
 uniform float uDt;
 uniform float uAdvectStrength;
+uniform float uRise;
 uniform int uInjectMode;
 uniform float uInjectSize;
+uniform float uInjectionRate;
 uniform vec2 uDropUv;
 uniform float uDropStrength;
 uniform float uDissipation;
 uniform float uCeiling;
 uniform float uCeilingSoftness;
 
+${SPECTRUM_SAMPLER_GLSL}
 ${FLOW_FIELD_GLSL}
+
+/** Palette : absorption lineaire deja pre-calculee dans inkPalette.ts. */
+vec3 sampleAbsorption(float x) {
+  return texture2D(uPalette, vec2(x, 0.5)).rgb;
+}
 
 void main() {
   vec2 uv = vUv;
+  float localLevel = sampleSpectrum(uSpectrum, uv.x);
 
-  // Advection semi-Lagrangienne : "ou etait ce pixel un dt plus tot ?".
-  // On lit le passe a l'endroit dont il PROVIENT, ce qui evite les stries
-  // qu'on aurait avec une advection avant (Euler explicite).
+  // 1. Advection semi-Lagrangienne. Le flow field donne la direction du
+  //    courant ; on ajoute un coup de pouce vertical proportionnel a
+  //    l'energie locale pour que les frequences fortes montent plus haut.
   vec2 flow = flowField(uv, uTime, uFlowScale, uFlowSpeed, uFlowBass, uFlowTreble, uBass, uTreble);
+  flow.y += uRise * localLevel;
   vec2 prevUv = uv - flow * uAdvectStrength * uDt;
-  vec4 prev = texture2D(uPrev, clamp(prevUv, 0.0, 1.0));
+  vec3 value = texture2D(uPrev, clamp(prevUv, 0.0, 1.0)).rgb;
 
-  float inject = 0.0;
-
-  // Fountain : bande audio en bas de l'ecran, hauteur = uInjectSize.
-  // Chaque colonne de la texture audio alimente sa tranche verticale.
+  // 2. Fontaine : integrateur leaky (framerate-independent) qui TEND vers
+  //    absorption * niveau courant. Quand l'energie baisse, le pigment
+  //    injecte suit vers le bas — plus de pointes fantomes qui persistent
+  //    pendant que le HUD montre autre chose.
   if (uInjectMode == 0 || uInjectMode == 2) {
-    float band = 1.0 - smoothstep(0.0, uInjectSize, uv.y);
-    float level = texture2D(uSpectrum, vec2(uv.x, 0.5)).r;
-    inject += band * level;
+    float bandMask = 1.0 - smoothstep(0.0, uInjectSize, uv.y);
+    vec3 target = sampleAbsorption(uv.x) * localLevel;
+    float alpha = (1.0 - exp(-uInjectionRate * uDt)) * bandMask;
+    value = mix(value, target, alpha);
   }
 
-  // Drops : goutte gaussienne a uDropUv, seulement quand uDropStrength > 0
-  // (frame ou un onset vient d'etre detecte).
+  // 3. Gouttes : additif borne (jamais > 1) pour un coup net sur onset.
+  //    La couleur suit la frequence de pic du transitoire (uDropUv.x).
   if ((uInjectMode == 1 || uInjectMode == 2) && uDropStrength > 0.001) {
     vec2 d = uv - uDropUv;
-    float r2 = dot(d, d);
     float sigma2 = uInjectSize * uInjectSize;
-    float blob = exp(-r2 / (sigma2 + 1e-6));
-    inject += blob * uDropStrength;
+    float blob = exp(-dot(d, d) / (sigma2 + 1e-6)) * uDropStrength;
+    vec3 dropAbs = sampleAbsorption(uDropUv.x);
+    value += dropAbs * blob * clamp(1.0 - value, 0.0, 1.0);
   }
 
-  // Dissipation exponentielle, INDEPENDANTE du framerate. Sans son,
-  // injection = 0 et le pigment retombe au blanc en quelques secondes.
-  // C'est ce qui donne le comportement "quand la musique s'arrete, le
-  // mur redevient blanc", et c'est aussi ce qui empeche la scene de
-  // saturer en 10s meme sur un morceau constamment fort.
+  // 4. Dissipation exponentielle + plafond doux. Sans son la valeur retombe
+  //    a zero, au-dessus du plafond le pigment s'eteint comme de la fumee.
   float fade = exp(-uDissipation * uDt);
-
-  // Plafond doux : au-dessus de uCeiling en UV, on attenue vers zero.
-  // Physiquement c'est de la fumee qui se dissipe en montant ; visuellement,
-  // c'est ce qui cadre le fluide a peu pres a la hauteur du spectrum debug.
   float ceilFactor = 1.0 - smoothstep(uCeiling, uCeiling + uCeilingSoftness, uv.y);
+  value = clamp(value * fade * ceilFactor, 0.0, 1.0);
 
-  float value = clamp((prev.r + inject) * fade * ceilFactor, 0.0, 1.0);
-
-  gl_FragColor = vec4(value, 0.0, 0.0, 1.0);
+  gl_FragColor = vec4(value, 1.0);
 }
 `
 
@@ -227,7 +274,6 @@ function headAverage(cols: Float32Array, count: number): number {
   return n > 0 ? s / n : 0
 }
 
-/** Position (en UV) du pic d'energie. Sert a placer les gouttes sur onsets. */
 function peakColumnUv(cols: Float32Array): number {
   let peak = 0
   let idx = 0
@@ -241,8 +287,6 @@ function peakColumnUv(cols: Float32Array): number {
 }
 
 const BAND_TAP = Math.max(1, Math.floor(COLUMN_COUNT / 4))
-
-/** Scratch alloue une fois : sert au sauvegarde/restauration du clear color. */
 const clearColorScratch = new Color()
 
 // --- Composant --------------------------------------------------------------
@@ -251,9 +295,8 @@ export function InkWall() {
   const clock = useRef(0)
   const lastOnset = useRef(-1)
   const lastResetSignal = useRef(inkFluid.resetSignal)
+  const palette = useMemo(() => createInkPalette(), [])
 
-  // Deux FBOs half-float qui vont s'echanger. Half-float suffit largement
-  // pour du 0..1, byte donnerait un banding visible aux faibles densites.
   const fboOpts = useMemo(
     () => ({
       type: HalfFloatType,
@@ -263,6 +306,7 @@ export function InkWall() {
       wrapT: ClampToEdgeWrapping,
       depthBuffer: false,
       stencilBuffer: false,
+      colorSpace: NoColorSpace,
     }),
     [],
   )
@@ -273,9 +317,6 @@ export function InkWall() {
     write: fboB as WebGLRenderTarget,
   })
 
-  // Materiau et scene de simulation : une petite scene isolee, pas dans le
-  // graphe R3F principal, avec un unique quad plein-ecran. On la rend
-  // manuellement dans useFrame vers l'un ou l'autre des FBOs.
   const simMaterial = useMemo(
     () =>
       new ShaderMaterial({
@@ -286,6 +327,7 @@ export function InkWall() {
         uniforms: {
           uPrev: new Uniform<WebGLRenderTarget['texture'] | null>(null),
           uSpectrum: new Uniform(audioTexture.texture),
+          uPalette: new Uniform(palette),
           uTime: new Uniform(0),
           uBass: new Uniform(0),
           uTreble: new Uniform(0),
@@ -295,16 +337,18 @@ export function InkWall() {
           uFlowTreble: new Uniform(0.8),
           uDt: new Uniform(0),
           uAdvectStrength: new Uniform(1),
+          uRise: new Uniform(0.35),
           uInjectMode: new Uniform(2),
-          uInjectSize: new Uniform(0.04),
-          uDropUv: new Uniform(new Vector2(0.5, 0.5)),
+          uInjectSize: new Uniform(0.045),
+          uInjectionRate: new Uniform(8),
+          uDropUv: new Uniform(new Vector2(0.5, 0.15)),
           uDropStrength: new Uniform(0),
-          uDissipation: new Uniform(0.9),
+          uDissipation: new Uniform(1.1),
           uCeiling: new Uniform(0.28),
           uCeilingSoftness: new Uniform(0.15),
         },
       }),
-    [],
+    [palette],
   )
 
   const simScene = useMemo(() => new ThreeScene(), [])
@@ -325,15 +369,11 @@ export function InkWall() {
         side: DoubleSide,
         vertexShader: wallVertex,
         fragmentShader: wallFragment,
-        // Voir le commentaire dans le commit "Mur : ne pas ecrire la
-        // profondeur" — sur ce plan lointain, InkEffect peindrait un
-        // motif si on ecrivait la profondeur.
         depthWrite: false,
         depthTest: false,
         fog: false,
         uniforms: {
           uPaper: new Uniform(srgb(INK_PAPER)),
-          uInk: new Uniform(srgb(INK_LINE)),
           uSpectrum: new Uniform(audioTexture.texture),
           uFluid: new Uniform<WebGLRenderTarget['texture'] | null>(null),
           uView: new Uniform(0),
@@ -344,6 +384,9 @@ export function InkWall() {
           uFlowSpeed: new Uniform(0.18),
           uFlowBass: new Uniform(1),
           uFlowTreble: new Uniform(0.8),
+          uRectCenter: new Uniform(new Vector2(0.5, 0.15)),
+          uRectHalfSize: new Uniform(new Vector2(0.5, 0.28)),
+          uRectSoftness: new Uniform(0.04),
         },
       }),
     [],
@@ -353,8 +396,9 @@ export function InkWall() {
     () => () => {
       wallMaterial.dispose()
       simMaterial.dispose()
+      palette.dispose()
     },
-    [wallMaterial, simMaterial],
+    [wallMaterial, simMaterial, palette],
   )
 
   useFrame(({ gl }, delta) => {
@@ -368,26 +412,21 @@ export function InkWall() {
     const bass = headAverage(frame.columns, BAND_TAP)
     const treble = tailAverage(frame.columns, BAND_TAP)
 
-    // Detection d'onset : on se cale sur onsetCount (pas sur le booleen
-    // `onset`) parce que l'analyse tourne a 125 Hz et le rendu a 60 : un
-    // booleen d'une seule frame d'analyse serait rate une fois sur deux.
+    // Detection d'onset via onsetCount : le booleen d'analyse est valable
+    // une seule frame d'analyse (125 Hz) et serait rate une fois sur deux
+    // au rendu (60 Hz).
     let dropStrength = 0
     if (frame.onsetCount !== lastOnset.current) {
       lastOnset.current = frame.onsetCount
       dropStrength = 1
-      // La goutte tombe la ou l'energie est : un kick tache le grave, un
-      // charleston tache l'aigu. On la contraint sous le plafond, sinon
-      // elle serait dessinee dans la zone qui va la faire fondre — perte
-      // seche.
       const x = peakColumnUv(frame.columns)
+      // On contraint y sous le plafond, sinon la goutte serait dessinee
+      // dans la zone qui va la faire fondre immediatement.
       const yTop = Math.max(0.06, ink.ceiling * 0.75)
       const y = 0.05 + Math.random() * (yTop - 0.05)
       ;(simMaterial.uniforms.uDropUv.value as Vector2).set(x, y)
     }
 
-    // Reset a la demande : on vide les DEUX FBOs. On sauvegarde /
-    // restaure la couleur de clear du renderer, sinon le prochain rendu
-    // de la scene principale demarrerait sur du noir a la place du papier.
     if (inkFluid.resetSignal !== lastResetSignal.current) {
       lastResetSignal.current = inkFluid.resetSignal
       const savedClear = gl.getClearColor(clearColorScratch)
@@ -401,7 +440,6 @@ export function InkWall() {
       gl.setClearColor(savedClear, savedAlpha)
     }
 
-    // Uniformes de la simulation.
     const s = simMaterial.uniforms
     s.uPrev.value = targets.current.read.texture
     s.uTime.value = clock.current
@@ -413,25 +451,23 @@ export function InkWall() {
     s.uFlowBass.value = ink.flowBass
     s.uFlowTreble.value = ink.flowTreble
     s.uAdvectStrength.value = ink.advectStrength
+    s.uRise.value = ink.rise
     s.uInjectMode.value = INK_INJECT_MODES.indexOf(ink.injectMode)
     s.uInjectSize.value = ink.injectSize
+    s.uInjectionRate.value = ink.injectionRate
     s.uDropStrength.value = dropStrength
     s.uDissipation.value = ink.dissipation
     s.uCeiling.value = ink.ceiling
     s.uCeilingSoftness.value = ink.ceilingSoftness
 
-    // Rendu de la simulation dans le FBO d'ecriture.
     gl.setRenderTarget(targets.current.write)
     gl.render(simScene, simCamera)
     gl.setRenderTarget(null)
 
-    // Swap : le FBO qu'on vient d'ecrire devient le FBO a LIRE (a la fois
-    // pour le mur cette frame et pour la simulation la frame suivante).
     const tmp = targets.current.read
     targets.current.read = targets.current.write
     targets.current.write = tmp
 
-    // Uniformes du mur.
     const w = wallMaterial.uniforms
     w.uView.value = INK_VIEWS.indexOf(ink.view)
     w.uTime.value = clock.current
@@ -441,6 +477,9 @@ export function InkWall() {
     w.uFlowSpeed.value = ink.flowSpeed
     w.uFlowBass.value = ink.flowBass
     w.uFlowTreble.value = ink.flowTreble
+    ;(w.uRectCenter.value as Vector2).set(ink.rectCenterX, ink.rectCenterY)
+    ;(w.uRectHalfSize.value as Vector2).set(ink.rectHalfW, ink.rectHalfH)
+    w.uRectSoftness.value = ink.rectSoftness
     w.uFluid.value = targets.current.read.texture
   })
 
