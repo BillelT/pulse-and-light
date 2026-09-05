@@ -317,6 +317,20 @@ vec3 sampleAbsorption(float x) {
 
 void main() {
   vec2 uv = vUv;
+
+  // Early-out : au-dessus du plafond (+ la marge du flanc doux d'injection),
+  // le pigment est de toute facon ramene a zero par le ceilFactor plus bas et
+  // n'est jamais affiche (rectMask = 0 dans cette zone). ~55% des lignes du
+  // FBO (aspect 2:3, plafond ~0.34) sortent ici sans payer flowField
+  // (2x snoise, l'op la plus chere), le spectre (5 taps) ni l'advection.
+  // Comportement inchange : au-dela de uCeiling + uCeilingSoftness le
+  // ceilFactor vaut deja 0, la sortie non optimisee est donc identiquement
+  // vec4(0,0,0,1) ; la marge en uInjectSize garde une bande de securite.
+  if (uv.y > uCeiling + uCeilingSoftness + 2.0 * uInjectSize) {
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    return;
+  }
+
   float localLevel = clamp(sampleSpectrum(uSpectrum, uv.x), 0.0, 1.0);
 
   // 1. Advection semi-Lagrangienne. La hauteur etant pilotee directement par
