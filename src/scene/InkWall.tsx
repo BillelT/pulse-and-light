@@ -157,6 +157,9 @@ uniform int uInjectMode;
 uniform float uInjectSize;
 uniform vec2 uDropUv;
 uniform float uDropStrength;
+uniform float uDissipation;
+uniform float uCeiling;
+uniform float uCeilingSoftness;
 
 ${FLOW_FIELD_GLSL}
 
@@ -190,9 +193,19 @@ void main() {
     inject += blob * uDropStrength;
   }
 
-  // Cumul : additif borne. Sans dissipation, la scene finit par saturer,
-  // c'est le point que l'etape 4 corrigera.
-  float value = clamp(prev.r + inject, 0.0, 1.0);
+  // Dissipation exponentielle, INDEPENDANTE du framerate. Sans son,
+  // injection = 0 et le pigment retombe au blanc en quelques secondes.
+  // C'est ce qui donne le comportement "quand la musique s'arrete, le
+  // mur redevient blanc", et c'est aussi ce qui empeche la scene de
+  // saturer en 10s meme sur un morceau constamment fort.
+  float fade = exp(-uDissipation * uDt);
+
+  // Plafond doux : au-dessus de uCeiling en UV, on attenue vers zero.
+  // Physiquement c'est de la fumee qui se dissipe en montant ; visuellement,
+  // c'est ce qui cadre le fluide a peu pres a la hauteur du spectrum debug.
+  float ceilFactor = 1.0 - smoothstep(uCeiling, uCeiling + uCeilingSoftness, uv.y);
+
+  float value = clamp((prev.r + inject) * fade * ceilFactor, 0.0, 1.0);
 
   gl_FragColor = vec4(value, 0.0, 0.0, 1.0);
 }
@@ -286,6 +299,9 @@ export function InkWall() {
           uInjectSize: new Uniform(0.04),
           uDropUv: new Uniform(new Vector2(0.5, 0.5)),
           uDropStrength: new Uniform(0),
+          uDissipation: new Uniform(0.9),
+          uCeiling: new Uniform(0.28),
+          uCeilingSoftness: new Uniform(0.15),
         },
       }),
     [],
@@ -360,10 +376,12 @@ export function InkWall() {
       lastOnset.current = frame.onsetCount
       dropStrength = 1
       // La goutte tombe la ou l'energie est : un kick tache le grave, un
-      // charleston tache l'aigu. On repartit verticalement autour du bas
-      // pour eviter d'empiler toutes les gouttes au meme endroit.
+      // charleston tache l'aigu. On la contraint sous le plafond, sinon
+      // elle serait dessinee dans la zone qui va la faire fondre — perte
+      // seche.
       const x = peakColumnUv(frame.columns)
-      const y = 0.12 + Math.random() * 0.28
+      const yTop = Math.max(0.06, ink.ceiling * 0.75)
+      const y = 0.05 + Math.random() * (yTop - 0.05)
       ;(simMaterial.uniforms.uDropUv.value as Vector2).set(x, y)
     }
 
@@ -398,6 +416,9 @@ export function InkWall() {
     s.uInjectMode.value = INK_INJECT_MODES.indexOf(ink.injectMode)
     s.uInjectSize.value = ink.injectSize
     s.uDropStrength.value = dropStrength
+    s.uDissipation.value = ink.dissipation
+    s.uCeiling.value = ink.ceiling
+    s.uCeilingSoftness.value = ink.ceilingSoftness
 
     // Rendu de la simulation dans le FBO d'ecriture.
     gl.setRenderTarget(targets.current.write)

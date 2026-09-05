@@ -79,6 +79,20 @@ export interface InkSettings {
    * rayon des gouttes (mode drops), toutes deux en unites UV.
    */
   injectSize: number
+  /**
+   * Taux de fonte du pigment, en 1/seconde. `residual(t) = exp(-rate * t)`.
+   * Independant du framerate. 0 = jamais rien ne fond. 0.7 = demi-vie ~1s.
+   * C'est ce qui fait retomber le mur au blanc quand la musique s'arrete.
+   */
+  dissipation: number
+  /**
+   * Hauteur du plafond, en UV. Au-dessus de ce niveau le pigment est
+   * attenue vers zero (fondu doux, cf. `ceilingSoftness`). Le rendu reste
+   * ainsi cadre a peu pres a la hauteur du spectrum debug.
+   */
+  ceiling: number
+  /** Largeur du fondu au-dessus du plafond, en UV. */
+  ceilingSoftness: number
 }
 
 export const DEFAULT_INK: InkSettings = {
@@ -91,6 +105,9 @@ export const DEFAULT_INK: InkSettings = {
   injectMode: 'both',
   advectStrength: 1,
   injectSize: 0.04,
+  dissipation: 0.9,
+  ceiling: 0.28,
+  ceilingSoftness: 0.15,
 }
 
 /** Scene debugger settings: visual aids only — there's no lighting left to tune. */

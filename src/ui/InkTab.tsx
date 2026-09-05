@@ -31,7 +31,7 @@ const VIEW_LABEL: Record<InkView, string> = {
 }
 
 const VIEW_HELP: Record<InkView, string> = {
-  off: 'The real render. Grayscale ink density coming from the fluid FBO. No dissipation yet — the wall saturates over time; step 4 will fix that.',
+  off: 'The real render. Grayscale ink density from the fluid FBO — fades to white when the music stops, capped in height by the ceiling. Colour comes at step 4.',
   spectrum: 'The 13 log-frequency columns straight from the audio engine, drawn as a horizontal spectrum bar. Bass on the left, treble on the right.',
   flow: 'The flow field vector, red = horizontal, green = vertical. Bass pushes the amplitude, treble accelerates the churn. Same field the fluid is advected by.',
 }
@@ -174,6 +174,36 @@ export function InkTab() {
           onChange={set('injectSize')}
           hint="Fountain: band height. Drops: Gaussian radius. Both in UV units."
         />
+        <Slider
+          label="Dissipation"
+          value={ink.dissipation}
+          min={0}
+          max={4}
+          step={0.02}
+          format={num}
+          onChange={set('dissipation')}
+          hint="Fade rate per second (exp(-rate·dt), framerate-independent). 0 = ink never fades. 0.7 ≈ 1s half-life. 1.5 ≈ 0.45s half-life. This is what returns the wall to white when the music stops."
+        />
+        <Slider
+          label="Ceiling"
+          value={ink.ceiling}
+          min={0.05}
+          max={1}
+          step={0.005}
+          format={num}
+          onChange={set('ceiling')}
+          hint="UV height where the fluid starts fading to zero. Keep it near the spectrum bar's max (~0.25) to frame the visualizer."
+        />
+        <Slider
+          label="Ceiling softness"
+          value={ink.ceilingSoftness}
+          min={0}
+          max={0.5}
+          step={0.005}
+          format={num}
+          onChange={set('ceilingSoftness')}
+          hint="Width of the smoothstep above the ceiling. 0 = hard cut (visible edge), 0.15 = soft dissolve like smoke."
+        />
 
         <button className="btn" onClick={() => inkFluid.reset()}>
           Rinse the wall (clear FBO)
@@ -182,9 +212,9 @@ export function InkTab() {
 
       <Section title="Where we are">
         <div className="field-hint" style={{ marginTop: 4 }}>
-          Step 3 · the ping-pong FBO is alive. Ink accumulates and eventually
-          saturates the wall — expected until step 4 (colorimetry +
-          dissipation) is in.
+          Step 3 · the ping-pong FBO is alive, with dissipation and a soft
+          vertical ceiling wired in early so the wall stays legible while we
+          pick an injection mode. Colorimetry (BANDS palette) comes at step 4.
         </div>
       </Section>
     </div>
