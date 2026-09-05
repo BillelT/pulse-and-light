@@ -387,16 +387,53 @@ function headAverage(cols: Float32Array, count: number): number {
   return n > 0 ? s / n : 0
 }
 
-function peakColumnUv(cols: Float32Array): number {
-  let peak = 0
-  let idx = 0
-  for (let i = 0; i < cols.length; i++) {
-    if (cols[i] > peak) {
-      peak = cols[i]
-      idx = i
+const dropWeights = new Float32Array(COLUMN_COUNT)
+
+/**
+ * Colonne (donc couleur, via `sampleAbsorption(uDropUv.x)`) d'une goutte sur
+ * onset. On veut la frequence du TRANSITOIRE, pas le pic absolu du spectre.
+ *
+ * Un simple argmax du spectre lisse collait presque toujours la goutte a
+ * l'extreme rouge : la basse est en permanence la colonne la plus forte
+ * (et parfois l'extreme bleu sur une cymbale). Les mediums (orange / jaune /
+ * vert) ne devenaient quasi jamais le maximum global, donc ils
+ * n'apparaissaient jamais en mode drops — alors qu'ils sont bien presents,
+ * comme le montre le visualizer.
+ *
+ * On pondere donc chaque colonne par sa MONTEE depuis la frame precedente
+ * (flux spectral positif) : la bande qui a saute sur l'onset gagne, qu'elle
+ * soit grave, mediane ou aigue. Tirage pondere plutot qu'argmax pour une
+ * variete organique proportionnelle a la presence de chaque bande. Sans
+ * attaque nette (source soutenue / procedurale), on retombe sur le niveau
+ * courant pour rester coherent avec ce qui sonne.
+ */
+function transientColumnUv(cols: Float32Array, prev: Float32Array): number {
+  const n = cols.length
+  const uvAt = (i: number) => (n > 1 ? i / (n - 1) : 0.5)
+
+  let total = 0
+  for (let i = 0; i < n; i++) {
+    const rise = cols[i] - prev[i]
+    const w = rise > 0 ? rise : 0
+    dropWeights[i] = w
+    total += w
+  }
+  if (total <= 1e-4) {
+    total = 0
+    for (let i = 0; i < n; i++) {
+      const w = cols[i] > 0 ? cols[i] : 0
+      dropWeights[i] = w
+      total += w
     }
   }
-  return cols.length > 1 ? idx / (cols.length - 1) : 0.5
+  if (total <= 1e-6) return uvAt(Math.floor(n / 2))
+
+  let r = Math.random() * total
+  for (let i = 0; i < n; i++) {
+    r -= dropWeights[i]
+    if (r <= 0) return uvAt(i)
+  }
+  return uvAt(n - 1)
 }
 
 const BAND_TAP = Math.max(1, Math.floor(COLUMN_COUNT / 4))
@@ -408,6 +445,9 @@ export function InkWall() {
   const clock = useRef(0)
   const lastOnset = useRef(-1)
   const lastResetSignal = useRef(inkFluid.resetSignal)
+  // Spectre de la frame precedente : sert a mesurer la MONTEE par colonne
+  // (flux positif) pour choisir la frequence d'une goutte sur onset.
+  const prevColumns = useRef(new Float32Array(COLUMN_COUNT))
   const palette = useMemo(() => createInkPalette(), [])
 
   const fboOpts = useMemo(
@@ -541,7 +581,7 @@ export function InkWall() {
     if (frame.onsetCount !== lastOnset.current) {
       lastOnset.current = frame.onsetCount
       dropStrength = 1
-      const x = peakColumnUv(frame.columns)
+      const x = transientColumnUv(frame.columns, prevColumns.current)
       // On contraint y sous le plafond, sinon la goutte serait dessinee
       // dans la zone qui va la faire fondre immediatement.
       const yTop = Math.max(0.06, ink.ceiling * 0.75)
@@ -613,6 +653,9 @@ export function InkWall() {
     w.uInkWetEdge.value = ink.inkWetEdge
     w.uInkWobble.value = ink.inkWobble
     w.uFluid.value = targets.current.read.texture
+
+    // Memorise le spectre pour mesurer la montee par colonne au prochain onset.
+    prevColumns.current.set(frame.columns)
   })
 
   return (
