@@ -53,7 +53,16 @@ export function InkWall() {
         side: DoubleSide,
         vertexShader,
         fragmentShader,
-        depthWrite: true,
+        // Le mur ne participe PAS au depth buffer. C'est un fond, pas un
+        // objet : sa profondeur (~0.996 avec far=220) tombe pile dans la
+        // plage instable de la passe `InkEffect`, ou le rapport
+        // courbure/pente amplifie le bruit de quantification 24 bits en
+        // motif visible (blobs facon aquarelle). En laissant depth = 1.0
+        // aux pixels du mur, `InkEffect` les traite comme de l'arriere-plan
+        // et coupe la detection des traits (`background` masque
+        // `normalEdge`, la courbure s'annule sur profondeur uniforme).
+        depthWrite: false,
+        depthTest: false,
         fog: false,
         uniforms: {
           uPaper: new Uniform(srgb(INK_PAPER)),
