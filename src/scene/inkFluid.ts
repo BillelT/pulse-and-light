@@ -14,7 +14,11 @@
  * deux FBOs a la prochaine frame". Meme pattern que l'ancien `inkField`.
  */
 
-/** Resolution des FBOs. Deux tiers de la largeur pour respecter le 100x150 du mur. */
+/**
+ * Resolution des FBOs. Aspect 2:3 du mur (100x150). La moitie haute est quasi
+ * toujours vide (ceiling ~0.34) mais on garde la resolution verticale pleine :
+ * la baisser rend visible le grain de la texture dans la zone d'affichage.
+ */
 export const FLUID_FBO_WIDTH = 256
 export const FLUID_FBO_HEIGHT = 384
 

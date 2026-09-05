@@ -115,6 +115,25 @@ export interface InkSettings {
   rectHalfH: number
   /** Largeur du fondu au bord du rectangle, en UV. 0 = coupure nette. */
   rectSoftness: number
+
+  // --- Etape 6 · Rendu encre (grain, wet edge, wobble, courbe) ---
+  /**
+   * Courbe puissance sur l'absorption avant Beer-Lambert. 1 = lineaire (le
+   * rendu "aquarelle" original). >1 resserre la plage centrale et renforce
+   * la saturation — on sort du degrade fluide, on rentre dans l'encre.
+   */
+  inkContrast: number
+  /** Amplitude du grain de papier (bruit multiplicatif sur l'absorption). */
+  inkGrain: number
+  /** Echelle spatiale du grain, en repetitions sur toute la largeur UV. */
+  inkGrainScale: number
+  /**
+   * Force du "wet edge" : accentue l'absorption la ou son gradient est fort
+   * (bord des flaques). 0 = plaques uniformes, 1..2 = signature encre nette.
+   */
+  inkWetEdge: number
+  /** Amplitude du tremblement de l'UV d'echantillonnage, en texels FBO. */
+  inkWobble: number
 }
 
 export const DEFAULT_INK: InkSettings = {
@@ -138,6 +157,12 @@ export const DEFAULT_INK: InkSettings = {
   rectHalfW: 0.5,
   rectHalfH: 0.28,
   rectSoftness: 0.04,
+
+  inkContrast: 1.4,
+  inkGrain: 0.35,
+  inkGrainScale: 180,
+  inkWetEdge: 1.2,
+  inkWobble: 1.5,
 }
 
 /** Scene debugger settings: visual aids only — there's no lighting left to tune. */

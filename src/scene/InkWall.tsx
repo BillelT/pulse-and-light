@@ -111,6 +111,7 @@ varying vec2 vUv;
 uniform vec3 uPaper;
 uniform sampler2D uSpectrum;
 uniform sampler2D uFluid;
+uniform vec2 uFluidTexel;
 uniform int uView;
 
 // Flow field uniforms.
@@ -127,8 +128,93 @@ uniform vec2 uRectCenter;
 uniform vec2 uRectHalfSize;
 uniform float uRectSoftness;
 
+// Rendu encre.
+uniform float uInkContrast;
+uniform float uInkGrain;
+uniform float uInkGrainScale;
+uniform float uInkWetEdge;
+uniform float uInkWobble;
+
 ${SPECTRUM_SAMPLER_GLSL}
 ${FLOW_FIELD_GLSL}
+
+// Hash rapide (Dave Hoskins, MIT). Sert au grain et au bruit de wobble.
+float hash12(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+// Bruit de valeur 2 octaves, lisse — grain de papier / trace de main.
+float vnoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = hash12(i);
+  float b = hash12(i + vec2(1.0, 0.0));
+  float c = hash12(i + vec2(0.0, 1.0));
+  float d = hash12(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+/**
+ * Rendu "encre sur papier" a partir de l'absorption stockee dans le FBO.
+ *
+ *  - wobble : micro-decalage de l'UV d'echantillonnage par un bruit fixe a
+ *    l'ecran. Casse la douceur bilineaire parfaite, comme la passe encre
+ *    de la scene (InkEffect) le fait pour les silhouettes.
+ *  - contraste : courbe puissance sur l'absorption. Un exposant < 1 renforce
+ *    la saturation et resserre la plage centrale, sortant du degrade "gaz".
+ *  - wet edge : la ou le gradient d'absorption est fort (bord de flaque),
+ *    on assombrit legerement — c'est la marque que l'encre s'accumule quand
+ *    elle seche. Un simple Sobel sur la luminance suffit.
+ *  - grain : bruit fbm multiplicatif sur l'absorption. En zone dense il
+ *    donne le "fibre" du papier, en zone claire il disparait (pas de bruit
+ *    parasite sur le papier vide).
+ *
+ * L'ordre importe : on wobble AVANT de lire les voisins pour le wet-edge,
+ * puis on applique contraste + grain sur l'absorption elle-meme, et enfin
+ * on convertit en couleur (Beer-Lambert) — grain et contraste travaillent
+ * dans le meme espace lineaire d'absorption que le FBO.
+ */
+vec3 renderInk(vec2 uv, vec3 paperLin) {
+  vec2 wob = vec2(0.0);
+  if (uInkWobble > 0.0) {
+    vec2 wp = uv * 220.0;
+    wob = vec2(vnoise(wp) - 0.5, vnoise(wp + 19.7) - 0.5) * uFluidTexel * uInkWobble;
+  }
+  vec2 suv = clamp(uv + wob, vec2(0.0), vec2(1.0));
+
+  vec3 absorb = clamp(texture2D(uFluid, suv).rgb, 0.0, 1.0);
+
+  // Wet edge : gradient de luminance du fluide sur 4 taps voisins.
+  if (uInkWetEdge > 0.0) {
+    vec2 o = uFluidTexel * 1.5;
+    float lc = dot(absorb, vec3(0.299, 0.587, 0.114));
+    float lr = dot(texture2D(uFluid, suv + vec2(o.x, 0.0)).rgb, vec3(0.299, 0.587, 0.114));
+    float ll = dot(texture2D(uFluid, suv - vec2(o.x, 0.0)).rgb, vec3(0.299, 0.587, 0.114));
+    float lu = dot(texture2D(uFluid, suv + vec2(0.0, o.y)).rgb, vec3(0.299, 0.587, 0.114));
+    float ld = dot(texture2D(uFluid, suv - vec2(0.0, o.y)).rgb, vec3(0.299, 0.587, 0.114));
+    float grad = abs(lr - ll) + abs(lu - ld);
+    // Cadence l'accentuation sur des flaques deja existantes : sur du blanc,
+    // grad est nul et rien ne s'active.
+    float edge = smoothstep(0.02, 0.30, grad) * step(0.02, lc);
+    absorb = min(absorb * (1.0 + uInkWetEdge * edge), vec3(1.0));
+  }
+
+  // Courbe : renforce la saturation du pigment sans toucher au papier.
+  absorb = pow(absorb, vec3(1.0 / max(uInkContrast, 0.05)));
+
+  // Grain : bruit multiplicatif, actif proportionnellement a la densite.
+  if (uInkGrain > 0.0) {
+    float g = vnoise(uv * uInkGrainScale) - 0.5;
+    float density = clamp(dot(absorb, vec3(0.333)), 0.0, 1.0);
+    absorb *= 1.0 + g * uInkGrain * density;
+    absorb = clamp(absorb, 0.0, 1.0);
+  }
+
+  return paperLin * (1.0 - absorb);
+}
 
 void main() {
   vec3 paperLin = srgbToLinear(uPaper);
@@ -145,19 +231,16 @@ void main() {
     f = clamp(f, -1.0, 1.0);
     col = srgbToLinear(vec3(0.5 + 0.5 * f.x, 0.5 + 0.5 * f.y, 0.5));
   } else {
-    // Rendu reel : Beer-Lambert. Le FBO stocke absorption * densite en
-    // lineaire, papier * (1 - fbo) redonne la couleur de la frequence
-    // qui a depose le pigment.
-    vec3 absorb = texture2D(uFluid, vUv).rgb;
-    vec3 fluidCol = paperLin * (1.0 - clamp(absorb, 0.0, 1.0));
-
-    // Masque rectangulaire (etape 5). Distance signee au rectangle :
-    // 0 a l'interieur, > 0 a l'exterieur. Le smoothstep donne un bord
-    // doux qui evite l'effet "sticker" et rappelle un tirage humide.
+    // Rendu reel : masque rectangulaire d'abord, on ne paie le pipeline
+    // encre (5 taps + noise) que dans la fenetre visible.
     vec2 d = abs(vUv - uRectCenter) - uRectHalfSize;
     float outside = length(max(d, 0.0));
     float rectMask = 1.0 - smoothstep(0.0, max(uRectSoftness, 1e-4), outside);
-    col = mix(paperLin, fluidCol, rectMask);
+
+    if (rectMask > 0.001) {
+      vec3 fluidCol = renderInk(vUv, paperLin);
+      col = mix(paperLin, fluidCol, rectMask);
+    }
   }
 
   // Sortie directe en lineaire : Three convertira en sRGB pour l'affichage.
@@ -376,6 +459,9 @@ export function InkWall() {
           uPaper: new Uniform(srgb(INK_PAPER)),
           uSpectrum: new Uniform(audioTexture.texture),
           uFluid: new Uniform<WebGLRenderTarget['texture'] | null>(null),
+          uFluidTexel: new Uniform(
+            new Vector2(1 / FLUID_FBO_WIDTH, 1 / FLUID_FBO_HEIGHT),
+          ),
           uView: new Uniform(0),
           uTime: new Uniform(0),
           uBass: new Uniform(0),
@@ -387,6 +473,11 @@ export function InkWall() {
           uRectCenter: new Uniform(new Vector2(0.5, 0.15)),
           uRectHalfSize: new Uniform(new Vector2(0.5, 0.28)),
           uRectSoftness: new Uniform(0.04),
+          uInkContrast: new Uniform(1.4),
+          uInkGrain: new Uniform(0.35),
+          uInkGrainScale: new Uniform(180),
+          uInkWetEdge: new Uniform(1.2),
+          uInkWobble: new Uniform(1.5),
         },
       }),
     [],
@@ -480,6 +571,11 @@ export function InkWall() {
     ;(w.uRectCenter.value as Vector2).set(ink.rectCenterX, ink.rectCenterY)
     ;(w.uRectHalfSize.value as Vector2).set(ink.rectHalfW, ink.rectHalfH)
     w.uRectSoftness.value = ink.rectSoftness
+    w.uInkContrast.value = ink.inkContrast
+    w.uInkGrain.value = ink.inkGrain
+    w.uInkGrainScale.value = ink.inkGrainScale
+    w.uInkWetEdge.value = ink.inkWetEdge
+    w.uInkWobble.value = ink.inkWobble
     w.uFluid.value = targets.current.read.texture
   })
 

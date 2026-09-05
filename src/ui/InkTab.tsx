@@ -281,6 +281,64 @@ export function InkTab() {
         />
       </Section>
 
+      <Section title="6 · Ink render">
+        <div className="field-hint" style={{ marginTop: 4, marginBottom: 8 }}>
+          Turns the raw Beer-Lambert fluid into ink on paper: pigment curve,
+          paper grain, wet edge on pool boundaries, hand-drawn wobble on the
+          sample UV. Applied only inside the display rectangle.
+        </div>
+        <Slider
+          label="Contrast"
+          value={ink.inkContrast}
+          min={0.4}
+          max={3}
+          step={0.02}
+          format={num}
+          onChange={set('inkContrast')}
+          hint="Power curve on absorption. 1 = original watercolour gradient, 1.4..2 = tightens the mid-range, deepens the pigment. Higher = sharper stains."
+        />
+        <Slider
+          label="Wet edge"
+          value={ink.inkWetEdge}
+          min={0}
+          max={4}
+          step={0.02}
+          format={num}
+          onChange={set('inkWetEdge')}
+          hint="Darkens the boundary of ink pools where absorption gradient is high — the mark of drying ink. 0 = flat, 1..2 = clear ink signature."
+        />
+        <Slider
+          label="Grain"
+          value={ink.inkGrain}
+          min={0}
+          max={1.5}
+          step={0.01}
+          format={num}
+          onChange={set('inkGrain')}
+          hint="Paper fibres. Multiplicative noise on absorption, gated by density so the paper stays clean."
+        />
+        <Slider
+          label="Grain scale"
+          value={ink.inkGrainScale}
+          min={30}
+          max={400}
+          step={5}
+          format={(v) => v.toFixed(0)}
+          onChange={set('inkGrainScale')}
+          hint="How fine the paper fibres are, in cells across the wall. High = tight linen, low = coarse cardstock."
+        />
+        <Slider
+          label="Sample wobble"
+          value={ink.inkWobble}
+          min={0}
+          max={4}
+          step={0.05}
+          format={num}
+          onChange={set('inkWobble')}
+          hint="Micro jitter of the FBO sample UV, in texels. Breaks the perfect bilinear smoothness — the same trick the InkEffect pass uses for silhouettes."
+        />
+      </Section>
+
       <Section title="Where we are">
         <div className="field-hint" style={{ marginTop: 4 }}>
           Steps 1–5 in place. Palette follows BANDS (Sub, Bass, Low-Mid, Mid,
