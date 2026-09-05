@@ -11,9 +11,9 @@ const _pos = new Vector3()
 const _look = new Vector3()
 
 const MIN_RADIUS = 9
-const MAX_RADIUS = 52
-const MIN_PHI = 0.45
-const MAX_PHI = 1.6
+const MAX_RADIUS = 78
+const MIN_PHI = 0.28
+const MAX_PHI = 1.72
 
 /** FOV vertical de reference, calibre pour un ecran large (desktop). */
 const BASE_FOV = 60
@@ -66,7 +66,7 @@ export function CameraRig() {
       // camera par defaut pour que toute la foule tienne dans le cadre des
       // l'ouverture, sans que l'utilisateur ait a dezoomer.
       const aspect = typeof window !== 'undefined' ? window.innerWidth / window.innerHeight : 16 / 9
-      const radius = aspect < 1 ? 22.5 * clamp(1 / aspect, 1, 1.7) : 22.5
+      const radius = aspect < 1 ? 32 * clamp(1 / aspect, 1, 1.7) : 32
       return new Spherical(radius, 1.35, 0)
     })(),
   )
@@ -128,8 +128,11 @@ export function CameraRig() {
       const s = spherical.current
       s.theta -= dx * 0.004
       s.phi = clamp(s.phi - dy * 0.003, MIN_PHI, MAX_PHI)
-      // Le mur est frontal : on interdit de passer derriere.
-      s.theta = clamp(s.theta, -0.85, 0.85)
+      // Le mur est frontal : on interdit de passer derriere. On elargit l'arc
+      // pour laisser plus de latitude sur les cotes tout en gardant la scene
+      // dans le cadre — cos(1.15) reste positif, donc la camera ne se retourne
+      // jamais vers l'arriere de la piste.
+      s.theta = clamp(s.theta, -1.15, 1.15)
     }
     const up = (e: PointerEvent) => {
       pointers.current.delete(e.pointerId)

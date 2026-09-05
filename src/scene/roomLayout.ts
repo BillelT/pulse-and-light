@@ -5,9 +5,12 @@
  * camera a une distance raisonnable de la piste.
  */
 export const CAMERA_BOUNDS = {
-  x: 30,
-  yMin: 1.5,
-  yMax: 24,
-  zMin: -20,
-  zMax: 25,
+  x: 45,
+  yMin: 1.2,
+  yMax: 32,
+  // Le mur d'encre est en z = -26, les stacks de caissons en z = -10 : on garde
+  // la camera nettement devant les caissons pour ne jamais passer "derriere" le
+  // mur ni traverser un stack.
+  zMin: -7,
+  zMax: 55,
 }

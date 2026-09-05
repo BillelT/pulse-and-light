@@ -24,9 +24,9 @@ import { INK_SURFACE } from './ink'
  */
 
 /** Places disponibles sur la piste — donc nombre maximum de danseurs. */
-const MAX_MEMBERS = 100
+const MAX_MEMBERS = 230
 /** Point d'entree / de sortie, derriere la camera. */
-const SPAWN_Z = 34
+const SPAWN_Z = 48
 const WALK_SPEED = 5
 /** Vitesse de remplissage, en fraction de piste par seconde a plein niveau. */
 const FILL_RATE = 0.06
@@ -156,11 +156,13 @@ function mulberry32(seed: number): () => number {
 const SLOTS = (() => {
   const rand = mulberry32(0x2b91f7)
   return Array.from({ length: MAX_MEMBERS }, (_, i) => {
-    const spread = 0.5 + (i / (MAX_MEMBERS - 1)) * 0.7
-    // Au cadrage par defaut la camera est a z ~ 20 : personne ne danse plus
-    // loin en avant qu'elle.
-    const z = -9 + rand() * 15 * spread
-    const x = (rand() - 0.5) * 30 * spread
+    const spread = 0.5 + (i / (MAX_MEMBERS - 1)) * 1.1
+    // La camera pouvant reculer bien plus qu'avant, on elargit la piste dans
+    // les deux directions : la foule remplit tout ce que le champ de vision
+    // couvre au grand dezoom, et reste concentree au centre au petit rayon
+    // (les premiers indices tires sont les plus centraux).
+    const z = -9 + rand() * 26 * spread
+    const x = (rand() - 0.5) * 52 * spread
     return { x, z }
   })
 })()
