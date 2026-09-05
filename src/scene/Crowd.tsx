@@ -92,6 +92,29 @@ const enum Style {
 
 const STYLE_COUNT = 6
 
+/**
+ * Styles d'attente.
+ *
+ * Quand la musique se tait, la phase rythmique (`beat`) cesse d'avancer : un
+ * danseur laisse tel quel se FIGE dans sa derniere pose de danse. Une piste de
+ * statues est l'effet exactement inverse de celui voulu — avant de repartir,
+ * les gens patientent, se dandinent, regardent autour d'eux.
+ *
+ * On tire donc un style d'attente FIXE par silhouette (comme le style de
+ * danse), desynchronise par le seed et une vitesse propre, pour que la foule
+ * qui attend reste vivante et variee sans que personne ne bouge a l'identique.
+ */
+const enum Idle {
+  /** Report d'appui d'une jambe sur l'autre, tres lent : le dandinement. */
+  WeightShift = 0,
+  /** Le buste et la tete tournent pour balayer la salle du regard. */
+  LookAround = 1,
+  /** Bras croises devant le buste, leger transfert de poids : "j'attends". */
+  ArmsFolded = 2,
+}
+
+const IDLE_COUNT = 3
+
 interface Walker {
   active: boolean
   leaving: boolean
@@ -118,6 +141,10 @@ interface Walker {
   tempoMul: number
   /** Bande frequentielle preferee (0..5). Amplifie la reaction du danseur a ce band. */
   bandBias: number
+  /** Style d'attente, tire une fois pour toutes. */
+  idleStyle: Idle
+  /** Vitesse propre du mouvement d'attente : personne n'attend au meme rythme. */
+  idleSpeed: number
   /**
    * Etat interne cote danse (evite les allocations). Sens local au style :
    * pour Groove c'est le sens d'alternance des bras (+1/-1) et l'onset
@@ -200,6 +227,11 @@ export function Crowd() {
         // Vitesse de marche legerement dispersee : entre 0.75x et 1.25x du
         // pas de reference. Deterministe pour rester reproductible.
         const walkMul = 0.75 + ((i * 11) % 100) / 200
+        // Style d'attente reparti par un pas premier avec 3 (voisins d'index
+        // differents), et vitesse d'attente dispersee sur ~0.8..1.2 : deux
+        // silhouettes qui patientent cote a cote ne se dandinent jamais en phase.
+        const idleStyle = ((i * 2) % IDLE_COUNT) as Idle
+        const idleSpeed = 0.8 + ((i * 13) % 100) / 250
         return {
           active: false,
           leaving: false,
@@ -215,6 +247,8 @@ export function Crowd() {
           style,
           tempoMul,
           bandBias,
+          idleStyle,
+          idleSpeed,
           danceState: 1,
           danceLastOnset: -1,
         }
@@ -236,8 +270,12 @@ export function Crowd() {
   const spawnCooldown = useRef(0)
   const leaveCooldown = useRef(0)
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const dt = Math.min(0.1, delta)
+    // Horloge continue, independante du son : elle pilote le mouvement
+    // d'attente, qui doit avancer meme quand `beat` (la phase rythmique) est
+    // gele faute de musique.
+    const t = state.clock.elapsedTime
     const frame = engine.currentFrame
     const level = frame.level
     // Le tempo NE dit PAS qu'il y a du son : le moteur garde sa derniere
@@ -364,7 +402,7 @@ export function Crowd() {
         body.rotation.z = s * 0.03
         body.rotation.x = 0.04
         body.rotation.y = 0
-      } else {
+      } else if (hasSound) {
         // Danse : la phase rythmique commune est modulee par le tempo perso
         // et le decalage propre a la silhouette. On amplifie discretement la
         // reaction au band prefere du danseur pour qu'un tempo tenu ne
@@ -373,6 +411,10 @@ export function Crowd() {
         const bandBoost = frame.bands[w.bandBias]
         const drive = 0.35 + level * 0.65
         danceMember(w, body, legL, legR, armL, armR, p, drive, level, bandBoost, frame)
+      } else {
+        // Silence : en place mais pas encore reparti. On patiente au lieu de se
+        // figer dans la derniere pose de danse.
+        idleMember(w, body, legL, legR, armL, armR, t, dt)
       }
     }
   })
@@ -616,6 +658,105 @@ function danceMember(
       break
     }
   }
+}
+
+/**
+ * Applique le mouvement d'ATTENTE a un walker selon son style d'attente.
+ *
+ * A la difference de `danceMember`, on ne fige pas les rotations : on les LERP
+ * vers leur cible. La silhouette qui vient d'arreter de danser (sa derniere
+ * pose est quelconque : bras en l'air, buste plie...) se remet ainsi en posture
+ * d'attente en douceur, sans claquer d'une frame a l'autre — et le mouvement
+ * d'attente lui-meme, dont les cibles varient lentement, reste tranquille.
+ *
+ * Aucune allocation : appele une fois par danseur en attente, chaque frame.
+ */
+function idleMember(
+  w: Walker,
+  body: Group,
+  legL: Group,
+  legR: Group,
+  armL: Group,
+  armR: Group,
+  t: number,
+  dt: number,
+): void {
+  // Reactivite du lissage : la pose d'attente s'installe en ~0.4 s apres
+  // l'arret du son, assez doux pour ne pas claquer.
+  const a = Math.min(1, dt * 5)
+  const ph = t * w.idleSpeed + w.seed * 6.283
+
+  // Cibles, initialisees a la pose neutre (debout, bras le long du corps) puis
+  // specialisees par le style. Toute cible non ecrite reste donc "au repos".
+  let bodyY = BODY_Y
+  let bodyZ = 0
+  let bodyX = 0.02
+  let bodyYaw = 0
+  let legLz = 0
+  let legRz = 0
+  let legLx = 0
+  let legRx = 0
+  let armLx = 0
+  let armRx = 0
+  let armLz = -0.03
+  let armRz = 0.03
+
+  switch (w.idleStyle) {
+    case 0 /* WeightShift */: {
+      // Report d'appui d'une jambe sur l'autre, tres lent. Le buste s'incline
+      // du cote charge, les bras suivent mollement.
+      const s = Math.sin(ph * 0.6)
+      bodyZ = s * 0.07
+      bodyY = BODY_Y - Math.abs(s) * 0.012
+      bodyYaw = s * 0.05
+      legLz = s * 0.04
+      legRz = s * 0.04
+      armLz = -0.04 + s * 0.05
+      armRz = 0.04 + s * 0.05
+      armLx = Math.sin(ph * 0.6 + 0.5) * 0.05
+      armRx = Math.sin(ph * 0.6 - 0.5) * 0.05
+      break
+    }
+    case 1 /* LookAround */: {
+      // Le buste et la tete tournent lentement pour balayer la salle ; les
+      // jambes restent plantees (elles ne sont pas enfants du buste, seul le
+      // haut du corps pivote). Un petit hochement se surimpose.
+      bodyYaw = Math.sin(ph * 0.35) * 0.5
+      bodyX = 0.02 + Math.sin(ph * 0.9 + 1.3) * 0.03
+      bodyZ = Math.sin(ph * 0.25) * 0.03
+      armLx = Math.sin(ph * 0.4) * 0.04
+      armRx = -Math.sin(ph * 0.4) * 0.04
+      break
+    }
+    case 2 /* ArmsFolded */: {
+      // Bras croises devant le buste (a l'horizontale, ramenes vers l'interieur)
+      // et leger transfert de poids : la posture "j'attends".
+      const s = Math.sin(ph * 0.45)
+      bodyZ = s * 0.05
+      bodyX = 0.06
+      bodyY = BODY_Y - Math.abs(s) * 0.008
+      legLz = s * 0.03
+      legRz = s * 0.03
+      armLx = 1.32
+      armRx = 1.18
+      armLz = 0.34
+      armRz = -0.34
+      break
+    }
+  }
+
+  body.position.y += (bodyY - body.position.y) * a
+  body.rotation.x += (bodyX - body.rotation.x) * a
+  body.rotation.z += (bodyZ - body.rotation.z) * a
+  body.rotation.y += (bodyYaw - body.rotation.y) * a
+  legL.rotation.x += (legLx - legL.rotation.x) * a
+  legR.rotation.x += (legRx - legR.rotation.x) * a
+  legL.rotation.z += (legLz - legL.rotation.z) * a
+  legR.rotation.z += (legRz - legR.rotation.z) * a
+  armL.rotation.x += (armLx - armL.rotation.x) * a
+  armR.rotation.x += (armRx - armR.rotation.x) * a
+  armL.rotation.z += (armLz - armL.rotation.z) * a
+  armR.rotation.z += (armRz - armR.rotation.z) * a
 }
 
 function clamp01(v: number): number {
