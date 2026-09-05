@@ -1,7 +1,10 @@
 import { create } from 'zustand'
 import { DEFAULT_ANALYSIS, type AnalysisSettings } from '../audio/AudioEngine'
+import { INK_INJECT_MODES, type InkInjectMode } from '../scene/inkFluid'
 import { EMPTY_SNAPSHOT, type PlaybackSnapshot, type SpotifyUser } from '../spotify/types'
 import type { StoredToken } from '../spotify/auth'
+
+export { INK_INJECT_MODES, type InkInjectMode }
 
 export type SourceKind = 'none' | 'tab' | 'mic' | 'file' | 'spotify' | 'demo'
 
@@ -65,6 +68,17 @@ export interface InkSettings {
   flowBass: number
   /** Combien les aigus accelerent les micro-turbulences. */
   flowTreble: number
+
+  // --- Etape 3 · Fluide (ping-pong FBO) ---
+  /** Comment le pigment neuf entre dans le fluide. */
+  injectMode: InkInjectMode
+  /** Force du deplacement des pixels par le flow field, par frame. */
+  advectStrength: number
+  /**
+   * Taille de l'injection : hauteur de la fontaine (mode fountain) ou
+   * rayon des gouttes (mode drops), toutes deux en unites UV.
+   */
+  injectSize: number
 }
 
 export const DEFAULT_INK: InkSettings = {
@@ -73,6 +87,10 @@ export const DEFAULT_INK: InkSettings = {
   flowSpeed: 0.18,
   flowBass: 1,
   flowTreble: 0.8,
+
+  injectMode: 'both',
+  advectStrength: 1,
+  injectSize: 0.04,
 }
 
 /** Scene debugger settings: visual aids only — there's no lighting left to tune. */
