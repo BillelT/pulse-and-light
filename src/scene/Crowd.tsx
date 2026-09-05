@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { MeshBasicMaterial, type Group } from 'three'
 import { engine } from '../audio/engine'
 import { Band } from '../audio/bands'
+import type { AudioFrame } from '../audio/types'
 import { INK_SURFACE } from './ink'
 
 /**
@@ -41,6 +42,35 @@ const FADE = 0.35
  */
 const BODY_Y = 0.7
 
+/**
+ * Styles de danse.
+ *
+ * Une foule ou tout le monde execute le meme mouvement au meme moment se lit
+ * comme un banc de poissons, pas comme un public : on ne veut pas d'un
+ * "programme collectif". Chaque silhouette recoit donc un style FIXE (tire
+ * une fois pour toutes a partir de son index) et deux petites nuances
+ * personnelles — un decalage de tempo (moitie, plein, un peu plus rapide)
+ * et une bande frequentielle preferee — pour que meme deux danseurs du meme
+ * style ne soient jamais parfaitement synchrones ni sensibles au meme
+ * instrument.
+ */
+const enum Style {
+  /** Rebond sur le temps, bras en l'air : le style "par defaut" du brief. */
+  Bounce = 0,
+  /** Balancement lateral, sans rebond vertical : le slow / le corps qui roule. */
+  Sway = 1,
+  /** Bras en haut en permanence, petit pump sur le kick : "hands up". */
+  HandsUp = 2,
+  /** Tete/buste qui plonge en avant sur le kick, bras plaques : headbang. */
+  HeadBang = 3,
+  /** Un bras monte pendant que l'autre descend, en alternance : groove. */
+  Groove = 4,
+  /** Pas de cote, jambes qui basculent alternativement : side-step. */
+  StepSide = 5,
+}
+
+const STYLE_COUNT = 6
+
 interface Walker {
   active: boolean
   leaving: boolean
@@ -56,6 +86,19 @@ interface Walker {
   /** Decalage propre a la silhouette : personne ne danse exactement en phase. */
   seed: number
   scale: number
+  /** Style de danse, tire une fois pour toutes. */
+  style: Style
+  /** Diviseur/multiplicateur de tempo perso : 0.5, 1.0 ou 1.5. */
+  tempoMul: number
+  /** Bande frequentielle preferee (0..5). Amplifie la reaction du danseur a ce band. */
+  bandBias: number
+  /**
+   * Etat interne cote danse (evite les allocations). Sens local au style :
+   * pour Groove c'est le sens d'alternance des bras (+1/-1) et l'onset
+   * auquel il a bascule pour la derniere fois.
+   */
+  danceState: number
+  danceLastOnset: number
 }
 
 interface MemberRefs {
@@ -112,18 +155,38 @@ export function Crowd() {
 
   const walkers = useMemo<Walker[]>(
     () =>
-      SLOTS.map((slot, i) => ({
-        active: false,
-        leaving: false,
-        x: slot.x,
-        z: SPAWN_Z,
-        tx: slot.x,
-        tz: slot.z,
-        rot: Math.PI,
-        step: i * 1.7,
-        seed: (i * 0.618) % 1,
-        scale: 0,
-      })),
+      SLOTS.map((slot, i) => {
+        // Repartition des styles : on parcourt 0..5 en boucle, decale par un
+        // pas premier avec 6 pour eviter des blocs contigus de meme style
+        // (les silhouettes voisines ont des styles differents).
+        const style = ((i * 5) % STYLE_COUNT) as Style
+        // Trois vitesses possibles : moitie, plein, un plus rapide. Reparties
+        // deterministe sur les entiers pour que le meme index redonne toujours
+        // la meme silhouette.
+        const tempoChoices = [0.5, 1, 1.5]
+        const tempoMul = tempoChoices[i % tempoChoices.length]
+        // Bande preferee : chaque danseur reagit un peu plus fort a une
+        // frequence donnee. On ecarte deliberement Sub/Bass des styles calmes
+        // (Sway, HandsUp) pour qu'ils ne pompent pas sur les kicks.
+        const bandBias = (i * 7 + style) % 6
+        return {
+          active: false,
+          leaving: false,
+          x: slot.x,
+          z: SPAWN_Z,
+          tx: slot.x,
+          tz: slot.z,
+          rot: Math.PI,
+          step: i * 1.7,
+          seed: (i * 0.618) % 1,
+          scale: 0,
+          style,
+          tempoMul,
+          bandBias,
+          danceState: 1,
+          danceLastOnset: -1,
+        }
+      }),
     [],
   )
 
@@ -236,6 +299,8 @@ export function Crowd() {
         const c = Math.cos(w.step)
         legL.rotation.x = s * 0.55
         legR.rotation.x = -s * 0.55
+        legL.rotation.z = 0
+        legR.rotation.z = 0
         armL.rotation.x = -s * 0.42
         armR.rotation.x = s * 0.42
         // Une rotation Z POSITIVE emmene le bras vers +x, donc vers
@@ -248,23 +313,16 @@ export function Crowd() {
         body.position.y = BODY_Y + Math.abs(c) * 0.045
         body.rotation.z = s * 0.03
         body.rotation.x = 0.04
+        body.rotation.y = 0
       } else {
-        // Danse : rebond sur le temps, bras qui montent avec l'energie. La
-        // graine decale chaque silhouette pour qu'aucune ne soit synchrone.
-        const p = (beat.current + w.seed) * Math.PI
-        const bounce = Math.abs(Math.sin(p))
-        const raise = Math.min(1, frame.bands[Band.HighMid] * 0.9 + level * 0.9)
+        // Danse : la phase rythmique commune est modulee par le tempo perso
+        // et le decalage propre a la silhouette. On amplifie discretement la
+        // reaction au band prefere du danseur pour qu'un tempo tenu ne
+        // produise pas un mouvement identique chez tout le monde.
+        const p = (beat.current * w.tempoMul + w.seed) * Math.PI
+        const bandBoost = frame.bands[w.bandBias]
         const drive = 0.35 + level * 0.65
-        body.position.y = BODY_Y - bounce * 0.075 * drive
-        body.rotation.z = Math.sin(p * 0.5 + w.seed * 6) * 0.09 * drive
-        body.rotation.x = 0.03 + Math.sin(p + 1) * 0.05 * drive
-        legL.rotation.x = Math.sin(p) * 0.12 * drive
-        legR.rotation.x = -Math.sin(p) * 0.12 * drive
-        const lift = 0.3 + raise * 1.9 + Math.sin(p + w.seed * 5) * 0.25 * drive
-        armL.rotation.z = -lift
-        armR.rotation.z = lift
-        armL.rotation.x = Math.sin(p - 1) * 0.3 * drive
-        armR.rotation.x = Math.sin(p + 1) * 0.3 * drive
+        danceMember(w, body, legL, legR, armL, armR, p, drive, level, bandBoost, frame)
       }
     }
   })
@@ -344,6 +402,170 @@ function Member({ refs }: { refs: MemberRefs }) {
       </group>
     </group>
   )
+}
+
+/**
+ * Applique le mouvement de danse a un walker selon son style.
+ *
+ * Contrat implicite : chaque branche DOIT ecrire toutes les rotations
+ * qu'elle utilise, sinon les valeurs laissees par le style precedent (ou par
+ * la marche) trainent d'une frame a l'autre. Aucune allocation ici — c'est
+ * appele une fois par danseur, chaque frame.
+ */
+function danceMember(
+  w: Walker,
+  body: Group,
+  legL: Group,
+  legR: Group,
+  armL: Group,
+  armR: Group,
+  p: number,
+  drive: number,
+  level: number,
+  bandBoost: number,
+  frame: AudioFrame,
+): void {
+  const beatEnv = frame.beat
+  switch (w.style) {
+    case 0 /* Bounce */: {
+      // Le style de reference : rebond sur le temps, bras qui montent avec
+      // les aigus. Sert d'ancre visuelle pour les autres styles.
+      const bounce = Math.abs(Math.sin(p))
+      const raise = Math.min(1, frame.bands[Band.HighMid] * 0.9 + level * 0.9)
+      body.position.y = BODY_Y - bounce * 0.075 * drive
+      body.rotation.z = Math.sin(p * 0.5 + w.seed * 6) * 0.09 * drive
+      body.rotation.x = 0.03 + Math.sin(p + 1) * 0.05 * drive
+      body.rotation.y = 0
+      legL.rotation.x = Math.sin(p) * 0.12 * drive
+      legR.rotation.x = -Math.sin(p) * 0.12 * drive
+      legL.rotation.z = 0
+      legR.rotation.z = 0
+      const lift = 0.3 + raise * 1.9 + Math.sin(p + w.seed * 5) * 0.25 * drive
+      armL.rotation.z = -lift
+      armR.rotation.z = lift
+      armL.rotation.x = Math.sin(p - 1) * 0.3 * drive
+      armR.rotation.x = Math.sin(p + 1) * 0.3 * drive
+      break
+    }
+    case 1 /* Sway */: {
+      // Balancement lateral : le buste s'incline a gauche puis a droite au
+      // rythme du morceau, les deux bras suivent le meme sens (comme
+      // accroches au corps). Aucun rebond vertical — c'est le style "posé".
+      const s = Math.sin(p * 0.5)
+      body.position.y = BODY_Y
+      body.rotation.z = s * 0.28 * (0.6 + drive * 0.6)
+      body.rotation.x = 0.02
+      body.rotation.y = s * 0.12
+      legL.rotation.x = 0
+      legR.rotation.x = 0
+      legL.rotation.z = s * 0.05
+      legR.rotation.z = s * 0.05
+      // Les bras se soulevent doucement en meme temps que l'inclinaison,
+      // avec un boost sur la bande preferee du danseur.
+      const armSwing = s * (0.6 + bandBoost * 0.6)
+      armL.rotation.z = -0.15 + armSwing
+      armR.rotation.z = 0.15 + armSwing
+      armL.rotation.x = Math.sin(p * 0.5 + 0.4) * 0.15
+      armR.rotation.x = Math.sin(p * 0.5 - 0.4) * 0.15
+      break
+    }
+    case 2 /* HandsUp */: {
+      // Bras en l'air en permanence, petit pump sur l'enveloppe de kick :
+      // silhouette "concert" reconnaissable au premier coup d'oeil.
+      const pump = beatEnv * (0.5 + bandBoost * 0.5)
+      body.position.y = BODY_Y - pump * 0.06
+      body.rotation.z = Math.sin(p + w.seed * 3) * 0.05
+      body.rotation.x = 0.05
+      body.rotation.y = 0
+      legL.rotation.x = 0
+      legR.rotation.x = 0
+      legL.rotation.z = 0
+      legR.rotation.z = 0
+      // Base tres haute + agitation legere : les mains restent au-dessus de
+      // la tete quoi qu'il arrive.
+      const high = 2.1 + pump * 0.35 + Math.sin(p * 2 + w.seed * 4) * 0.15
+      armL.rotation.z = -high
+      armR.rotation.z = high
+      armL.rotation.x = Math.sin(p * 2) * 0.2 + 0.1
+      armR.rotation.x = Math.sin(p * 2 + Math.PI) * 0.2 + 0.1
+      break
+    }
+    case 3 /* HeadBang */: {
+      // Buste qui plonge en avant sur chaque kick, bras plaques le long du
+      // corps qui pompent vers le bas : le mouvement du fond de salle sur un
+      // riff rentre-dedans. On utilise l'enveloppe beat (attaque nette)
+      // plutot qu'un sinus, sinon le mouvement flotte.
+      const kick = frame.bands[Band.Bass] * 0.6 + beatEnv * 0.8
+      const nod = Math.min(1, kick) * (0.4 + drive * 0.6)
+      body.position.y = BODY_Y - nod * 0.03
+      body.rotation.x = 0.06 + nod * 0.55
+      body.rotation.z = Math.sin(p + w.seed * 2) * 0.04
+      body.rotation.y = 0
+      legL.rotation.x = 0
+      legR.rotation.x = -nod * 0.15
+      legL.rotation.z = 0
+      legR.rotation.z = 0
+      // Bras colles au corps, poings qui descendent en cadence.
+      armL.rotation.z = -0.05
+      armR.rotation.z = 0.05
+      armL.rotation.x = nod * 0.6
+      armR.rotation.x = nod * 0.6
+      break
+    }
+    case 4 /* Groove */: {
+      // Un bras monte pendant que l'autre descend, avec bascule d'alternance
+      // a chaque temps : c'est cette bascule (pas le sinus) qui donne le
+      // sentiment "sur le beat" — un sinus fait un mouvement fluide, un
+      // switch discret marque le tempo.
+      if (frame.onsetCount !== w.danceLastOnset) {
+        w.danceState = -w.danceState
+        w.danceLastOnset = frame.onsetCount
+      }
+      const side = w.danceState
+      const roll = Math.sin(p * 0.5) * 0.14 * (0.6 + drive * 0.6)
+      body.position.y = BODY_Y - Math.abs(Math.sin(p * 0.5)) * 0.02
+      body.rotation.z = roll
+      body.rotation.x = 0.04
+      // Rotation du buste vers le cote actif : ca "vend" la torsion des hanches.
+      body.rotation.y = side * 0.18
+      legL.rotation.x = side > 0 ? 0.05 : -0.05
+      legR.rotation.x = side > 0 ? -0.05 : 0.05
+      legL.rotation.z = 0
+      legR.rotation.z = 0
+      // Le bras du cote "actif" monte franchement, l'autre reste bas.
+      const highArm = 1.4 + bandBoost * 0.6
+      const lowArm = 0.1
+      armL.rotation.z = side > 0 ? -highArm : -lowArm
+      armR.rotation.z = side > 0 ? lowArm : highArm
+      armL.rotation.x = Math.sin(p) * 0.15
+      armR.rotation.x = Math.sin(p + Math.PI) * 0.15
+      break
+    }
+    case 5 /* StepSide */: {
+      // Pas de cote : les deux jambes s'inclinent alternativement dans le
+      // meme sens (le corps translate legerement) et le buste suit. Bras
+      // bas, coudes qui pompent — plus "danse a deux" que "hands up".
+      const s = Math.sin(p * 0.5)
+      const shift = s * 0.06
+      body.position.y = BODY_Y - Math.abs(s) * 0.03
+      body.rotation.z = s * 0.1
+      body.rotation.x = 0.05
+      body.rotation.y = s * 0.06
+      // Les jambes basculent ensemble sur Z (comme si on glissait le pied
+      // vers le cote actif).
+      legL.rotation.z = s * 0.28
+      legR.rotation.z = s * 0.28
+      legL.rotation.x = -shift
+      legR.rotation.x = shift
+      // Bras bas, symetriques, qui font un petit pump sur le beat.
+      const pump = 0.2 + beatEnv * 0.25 * (0.6 + bandBoost * 0.6)
+      armL.rotation.z = -0.25 - pump * 0.3
+      armR.rotation.z = 0.25 + pump * 0.3
+      armL.rotation.x = -0.15 + pump * 0.5
+      armR.rotation.x = -0.15 + pump * 0.5
+      break
+    }
+  }
 }
 
 function clamp01(v: number): number {
