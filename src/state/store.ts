@@ -138,13 +138,13 @@ export interface InkSettings {
 
 export const DEFAULT_INK: InkSettings = {
   view: 'off',
-  flowScale: 8.0,
-  flowSpeed: 0.25,
+  flowScale: 4.0,
+  flowSpeed: 0.10,
   flowBass: 1,
   flowTreble: 0.8,
 
   injectMode: 'both',
-  advectStrength: 0.25,
+  advectStrength: 0.30,
   injectSize: 0.090,
   injectionRate: 12,
   rise: 0.55,
@@ -156,13 +156,13 @@ export const DEFAULT_INK: InkSettings = {
   rectCenterY: 0.15,
   rectHalfW: 0.5,
   rectHalfH: 0.28,
-  rectSoftness: 0.04,
+  rectSoftness: 0.03,
 
-  inkContrast: 1.4,
-  inkGrain: 0.35,
-  inkGrainScale: 180,
-  inkWetEdge: 1.2,
-  inkWobble: 1.5,
+  inkContrast: 1.0,
+  inkGrain: 0.10,
+  inkGrainScale: 300,
+  inkWetEdge: 4.0,
+  inkWobble: 1.6,
 }
 
 /** Scene debugger settings: visual aids only — there's no lighting left to tune. */

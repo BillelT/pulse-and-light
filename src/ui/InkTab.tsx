@@ -86,7 +86,7 @@ export function InkTab() {
           label="Scale"
           value={ink.flowScale}
           min={0.4}
-          max={8}
+          max={20}
           step={0.05}
           format={num}
           onChange={set('flowScale')}

@@ -40,11 +40,21 @@ import { INK_PAPER } from './ink'
  *  3. ping-pong FBO : la simulation avance dans deux WebGLRenderTarget qui
  *     s'echangent chaque frame. Advection semi-Lagrangienne par le flow
  *     field, injection au choix (fountain / drops / both), dissipation
- *     exponentielle et plafond doux. La fontaine est un INTEGRATEUR LEAKY :
- *     on tend vers le spectre courant plutot que de l'ajouter, sinon l'ecran
- *     sature ou garde des pointes qui persistent quand l'energie a bouge.
- *     Le spectre est lisse horizontalement (5 taps ponderes) pour arrondir
- *     les pointes cellule par cellule.
+ *     exponentielle et plafond doux.
+ *     La fontaine est un VISUALIZER DE COLONNES : le spectre pilote une
+ *     ligne de hauteur par colonne (base du mur -> plafond), le pigment est
+ *     injecte a PLEINE intensite sous la ligne et efface au-dessus, via un
+ *     integrateur leaky qui lisse la montee/descente. L'intensite audio
+ *     commande donc la HAUTEUR de l'encre, jamais son opacite — la densite
+ *     reste une affaire de variables d'encre (contraste, dissipation,
+ *     plafond). Silence -> mur vide : a niveau nul la ligne passe d'un
+ *     demi-pas SOUS la base, le flanc doux du masque n'emerge plus dans la
+ *     zone visible (aucune encre residuelle au sol). Quand le son coupe
+ *     apres avoir ete la, la ligne redescend en suivant le spectre via le
+ *     meme integrateur : la colonne tombe progressivement, comme un vrai
+ *     visualizer. Les piques culminent a 90% de la course pour rester dans
+ *     la fenetre visible du mur. Le spectre est lisse horizontalement
+ *     (5 taps ponderes).
  *  4. colorimetrie : le FBO stocke l'ABSORPTION en espace lineaire (Beer-
  *     Lambert simplifie), la palette BANDS complete (Sub -> Air) est lue
  *     dans `inkPalette.ts` et tient sur l'axe log-frequence commun au reste
@@ -52,7 +62,8 @@ import { INK_PAPER } from './ink'
  *     depose et garde cette couleur meme quand l'advection le deplace.
  *  5. masque rectangulaire : fenetre d'affichage bornee (centre + demi-taille
  *     + adoucissement des bords) pour cadrer le fluide comme un "ecran" au
- *     milieu du mur.
+ *     milieu du mur. Le bas de cette fenetre (le bas du mur, au niveau du
+ *     sol) sert de base d'ancrage des colonnes.
  */
 
 const WALL_Z = -26
@@ -159,6 +170,9 @@ float vnoise(vec2 p) {
 
 /**
  * Rendu "encre sur papier" a partir de l'absorption stockee dans le FBO.
+ *
+ * Le FBO contient des colonnes a pleine intensite (voir la fontaine du sim) :
+ * la densite vient du contraste/grain ici, pas du volume audio.
  *
  *  - wobble : micro-decalage de l'UV d'echantillonnage par un bruit fixe a
  *    l'ecran. Casse la douceur bilineaire parfaite, comme la passe encre
@@ -290,6 +304,9 @@ uniform float uDissipation;
 uniform float uCeiling;
 uniform float uCeilingSoftness;
 
+// Base des colonnes : bas du mur visible (bas du rect, au niveau du sol).
+uniform float uBaseY;
+
 ${SPECTRUM_SAMPLER_GLSL}
 ${FLOW_FIELD_GLSL}
 
@@ -300,24 +317,35 @@ vec3 sampleAbsorption(float x) {
 
 void main() {
   vec2 uv = vUv;
-  float localLevel = sampleSpectrum(uSpectrum, uv.x);
+  float localLevel = clamp(sampleSpectrum(uSpectrum, uv.x), 0.0, 1.0);
 
-  // 1. Advection semi-Lagrangienne. Le flow field donne la direction du
-  //    courant ; on ajoute un coup de pouce vertical proportionnel a
-  //    l'energie locale pour que les frequences fortes montent plus haut.
+  // 1. Advection semi-Lagrangienne. La hauteur etant pilotee directement par
+  //    la fontaine, le flow field ne sert plus qu'a faire VIVRE les bords :
+  //    ondulation organique de la trace, derive douce. Garder advect/rise
+  //    bas au HUD, sinon les colonnes s'etalent en nappe (look aquarelle).
   vec2 flow = flowField(uv, uTime, uFlowScale, uFlowSpeed, uFlowBass, uFlowTreble, uBass, uTreble);
   flow.y += uRise * localLevel;
   vec2 prevUv = uv - flow * uAdvectStrength * uDt;
   vec3 value = texture2D(uPrev, clamp(prevUv, 0.0, 1.0)).rgb;
 
-  // 2. Fontaine : integrateur leaky (framerate-independent) qui TEND vers
-  //    absorption * niveau courant. Quand l'energie baisse, le pigment
-  //    injecte suit vers le bas — plus de pointes fantomes qui persistent
-  //    pendant que le HUD montre autre chose.
+  // 2. Fontaine "visualizer" : l'intensite commande la HAUTEUR, pas
+  //    l'opacite. Le spectre local donne une ligne de hauteur ; sous la
+  //    ligne le pigment est injecte a PLEINE intensite (couleur saturee de
+  //    la bande), au-dessus il retombe a zero. Deux reglages fins :
+  //      - a silence la ligne descend d'un demi-pas SOUS la base : le flanc
+  //        doux du masque (± uInjectSize) est alors entierement sous la zone
+  //        visible, plus aucune encre residuelle au sol. Quand le son coupe
+  //        apres avoir ete la, la ligne redescend en suivant le spectre via
+  //        l'integrateur leaky — la colonne tombe progressivement, comme un
+  //        vrai visualizer.
+  //      - la course est bornee a 90% entre la base et le plafond : les
+  //        piques gardent une marge sous le haut de la fenetre visible.
   if (uInjectMode == 0 || uInjectMode == 2) {
-    float bandMask = 1.0 - smoothstep(0.0, uInjectSize, uv.y);
-    vec3 target = sampleAbsorption(uv.x) * localLevel;
-    float alpha = (1.0 - exp(-uInjectionRate * uDt)) * bandMask;
+    float span = max(uCeiling - uBaseY, 1e-4) * 0.9;
+    float line = uBaseY - uInjectSize + localLevel * (span + uInjectSize);
+    float heightMask = 1.0 - smoothstep(line - uInjectSize, line + uInjectSize, uv.y);
+    vec3 target = sampleAbsorption(uv.x) * heightMask;
+    float alpha = 1.0 - exp(-uInjectionRate * uDt);
     value = mix(value, target, alpha);
   }
 
@@ -332,7 +360,9 @@ void main() {
   }
 
   // 4. Dissipation exponentielle + plafond doux. Sans son la valeur retombe
-  //    a zero, au-dessus du plafond le pigment s'eteint comme de la fumee.
+  //    a zero (la ligne descend sous la base), au-dessus du plafond le
+  //    pigment s'eteint comme de la fumee — la pointe d'une colonne a fond
+  //    s'affine au sommet au lieu de se couper net.
   float fade = exp(-uDissipation * uDt);
   float ceilFactor = 1.0 - smoothstep(uCeiling, uCeiling + uCeilingSoftness, uv.y);
   value = clamp(value * fade * ceilFactor, 0.0, 1.0);
@@ -429,6 +459,7 @@ export function InkWall() {
           uDissipation: new Uniform(1.1),
           uCeiling: new Uniform(0.28),
           uCeilingSoftness: new Uniform(0.15),
+          uBaseY: new Uniform(0),
         },
       }),
     [palette],
@@ -531,6 +562,10 @@ export function InkWall() {
       gl.setClearColor(savedClear, savedAlpha)
     }
 
+    // Base des colonnes = bas de la fenetre visible, callee sur le bas du
+    // mur (le plan passe sous le sol, on borne a 0 = ligne de sol).
+    const baseY = Math.max(0, ink.rectCenterY - ink.rectHalfH)
+
     const s = simMaterial.uniforms
     s.uPrev.value = targets.current.read.texture
     s.uTime.value = clock.current
@@ -550,6 +585,7 @@ export function InkWall() {
     s.uDissipation.value = ink.dissipation
     s.uCeiling.value = ink.ceiling
     s.uCeilingSoftness.value = ink.ceilingSoftness
+    s.uBaseY.value = baseY
 
     gl.setRenderTarget(targets.current.write)
     gl.render(simScene, simCamera)
