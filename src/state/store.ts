@@ -46,16 +46,33 @@ export const DEFAULT_VISUAL: VisualSettings = {
  * Etape 1 : la seule brique en place est le pont audio -> DataTexture, on
  * expose donc une seule vue de debug qui affiche cette texture sur le mur.
  */
-export const INK_VIEWS = ['off', 'spectrum'] as const
+export const INK_VIEWS = ['off', 'spectrum', 'flow'] as const
 export type InkView = (typeof INK_VIEWS)[number]
 
 export interface InkSettings {
   /** Vue de debug active. 'off' = rendu reel (papier vide pour l'instant). */
   view: InkView
+
+  // --- Etape 2 · Flow field ---
+  /**
+   * Echelle spatiale du bruit. Grand nombre = petits tourbillons serres,
+   * petit nombre = grandes volutes qui traversent tout le mur.
+   */
+  flowScale: number
+  /** Vitesse de base d'evolution du champ, sans audio. */
+  flowSpeed: number
+  /** Combien les basses gonflent l'amplitude du champ (0 = pas d'audio). */
+  flowBass: number
+  /** Combien les aigus accelerent les micro-turbulences. */
+  flowTreble: number
 }
 
 export const DEFAULT_INK: InkSettings = {
   view: 'off',
+  flowScale: 2.4,
+  flowSpeed: 0.18,
+  flowBass: 1,
+  flowTreble: 0.8,
 }
 
 /** Scene debugger settings: visual aids only — there's no lighting left to tune. */
