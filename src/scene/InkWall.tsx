@@ -16,9 +16,12 @@ import {
   Uniform,
   Vector2,
   Vector3,
+  Vector4,
   type WebGLRenderTarget,
 } from 'three'
 import { engine } from '../audio/engine'
+import { BAND_COUNT, BANDS } from '../audio/bands'
+import { COLUMN_F_HI, COLUMN_F_LO } from '../audio/columns'
 import { COLUMN_COUNT } from '../audio/types'
 import { INK_INJECT_MODES, INK_VIEWS, readState } from '../state/store'
 import { audioTexture } from './audioTexture'
@@ -298,8 +301,12 @@ uniform float uRise;
 uniform int uInjectMode;
 uniform float uInjectSize;
 uniform float uInjectionRate;
-uniform vec2 uDropUv;
-uniform float uDropStrength;
+// Une goutte par bande (Sub..Air) : xy = position, z = force, w = rayon.
+// Sur un onset chaque bande PRESENTE depose sa propre goutte, a SA frequence
+// (donc sa couleur), pour que tout le spectre de couleurs apparaisse au lieu
+// de la seule bande la plus forte (la basse ecrasait tout en rouge).
+#define INK_DROP_COUNT ${BAND_COUNT}
+uniform vec4 uDrops[INK_DROP_COUNT];
 uniform float uDissipation;
 uniform float uCeiling;
 uniform float uCeilingSoftness;
@@ -364,13 +371,22 @@ void main() {
   }
 
   // 3. Gouttes : additif borne (jamais > 1) pour un coup net sur onset.
-  //    La couleur suit la frequence de pic du transitoire (uDropUv.x).
-  if ((uInjectMode == 1 || uInjectMode == 2) && uDropStrength > 0.001) {
-    vec2 d = uv - uDropUv;
-    float sigma2 = uInjectSize * uInjectSize;
-    float blob = exp(-dot(d, d) / (sigma2 + 1e-6)) * uDropStrength;
-    vec3 dropAbs = sampleAbsorption(uDropUv.x);
-    value += dropAbs * blob * clamp(1.0 - value, 0.0, 1.0);
+  //    Une goutte par bande, chacune a SA frequence donc SA couleur : tout le
+  //    spectre de couleurs present sur le beat apparait. L'energie de la bande
+  //    pilote le RAYON (l'intensite = la taille/masse d'encre), pas la
+  //    saturation — une bande discrete mais presente donne une petite tache
+  //    bien coloree plutot qu'une teinte delavee.
+  if (uInjectMode == 1 || uInjectMode == 2) {
+    for (int k = 0; k < INK_DROP_COUNT; k++) {
+      vec4 drop = uDrops[k];
+      if (drop.z > 0.001) {
+        vec2 d = uv - drop.xy;
+        float radius2 = drop.w * drop.w;
+        float blob = exp(-dot(d, d) / (radius2 + 1e-6)) * drop.z;
+        vec3 dropAbs = sampleAbsorption(drop.x);
+        value += dropAbs * blob * clamp(1.0 - value, 0.0, 1.0);
+      }
+    }
   }
 
   // 4. Dissipation exponentielle + plafond doux. Sans son la valeur retombe
@@ -401,54 +417,22 @@ function headAverage(cols: Float32Array, count: number): number {
   return n > 0 ? s / n : 0
 }
 
-const dropWeights = new Float32Array(COLUMN_COUNT)
-
 /**
- * Colonne (donc couleur, via `sampleAbsorption(uDropUv.x)`) d'une goutte sur
- * onset. On veut la frequence du TRANSITOIRE, pas le pic absolu du spectre.
- *
- * Un simple argmax du spectre lisse collait presque toujours la goutte a
- * l'extreme rouge : la basse est en permanence la colonne la plus forte
- * (et parfois l'extreme bleu sur une cymbale). Les mediums (orange / jaune /
- * vert) ne devenaient quasi jamais le maximum global, donc ils
- * n'apparaissaient jamais en mode drops — alors qu'ils sont bien presents,
- * comme le montre le visualizer.
- *
- * On pondere donc chaque colonne par sa MONTEE depuis la frame precedente
- * (flux spectral positif) : la bande qui a saute sur l'onset gagne, qu'elle
- * soit grave, mediane ou aigue. Tirage pondere plutot qu'argmax pour une
- * variete organique proportionnelle a la presence de chaque bande. Sans
- * attaque nette (source soutenue / procedurale), on retombe sur le niveau
- * courant pour rester coherent avec ce qui sonne.
+ * Position UV.x de chaque bande sur l'axe log-frequence (le meme que
+ * `inkPalette` et `audioTexture`). Sert a placer la goutte d'une bande a SA
+ * couleur : `sampleAbsorption(x)` lue a cette position rend bien la teinte de
+ * la bande. Calcule une fois, immuable.
  */
-function transientColumnUv(cols: Float32Array, prev: Float32Array): number {
-  const n = cols.length
-  const uvAt = (i: number) => (n > 1 ? i / (n - 1) : 0.5)
-
-  let total = 0
-  for (let i = 0; i < n; i++) {
-    const rise = cols[i] - prev[i]
-    const w = rise > 0 ? rise : 0
-    dropWeights[i] = w
-    total += w
-  }
-  if (total <= 1e-4) {
-    total = 0
-    for (let i = 0; i < n; i++) {
-      const w = cols[i] > 0 ? cols[i] : 0
-      dropWeights[i] = w
-      total += w
-    }
-  }
-  if (total <= 1e-6) return uvAt(Math.floor(n / 2))
-
-  let r = Math.random() * total
-  for (let i = 0; i < n; i++) {
-    r -= dropWeights[i]
-    if (r <= 0) return uvAt(i)
-  }
-  return uvAt(n - 1)
-}
+const BAND_ANCHOR_X: readonly number[] = (() => {
+  const logLo = Math.log2(COLUMN_F_LO)
+  const logHi = Math.log2(COLUMN_F_HI)
+  return BANDS.map((band) =>
+    Math.min(
+      1,
+      Math.max(0, (Math.log2(Math.sqrt(band.from * band.to)) - logLo) / (logHi - logLo)),
+    ),
+  )
+})()
 
 const BAND_TAP = Math.max(1, Math.floor(COLUMN_COUNT / 4))
 const clearColorScratch = new Color()
@@ -459,9 +443,6 @@ export function InkWall() {
   const clock = useRef(0)
   const lastOnset = useRef(-1)
   const lastResetSignal = useRef(inkFluid.resetSignal)
-  // Spectre de la frame precedente : sert a mesurer la MONTEE par colonne
-  // (flux positif) pour choisir la frequence d'une goutte sur onset.
-  const prevColumns = useRef(new Float32Array(COLUMN_COUNT))
   const palette = useMemo(() => createInkPalette(), [])
 
   const fboOpts = useMemo(
@@ -508,8 +489,9 @@ export function InkWall() {
           uInjectMode: new Uniform(2),
           uInjectSize: new Uniform(0.045),
           uInjectionRate: new Uniform(8),
-          uDropUv: new Uniform(new Vector2(0.5, 0.15)),
-          uDropStrength: new Uniform(0),
+          uDrops: new Uniform(
+            Array.from({ length: BAND_COUNT }, () => new Vector4(0.5, 0.15, 0, 0.045)),
+          ),
           uDissipation: new Uniform(1.1),
           uCeiling: new Uniform(0.28),
           uCeilingSoftness: new Uniform(0.15),
@@ -591,16 +573,40 @@ export function InkWall() {
     // Detection d'onset via onsetCount : le booleen d'analyse est valable
     // une seule frame d'analyse (125 Hz) et serait rate une fois sur deux
     // au rendu (60 Hz).
-    let dropStrength = 0
-    if (frame.onsetCount !== lastOnset.current) {
+    //
+    // Sur un onset, chaque bande PRESENTE (celles qu'affiche le visualizer)
+    // depose sa propre goutte, a SA frequence donc SA couleur : tout le spectre
+    // de couleurs apparait au lieu de la seule bande dominante. L'energie de la
+    // bande pilote le RAYON (l'intensite = la taille d'encre), la saturation
+    // restant pleine — une bande discrete mais presente donne une petite tache
+    // bien coloree, pas une teinte delavee. Entre deux onsets on remet toutes
+    // les forces a zero pour ne pas re-injecter les gouttes de l'onset passe.
+    const drops = simMaterial.uniforms.uDrops.value as Vector4[]
+    const onset = frame.onsetCount !== lastOnset.current
+    if (onset) {
       lastOnset.current = frame.onsetCount
-      dropStrength = 1
-      const x = transientColumnUv(frame.columns, prevColumns.current)
-      // On contraint y sous le plafond, sinon la goutte serait dessinee
-      // dans la zone qui va la faire fondre immediatement.
+      // On contraint y sous le plafond, sinon la goutte serait dessinee dans
+      // la zone qui va la faire fondre immediatement.
       const yTop = Math.max(0.06, ink.ceiling * 0.75)
-      const y = 0.05 + Math.random() * (yTop - 0.05)
-      ;(simMaterial.uniforms.uDropUv.value as Vector2).set(x, y)
+      for (let b = 0; b < BAND_COUNT; b++) {
+        const energy = frame.bands[b]
+        const drop = drops[b]
+        if (energy > 0.04) {
+          const y = 0.05 + Math.random() * (yTop - 0.05)
+          // Saturation quasi pleine des qu'une bande est presente ; le rayon
+          // (donc la masse d'encre) grandit avec l'energie.
+          drop.set(
+            BAND_ANCHOR_X[b],
+            y,
+            Math.min(1, 0.55 + energy * 0.6),
+            ink.injectSize * (0.7 + energy * 1.8),
+          )
+        } else {
+          drop.z = 0
+        }
+      }
+    } else {
+      for (let b = 0; b < BAND_COUNT; b++) drops[b].z = 0
     }
 
     if (inkFluid.resetSignal !== lastResetSignal.current) {
@@ -635,7 +641,6 @@ export function InkWall() {
     s.uInjectMode.value = INK_INJECT_MODES.indexOf(ink.injectMode)
     s.uInjectSize.value = ink.injectSize
     s.uInjectionRate.value = ink.injectionRate
-    s.uDropStrength.value = dropStrength
     s.uDissipation.value = ink.dissipation
     s.uCeiling.value = ink.ceiling
     s.uCeilingSoftness.value = ink.ceilingSoftness
@@ -667,9 +672,6 @@ export function InkWall() {
     w.uInkWetEdge.value = ink.inkWetEdge
     w.uInkWobble.value = ink.inkWobble
     w.uFluid.value = targets.current.read.texture
-
-    // Memorise le spectre pour mesurer la montee par colonne au prochain onset.
-    prevColumns.current.set(frame.columns)
   })
 
   return (
