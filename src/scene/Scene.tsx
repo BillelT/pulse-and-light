@@ -19,7 +19,7 @@ export function Scene() {
       // pousse aucune valeur emissive, ce n'est plus necessaire ici.
       flat
       dpr={[1, 2]}
-      camera={{ fov: 42, near: 0.1, far: 220, position: [0, 4.4, 18] }}
+      camera={{ fov: 42, near: 0.01, far: 240, position: [0, 4.4, 18] }}
       gl={{ antialias: false, powerPreference: 'high-performance', alpha: false }}
     >
       <color attach="background" args={[INK_PAPER]} />

@@ -22,10 +22,10 @@ import { INK_PAPER } from './ink'
  */
 
 const WALL_Z = -26
-const WALL_WIDTH = 300
+const WALL_WIDTH = 100
 const WALL_HEIGHT = 150
 /** Centre du plan : sa moitie basse passe sous le sol, elle n'est jamais peinte. */
-const WALL_CENTER_Y = 50
+const WALL_CENTER_Y = 75
 
 function srgb(hex: string): Vector3 {
   const v = parseInt(hex.slice(1), 16)
@@ -48,7 +48,7 @@ void main() {
  * que le rendu reel, sinon elles debuggent autre chose que ce qui tourne.
  */
 const fragmentShader = /* glsl */ `
-precision highp float;
+precision mediump float;
 
 varying vec2 vUv;
 
@@ -71,7 +71,7 @@ void main() {
     float level = texture2D(uSpectrum, vec2(vUv.x, 0.5)).r;
     // vUv.y va de 0 en bas a 1 en haut sur le plan. On plafonne le
     // remplissage a 40% de la hauteur pour laisser du papier autour.
-    float fill = step(vUv.y, level * 0.4);
+    float fill = step(vUv.y, level * 0.25);
     col = mix(uPaper, vec3(0.08, 0.07, 0.06), fill);
   }
 
