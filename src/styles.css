@@ -129,67 +129,7 @@ select {
   background: rgba(20, 18, 15, 0.07);
 }
 
-/* ---------- Analyseur (bas gauche) ---------- */
-
-.analyzer {
-  position: absolute;
-  left: 24px;
-  bottom: 24px;
-  width: 256px;
-  padding: 16px;
-  border-radius: 12px;
-  color: var(--ink);
-  background: #ffffff;
-  border: 1px solid var(--line);
-}
-
-.analyzer canvas {
-  display: block;
-  width: 100%;
-  height: 64px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #ffffff;
-}
-
-.analyzer-bands {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 4px;
-  margin-top: 16px;
-}
-
-.analyzer-band {
-  font-size: 8px;
-  color: var(--ink-dim);
-  text-align: center;
-  letter-spacing: -0.01em;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-/* Les six bandes du spectre restent au trait : aucun aplat de couleur nulle
-   part dans l'interface. */
-.analyzer-band span {
-  display: block;
-  height: 4px;
-  margin-top: 8px;
-  background: var(--ink);
-  opacity: 0.75;
-  transform-origin: left;
-}
-
-.analyzer-meta {
-  display: flex;
-  justify-content: space-between;
-  color: var(--ink);
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  margin-top: 16px;
-  font-weight: 600;
-}
-
-/* ---------- Signature (bas droite, miroir de l'analyseur) ---------- */
+/* ---------- Signature (bas droite) ---------- */
 
 .signature {
   position: absolute;
@@ -953,9 +893,6 @@ input[type='search']:focus {
     bottom: 10px;
     width: auto;
     max-height: 52vh;
-  }
-  .analyzer {
-    display: none;
   }
   .signature {
     display: none;

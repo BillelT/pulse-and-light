@@ -1,5 +1,4 @@
 import { useStore } from '../state/store'
-import { Analyzer } from './Analyzer'
 import { CloseIcon, MoreIcon } from './icons'
 
 const DEV = import.meta.env.DEV
@@ -22,8 +21,6 @@ export function Hud() {
           </button>
         </div>
       )}
-
-      <Analyzer />
 
       <a
         className="signature"

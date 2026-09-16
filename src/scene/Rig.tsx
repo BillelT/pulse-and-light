@@ -6,13 +6,17 @@ import { Band } from '../audio/bands'
 import { CAMERA_BOUNDS } from './roomLayout'
 import { readState, useStore } from '../state/store'
 
-const TARGET = new Vector3(0, 4.3, -2.2)
+// Centre de la fenetre peinte du mur d'encre (voir InkWall : plan a
+// y=75/z=-26, fenetre par defaut centree en uv (0.5, 0.15) +/-(0.5, 0.28),
+// bornee au sol). Seul element de la scene desormais : la cible et les
+// bornes de l'orbite ne cadrent plus que lui.
+const TARGET = new Vector3(0, 32, -26)
 const _pos = new Vector3()
 const _look = new Vector3()
 
-const MIN_RADIUS = 9
-const MAX_RADIUS = 78
-const MIN_PHI = 0.28
+const MIN_RADIUS = 56
+const MAX_RADIUS = 90
+const MIN_PHI = 1.1
 const MAX_PHI = 1.72
 
 /** FOV vertical de reference, calibre pour un ecran large (desktop). */
@@ -20,7 +24,7 @@ const BASE_FOV = 60
 /**
  * En portrait, un FOV vertical fixe donne un FOV horizontal bien plus etroit
  * qu'en paysage (le FOV horizontal depend du ratio largeur/hauteur) : on ne
- * voyait plus qu'une tranche de la piste, jamais la foule en entier.
+ * voyait plus qu'une tranche du mur, jamais sa largeur en entier.
  * On elargit le FOV vertical quand l'ecran est plus haut que large, borne
  * pour ne pas deformer l'image comme un fisheye.
  */
@@ -63,11 +67,11 @@ export function CameraRig() {
   const spherical = useRef(
     (() => {
       // Meme punition qu'au niveau du FOV : en portrait, on recule un peu la
-      // camera par defaut pour que toute la foule tienne dans le cadre des
+      // camera par defaut pour que le mur tienne dans le cadre des
       // l'ouverture, sans que l'utilisateur ait a dezoomer.
       const aspect = typeof window !== 'undefined' ? window.innerWidth / window.innerHeight : 16 / 9
-      const radius = aspect < 1 ? 32 * clamp(1 / aspect, 1, 1.7) : 32
-      return new Spherical(radius, 1.35, 0)
+      const radius = aspect < 1 ? 58 * clamp(1 / aspect, 1, 1.7) : 58
+      return new Spherical(radius, 1.42, 0)
     })(),
   )
   const drag = useRef<{ active: boolean; x: number; y: number }>({ active: false, x: 0, y: 0 })
@@ -128,11 +132,9 @@ export function CameraRig() {
       const s = spherical.current
       s.theta -= dx * 0.004
       s.phi = clamp(s.phi - dy * 0.003, MIN_PHI, MAX_PHI)
-      // Le mur est frontal : on interdit de passer derriere. On elargit l'arc
-      // pour laisser plus de latitude sur les cotes tout en gardant la scene
-      // dans le cadre — cos(1.15) reste positif, donc la camera ne se retourne
-      // jamais vers l'arriere de la piste.
-      s.theta = clamp(s.theta, -1.15, 1.15)
+      // Le mur d'encre est le seul element de la scene : on borne l'arc assez
+      // serre pour qu'il reste toujours dans le cadre, meme en bout de course.
+      s.theta = clamp(s.theta, -0.55, 0.55)
     }
     const up = (e: PointerEvent) => {
       pointers.current.delete(e.pointerId)
