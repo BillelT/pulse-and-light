@@ -2,13 +2,10 @@ import { Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { AdaptiveDpr, Preload } from '@react-three/drei'
 import { AudioDriver } from './AudioDriver'
-import { Crowd } from './Crowd'
 import { Effects } from './Effects'
 import { INK_PAPER } from './ink'
 import { InkWall } from './InkWall'
 import { CameraRig, DebugHelpers } from './Rig'
-import { Stage } from './Stage'
-import { SubCabinets } from './SubCabinets'
 import { CAPTURE_ENABLED } from '../ui/CaptureButton'
 
 export function Scene() {
@@ -36,13 +33,9 @@ export function Scene() {
       <AudioDriver />
       <CameraRig />
       <DebugHelpers />
-      
 
       <Suspense fallback={null}>
         <InkWall />
-        <Stage />
-        <SubCabinets />
-        <Crowd />
         <Preload all />
       </Suspense>
 
