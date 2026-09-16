@@ -9,8 +9,8 @@ import { NextIcon, PauseIcon, PlayIcon, PrevIcon, SearchIcon, SpeakerIcon } from
 type Mode = 'spotify' | 'mic' | 'tab'
 
 const MODES: Array<{ id: Mode; label: string }> = [
-  { id: 'spotify', label: 'Spotify' },
   { id: 'mic', label: 'Microphone' },
+  { id: 'spotify', label: 'Spotify' },
   { id: 'tab', label: 'Tab' },
 ]
 
@@ -34,7 +34,7 @@ export function SourceDock({
   spotify: SpotifyController
 }) {
   const sourceKind = useStore((s) => s.sourceKind)
-  const [mode, setMode] = useState<Mode>('spotify')
+  const [mode, setMode] = useState<Mode>('mic')
 
   const selectMode = (m: Mode) => {
     setMode(m)
